@@ -5,8 +5,8 @@
 window.SITE_CONFIG = {
   /* Supabase → Project Settings → API Keys.
      Use the PUBLISHABLE (or anon) key — never the secret / service_role key. */
-  supabaseUrl: "",          // e.g. "https://abcdefghijkl.supabase.co"
-  supabaseKey: "",          // e.g. "sb_publishable_..."
+  supabaseUrl: "https://addfbbpqhxsinedvnnme.supabase.co",          // e.g. "https://abcdefghijkl.supabase.co"
+  supabaseKey: "sb_publishable_vNys_OaZ_iVP1bfJj64Qhw_QQvyEaQp",          // e.g. "sb_publishable_..."
 
   /* GCash details shown on the payment page (pay.html) */
   gcash: {
