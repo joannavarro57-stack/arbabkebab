@@ -685,18 +685,21 @@ Object.assign(STORE, window.SITE_CONFIG || {});   // values from config.js win
    optional options: [{label, choices:[{name, add}] }]  (add = extra peso cost)        */
 const SPICE = {label:"Spice level", choices:[{name:"Mild",add:0},{name:"Spicy",add:0},{name:"Extra spicy",add:0}]};
 const MENU_CATS = [
-  {id:"shawarma", name:"Shawarma", sub:"Wrapped in warm pita with garlic sauce, pickles and veggies."},
-  {id:"rice", name:"Rice Meals", sub:"Served with Arabian rice and garlic sauce."},
-  {id:"kabsa", name:"Kabsa & Mandi", sub:"Slow-cooked spiced rice, the Middle East way."},
-  {id:"platters", name:"Platters", sub:"Good for sharing — barkada, family, or office."},
-  {id:"sides", name:"Sides & Dips", sub:""},
-  {id:"drinks", name:"Drinks", sub:""}
+  {id:"Solo", name:"Solo Orders", sub:""},
+  {id:"Salads", name:"Salads", sub:""},
+  {id:"Potluck", name:"Potlucks", sub:""},
+  {id:"MealSets", name:"Meal Sets", sub:""},
+  {id:"Fried", name:"Fried", sub:""},
+  {id:"AddOns", name:"Add-Ons", sub:""}
+  {id:"Wraps", name:"Wraps", sub:""}
+  {id:"DrinksDrinks", name:"Drinks", sub:""}
+  {id:"Sauces", name:"Sauces", sub:""}
 ];
 const MENU = [
-  {id:"sw-chk", cat:"shawarma", name:"Chicken Shawarma Wrap", desc:"Marinated chicken shaved off the spit, garlic toum, pickles, fries inside.", price:129, tag:"Bestseller", options:[{label:"Size",choices:[{name:"Regular",add:0},{name:"Large",add:40}]},SPICE]},
-  {id:"sw-beef", cat:"shawarma", name:"Beef Shawarma Wrap", desc:"Spiced beef, tahini, tomatoes, onions and parsley.", price:149, options:[{label:"Size",choices:[{name:"Regular",add:0},{name:"Large",add:40}]},SPICE]},
-  {id:"sw-arabi", cat:"shawarma", name:"Shawarma Arabi", desc:"Cut-up wrap, toasted crisp, with fries, garlic sauce and pickles on the side.", price:199, tag:"Must try"},
-  {id:"rm-chk", cat:"rice", name:"Chicken Shawarma Rice", desc:"Generous chicken shawarma over Arabian rice.", price:159, options:[SPICE]},
+  {id:"ml_set", cat:"MealSets", name:"Shawaya Set 1", desc:"Whole Chicken served with tomato chutney and garlic paste", price:375, tag:"Bestseller", options:[SPICE]},
+  {id:"ml_set", cat:"MealSets", name:"Beef Shawarma Wrap", desc:"Spiced beef, tahini, tomatoes, onions and parsley.", price:149, options:[{label:"Size",choices:[{name:"Regular",add:0},{name:"Large",add:40}]},SPICE]},
+  {id:"ml_set", cat:"MealSets", name:"Shawarma Arabi", desc:"Cut-up wrap, toasted crisp, with fries, garlic sauce and pickles on the side.", price:199, tag:"Must try"},
+  {id:"ml_set", cat:"MealSets", name:"Chicken Shawarma Rice", desc:"Generous chicken shawarma over Arabian rice.", price:159, options:[SPICE]},
   {id:"rm-beef", cat:"rice", name:"Beef Shawarma Rice", desc:"Spiced beef shawarma over Arabian rice.", price:179, options:[SPICE]},
   {id:"rm-kubideh", cat:"rice", name:"Beef Kebab Rice", desc:"Two skewers of chargrilled ground-beef kebab, grilled tomato.", price:189, options:[{label:"Skewers",choices:[{name:"2 skewers",add:0},{name:"3 skewers",add:70}]}]},
   {id:"rm-tawook", cat:"rice", name:"Shish Tawook Rice", desc:"Yogurt-marinated chicken cubes, chargrilled on skewers.", price:179},
