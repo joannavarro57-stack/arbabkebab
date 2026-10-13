@@ -707,36 +707,45 @@ const MENU_CATS = [
   {id:"Fried", name:"Fried", sub:""},
   {id:"AddOns", name:"Add-Ons", sub:""},
   {id:"Wraps", name:"Wraps", sub:""},
-  {id:"DrinksDrinks", name:"Drinks", sub:""},
+  {id:"Drinks", name:"Drinks", sub:""},
   {id:"Sauces", name:"Sauces", sub:""}
 ];
 const MENU = [
   //Meal Sets
-  {id:"meal-set-1", cat:"MealSets", name:"Shawaya Set 1", desc:"Whole chicken served with tomato chutney and garlic paste", price:375, tag:"Bestseller", options:[SPICE,EXTRA_KABSA_RICE]},
-  {id:"meal-set-2", cat:"MealSets", name:"Shawaya Set 2", desc:"Whole chicken with 2 cups of rice, served with tomato chutney and garlic paste", price:475, options:[SPICE,EXTRA_KABSA_RICE]},
-  {id:"meal-set-3", cat:"MealSets", name:"Shawaya Set 3", desc:"Whole chicken with 4 pcs Arabic bread and fries platter, served with tomato chutney and garlic paste", price:595, tag:"Must try", options:[EXTRA_KABSA_RICE]},
-  {id:"meal-set-4", cat:"MealSets", name:"Shawaya Set 4", desc:"Whole chicken with 4 cups of rice and your choice of salad, served with tomato chutney and garlic paste.", price:695, options:[SPICE,EXTRA_KABSA_RICE]},
+  {id:"MS1", cat:"MealSets", name:"Shawaya Set 1", desc:"Whole chicken served with tomato chutney and garlic paste", price:375, tag:"Bestseller", options:[SPICE,EXTRA_KABSA_RICE], img:"images/Shawaya_1.png"},
+  {id:"MS2", cat:"MealSets", name:"Shawaya Set 2", desc:"Whole chicken with 2 cups of rice, served with tomato chutney and garlic paste", price:475, options:[SPICE,EXTRA_KABSA_RICE], img:"images/Shawaya_2.png"},
+  {id:"MS3", cat:"MealSets", name:"Shawaya Set 3", desc:"Whole chicken with 4 pcs Arabic bread and fries platter, served with tomato chutney and garlic paste", price:595, tag:"Must try", options:[EXTRA_KABSA_RICE], img:"images/Shawaya_3.png"},
+  {id:"MS4", cat:"MealSets", name:"Shawaya Set 4", desc:"Whole chicken with 4 cups of rice and your choice of salad, served with tomato chutney and garlic paste.", price:695, options:[SPICE,EXTRA_KABSA_RICE,{label:"Salad",choices:[{name:"Fattoush",add:0},{name:"Tabbouleh",add:0}]}], img:"images/Shawaya_4.png"},
   //Potluck
-  {id:"potluck", cat:"Potluck", name:"Potluck", desc:"Good for 4-6 pax.", price:995, options:[SPICE,EXTRA_KABSA_RICE]},
-  {id:"potluck", cat:"Potluck", name:"Shawaya Potluck", desc:"	Good for 4–6 pax", price:1299, options:[{label:"Skewers",choices:[{name:"2 skewers",add:0},{name:"3 skewers",add:70}]},EXTRA_KABSA_RICE]},
+  {id:"PL1", cat:"Potluck", name:"Potluck", desc:"Good for 4-6 pax.", price:995, options:[SPICE,EXTRA_KABSA_RICE], img:"images/Potluck.png"},
+  {id:"PL2", cat:"Potluck", name:"Shawaya Potluck", desc:"	Good for 4–6 pax", price:1299, options:[{label:"Skewers",choices:[{name:"2 skewers",add:0},{name:"3 skewers",add:70}]},EXTRA_KABSA_RICE], img:"images/S_Potluck.png"},
   //Salads
-  {id:"sld", cat:"Salads", name:"Fattoush", desc:"Fresh greens with bread crisps", price:179},
-  {id:"sld", cat:"Salads", name:"Tabbouleh", desc:"Fresh parsley, tomato, onions and other greens with olive oil and lemon dressing", price:229, tag:"Fan favorite"},
+  {id:"SLD1", cat:"Salads", name:"Fattoush", desc:"Fresh greens with bread crisps", price:179, img:"images/Fattoush.png"},
+  {id:"SLD2", cat:"Salads", name:"Tabbouleh", desc:"Fresh parsley, tomato, onions and other greens with olive oil and lemon dressing", price:229, img:"images/Tabouleh.png"},
   //Solo Orders
-  {id:"slo", cat:"Solo", name:"Kabsa Chicken", desc:"Charcoal-grilled quarter chicken, served with tomato chutney", price:260},
-  {id:"slo", cat:"Solo", name:"Kabsa Beef", desc:"Tender beef chunks, served with tomato chutney", price:350, options:[{label:"Add rice",choices:[{name:"No rice",add:0},{name:"With kabsa rice (good for 3)",add:150}]}]},
-  {id:"slo", cat:"Solo", name:"Chicken Biryani", desc:"Served with yogurt salad (raita)", price:290},
-  {id:"slo", cat:"Solo", name:"Grilled Half Chicken", desc:"Charcoal-grilled half chicken with Arabic bread and fries platter, served with garlic paste and BBQ sauce", price:375,   options:[SPICE]},
-  {id:"beef-kebab-rice", cat:"Solo", name:"Beef Kebab with Rice", desc:"Served with 1 kebab; add another piece for ₱95.", price:195, options:[{label:"Extra kebab",choices:[{name:"No extra piece",add:0},{name:"Add 1 more piece",add:95}]}]},
-  {id:"chicken-kebab-rice", cat:"Solo", name:"Chicken Kebab with Rice", desc:"Served with 1 kebab; add another piece for ₱95.", price:195, options:[{label:"Extra kebab",choices:[{name:"No extra piece",add:0},{name:"Add 1 more piece",add:95}]}]},
-  
-  {id:"sd-hummus", cat:"sides", name:"Hummus & Pita", desc:"Creamy chickpea dip with olive oil and warm pita.", price:119},
-  {id:"sd-fries", cat:"sides", name:"Shawarma Fries", desc:"Fries loaded with chicken shawarma and garlic sauce.", price:149},
-  {id:"sd-garlic", cat:"sides", name:"Extra Garlic Sauce", desc:"The good stuff. 2 oz cup.", price:25},
-  {id:"sd-rice", cat:"sides", name:"Extra Arabian Rice", desc:"", price:40},
-  {id:"dr-laban", cat:"drinks", name:"Laban", desc:"Chilled salted yogurt drink.", price:69},
-  {id:"dr-mint", cat:"drinks", name:"Mint Lemonade", desc:"Fresh lemon blended with mint.", price:89},
-  {id:"dr-tea", cat:"drinks", name:"Iced Tea", desc:"", price:45}
+  {id:"sloKC", cat:"Solo", name:"Kabsa Chicken", desc:"Charcoal-grilled quarter chicken, served with tomato chutney", price:260, img:"images/Kabsa_Chk.png"},
+  {id:"sloKB", cat:"Solo", name:"Kabsa Beef", desc:"Tender beef chunks, served with tomato chutney", price:350, options:[{label:"Add rice",choices:[{name:"No rice",add:0},{name:"With kabsa rice (good for 3)",add:150}]}], img:"images/Kabsa_Bf.png"},
+  {id:"sloCB", cat:"Solo", name:"Chicken Biryani", desc:"Served with yogurt salad (raita)", price:290, img:"images/Chk_Biryani.png"},
+  {id:"sloGHC", cat:"Solo", name:"Grilled Half Chicken", desc:"Charcoal-grilled half chicken with Arabic bread and fries platter, served with garlic paste and BBQ sauce", price:375,   options:[SPICE], tag:"Fan favorite",img:"images/GrilledChk_hf.png"},
+  {id:"sloBKR", cat:"Solo", name:"Beef Kebab with Rice", desc:"Choose between 1 or 2 piece kebabs", price:195, options:[{label:"Kebab count",choices:[{name:"1 piece",add:0},{name:"2 pieces",add:95}]}], img:"images/Bf_Kebab.png"},
+  {id:"sloCKR", cat:"Solo", name:"Chicken Kebab with Rice", desc:"Choose between 1 or 2 piece kebabs", price:170, options:[{label:"Kebab count",choices:[{name:"1 piece",add:0},{name:"2 pieces",add:70}]}], img:"images/Chk_Kebab.png"},
+  //Fried
+  {id:"ChkW", cat:"Fried", name:"Chicken Wings", desc:"Crispy chicken wings with fries, served with BBQ sauce · 6 pcs / 12 pcs", price:180, options:[{label:"Wings count",choices:[{name:"6 pcs",add:0},{name:"12 pcs",add:110}]}], img:"images/Chk_Wings.png"},
+  {id:"Falafel", cat:"Fried", name:"Fried Falafel", desc:"6 pcs, served with tzatziki sauce", price:150, img:"images/Falafel.png"},
+  {id:"FFries", cat:"Fried", name:"Fries Platter", desc:"Served with BBQ sauce", price:150, img:"images/Fries_Pltr.png"},
+  //Wraps
+  {id:"BKS", cat:"Wraps", name:"Beef Kebab Shawarma", desc:"", price:150, options:[SPICE], img:"images/Bf_Kbb_Shwrma.png"},
+  {id:"CSma", cat:"Wraps", name:"Chicken Shawarma", desc:"", price:135, options:[SPICE], img:"images/Chk_Shwrma.png"},
+  {id:"CKS", cat:"Wraps", name:"Chicken Kebab Shawarma", desc:"", price:130, options:[SPICE], img:"images/Chk_Kbb_Shwrma.png"},
+  {id:"FLW", cat:"Wraps", name:"Falafel Wrap", desc:"", price:130,  options:[SPICE], img:"images/Falafel_Shwrma.png"},
+  //AddOns
+  {id:"BTR_Chk", cat:"AddOns", name:"Buttered Chicken", desc:"", price:195, img:"images/BTTR_Chk.png"},
+  {id:"CHN_Msla", cat:"AddOns", name:"Chana Masala", desc:"Served with 1 pc Arabic bread", price:150, img:"images/CHNA_MSLA.png"},
+  {id:"Hms", cat:"AddOns", name:"Hummus", desc:"", price:150, img:"images/Hms.png"},
+  {id:"Kbs_Rice", cat:"AddOns", name:"Kabsa Rice", desc:"", price:170, img:"images/Kabsa_Rice.png"},
+  //Drinks
+  {id:"Wtr", cat:"Drinks", name:"Water", desc:"", price:35},
+  {id:"Sfd", cat:"Drinks", name:"Soda", desc:"", price:50},
 ];
 
 /* ================= APP ================= */
