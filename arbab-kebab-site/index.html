@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- SEO: replace https://arbabkebab.com everywhere in this file, robots.txt and sitemap.xml with the real domain -->
-<title>Arbab Kebab | Shawarma, Kebab &amp; Kabsa Delivery in San Mateo &amp; Malolos</title>
-<meta name="description" content="Order shawarma, beef kebab, chicken kabsa, mandi and roast chicken from Arbab Kebab — Middle Eastern food delivery and takeout in San Mateo and Malolos. Sarap na Legit, Lasang Middle East!">
+<title>Arbab Kebab | Shawarma, Kebab &amp; Kabsa Delivery in Malolos</title>
+<meta name="description" content="Order shawarma, beef kebab, chicken kabsa, mandi and roast chicken from Arbab Kebab — Middle Eastern food delivery and takeout in Malolos. Sarap na Legit, Lasang Middle East!">
 <link rel="canonical" href="https://arbabkebab.com/">
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#F5B21B">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="og-image.png">
+<link rel="apple-touch-icon" href="og-image.jpg">
 <meta property="og:type" content="restaurant">
 <meta property="og:site_name" content="Arbab Kebab">
 <meta property="og:title" content="Arbab Kebab — Order Shawarma, Kebab &amp; Kabsa Online">
-<meta property="og:description" content="Sarap na Legit, Lasang Middle East. Delivery &amp; takeout in San Mateo and Malolos.">
+<meta property="og:description" content="Sarap na Legit, Lasang Middle East. Delivery &amp; takeout in Malolos.">
 <meta property="og:url" content="https://arbabkebab.com/">
-<meta property="og:image" content="https://arbabkebab.com/og-image.png">
+<meta property="og:image" content="https://arbabkebab.com/og-image.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="en_PH">
@@ -28,10 +28,10 @@
  "@id": "https://arbabkebab.com/#restaurant",
  "name": "Arbab Kebab",
  "url": "https://arbabkebab.com/",
- "image": "https://arbabkebab.com/og-image.png",
- "logo": "https://arbabkebab.com/favicon.svg",
+ "image": "https://arbabkebab.com/og-image.jpg",
+ "logo": "https://arbabkebab.com/og-image.jpg",
  "slogan": "Sarap na Legit, Lasang Middle East",
- "description": "Middle Eastern restaurant serving shawarma, kebab, kabsa, mandi and rotisserie chicken for delivery and takeout in San Mateo and Malolos.",
+ "description": "Middle Eastern restaurant serving shawarma, kebab, kabsa, mandi and rotisserie chicken for delivery and takeout in Malolos.",
  "servesCuisine": [
   "Middle Eastern",
   "Arabic",
@@ -46,10 +46,6 @@
  ],
  "acceptsReservations": false,
  "areaServed": [
-  {
-   "@type": "City",
-   "name": "San Mateo"
-  },
   {
    "@type": "City",
    "name": "Malolos"
@@ -309,8 +305,8 @@
    by setting img: "https://…/photo.jpg" on any item.
    ========================================================= */
 :root{
-  --saffron:#f58f1bec;
-  --saffron-soft:#FCE7AE;
+  --saffron:#E29231;
+  --saffron-soft:#FFF9E6;
   --ember:#E0701C;
   --ember-dark:#B9530C;
   --char:#1E1A16;
@@ -340,7 +336,7 @@ input,select,textarea{font:inherit}
 header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .top .wrap{display:flex;align-items:center;gap:12px;height:64px}
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--char)}
-.mark{width:42px;height:42px;border-radius:50%;background:var(--ember);border:3px solid var(--char);display:grid;place-items:center;color:var(--char);font-family:Fraunces,serif;font-weight:800;font-size:15px;line-height:1}
+.logo-image{width:42px;height:42px;border-radius:50%;object-fit:cover}
 .logo-name{font-family:Fraunces,serif;font-weight:800;font-size:20px;letter-spacing:-.01em}
 .top .spacer{flex:1}
 .cart-btn{display:flex;align-items:center;gap:8px;background:var(--char);color:#fff;border:0;border-radius:999px;padding:10px 16px;font-weight:600}
@@ -348,10 +344,6 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 
 /* hero */
 .hero{position:relative;overflow:hidden;background:var(--saffron);border-bottom:4px solid var(--char)}
-.hero::before{content:"";position:absolute;inset:0;opacity:.18;background-image:
-  radial-gradient(circle at 0 0,transparent 14px,var(--char) 15px,var(--char) 16px,transparent 17px),
-  radial-gradient(circle at 100% 100%,transparent 14px,var(--char) 15px,var(--char) 16px,transparent 17px);
-  background-size:32px 32px}
 .hero .wrap{position:relative;display:grid;grid-template-columns:1.25fr .75fr;gap:28px;align-items:center;padding-top:48px;padding-bottom:48px}
 .arabic{font-family:"Reem Kufi",sans-serif;font-size:22px;color:var(--ember-dark);direction:rtl;display:inline-block;margin-bottom:6px}
 .hero h1{font-family:Fraunces,serif;font-weight:800;font-size:clamp(38px,6.5vw,68px);line-height:.98;letter-spacing:-.02em;margin:0 0 14px}
@@ -362,42 +354,44 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 .btn:active{transform:scale(.97)}
 .btn-dark{background:var(--char);color:#fff}
 .btn-light{background:var(--paper);color:var(--char)}
-.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
-.badge{background:rgba(255,253,248,.75);border:1px solid rgba(30,26,22,.15);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600}
-.seal{justify-self:center;width:min(280px,70vw);aspect-ratio:1;border-radius:50%;background:var(--ember);border:8px solid var(--char);box-shadow:0 0 0 8px var(--saffron),0 0 0 11px var(--char);display:grid;place-items:center;text-align:center;position:relative}
-.seal-inner{font-family:Fraunces,serif;font-weight:800;color:var(--char);font-size:clamp(36px,6vw,52px);line-height:.9}
-.seal-ar{display:block;font-family:"Reem Kufi",sans-serif;font-size:18px;margin-top:10px;color:var(--char-2)}
-.seal svg{position:absolute;inset:0;width:100%;height:100%}
+.badges{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;max-width:100%;list-style:none;margin:22px 0 0;padding:0}
+.badge{display:flex;align-items:center;gap:7px;flex:0 1 auto;padding:0;font-size:14px;font-weight:600;white-space:nowrap}
+.badge::before{content:"•";font-size:18px;line-height:1}
+.seal{justify-self:center;width:min(280px,70vw);aspect-ratio:1}
+.seal img{width:100%;height:100%;object-fit:contain}
 
 /* menu */
-.menu-head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;padding:40px 0 14px}
-.menu-head h2{font-family:Fraunces,serif;font-size:34px;margin:0;letter-spacing:-.01em}
+.menu-head{max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;padding:34px 16px 18px}
+.menu-head h2{font-family:Arial,sans-serif;font-size:clamp(38px,7vw,64px);font-weight:900;text-transform:uppercase;letter-spacing:.14em;margin:0;line-height:.95;color:#090705}
 .search{position:relative;flex:1 1 240px;max-width:340px}
 .search input{width:100%;padding:12px 14px 12px 40px;border-radius:999px;border:1.5px solid var(--line);background:var(--paper)}
 .search input:focus{outline:none;border-color:var(--ember)}
 .search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)}
-.tabs{position:sticky;top:64px;z-index:20;background:var(--cream);padding:10px 0;margin:0 -16px;padding-left:16px;padding-right:16px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.tabs{position:sticky;top:64px;z-index:20;background:var(--cream);max-width:1120px;margin:0 auto;padding:10px 16px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
 .tabs::-webkit-scrollbar{display:none}
 .tab{white-space:nowrap;border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;color:var(--char-2)}
 .tab.on{background:var(--char);border-color:var(--char);color:#fff}
 
-.cat{padding-top:26px;scroll-margin-top:130px}
-.cat h3{font-family:Fraunces,serif;font-size:24px;margin:0 0 4px}
-.cat .sub{color:var(--muted);margin:0 0 14px;font-size:14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
-.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
-.thumb{aspect-ratio:4/3;position:relative;overflow:hidden;background:var(--saffron-soft)}
+.cat{scroll-margin-top:130px;padding:26px 0 34px}
+.cat:nth-child(even){background:var(--saffron)}
+.cat-inner{max-width:1120px;margin:0 auto;padding:0 16px}
+.cat h3{font-family:Arial,sans-serif;font-size:clamp(28px,4vw,40px);font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px;color:#090705}
+.cat:nth-child(odd) h3{color:var(--ember-dark)}
+.cat:nth-child(even) h3{color:var(--char)}
+.cat .sub{color:var(--char-2);margin:0 0 16px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 28px}
+.card{min-width:0;background:transparent;border:0;border-radius:0;overflow:hidden;display:grid;grid-template-columns:minmax(104px,38%) minmax(0,1fr);align-items:center;gap:14px;box-shadow:none}
+.thumb{aspect-ratio:1;position:relative;overflow:hidden;border-radius:50%;background:var(--saffron-soft);border:4px solid rgba(30,26,22,.12)}
 .thumb img{width:100%;height:100%;object-fit:cover}
-.ph{position:absolute;inset:0;display:grid;place-items:center;background:
-  repeating-linear-gradient(45deg,rgba(224,112,28,.08) 0 10px,transparent 10px 20px),var(--saffron-soft)}
-.ph span{font-family:Fraunces,serif;font-weight:800;font-size:44px;color:var(--ember);opacity:.85}
-.tag{position:absolute;top:10px;left:10px;background:var(--char);color:var(--saffron);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 9px;border-radius:999px}
-.body{padding:14px 14px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
-.name{font-weight:700;font-size:17px;line-height:1.25}
-.desc{color:var(--muted);font-size:14px;flex:1}
-.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
-.price{font-family:Fraunces,serif;font-weight:800;font-size:20px}
-.add{background:var(--ember);color:#fff;border:0;border-radius:999px;padding:9px 16px;font-weight:700}
+.ph{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 58%,#f4bd50 0 32%,#e9a13c 33% 40%,#fff1c9 41% 58%,#f8d98f 59% 61%,#fce7ae 62%)}
+.ph span{font-family:Fraunces,serif;font-weight:800;font-size:clamp(28px,4vw,44px);color:var(--ember-dark);opacity:.9}
+.tag{display:inline-block;align-self:flex-start;background:var(--char);color:var(--saffron);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 9px;border-radius:999px}
+.body{padding:8px 4px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.name{font-weight:900;font-size:17px;line-height:1.2;text-transform:uppercase;color:#874326}
+.desc{color:var(--char-2);font-size:14px;line-height:1.4}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:5px;width:100%}
+.price{font-family:Arial,sans-serif;font-weight:900;font-size:15px;display:grid;place-items:center;width:48px;height:48px;flex:0 0 48px;background:#FFD642;color:#16100a;border-radius:50%;transform:rotate(-9deg)}
+.add{background:var(--char);color:#fff;border:0;border-radius:999px;padding:9px 16px;font-weight:700}
 .add:hover{background:var(--ember-dark)}
 .empty{padding:40px 0;text-align:center;color:var(--muted)}
 
@@ -479,6 +473,8 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .sheet{background:var(--paper);width:min(480px,100%);border-radius:20px 20px 0 0;padding:20px 16px 16px;max-height:90vh;overflow:auto}
 @media(min-width:640px){.modal{align-items:center}.sheet{border-radius:20px}}
 .sheet h4{font-family:Fraunces,serif;font-size:22px;margin:0 0 4px}
+.sheet .modal-add{width:100%;margin-top:12px;padding:14px 16px;font-size:16px}
+.sheet .modal-cancel{display:block;width:auto;margin:8px auto 0;padding:8px 14px}
 .opt-group{margin-top:14px}
 .opt-group p{font-weight:700;margin:0 0 8px;font-size:14px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -498,6 +494,13 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
   .info .wrap{grid-template-columns:1fr}
   .cart-btn .lbl{display:none}
 }
+@media(max-width:640px){
+  .grid{grid-template-columns:1fr;gap:16px}
+  .card{grid-template-columns:112px minmax(0,1fr);gap:14px}
+  .cat{padding:22px 0 28px}
+  .menu-head{padding-top:26px}
+  .search{flex-basis:100%;max-width:none}
+}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
@@ -508,7 +511,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 <header class="top">
   <div class="wrap">
     <a class="logo" href="#top" aria-label="Arbab Kebab home">
-      <span class="mark" aria-hidden="true">AK</span>
+      <img class="logo-image" src="og-image.jpg" alt="Arbab Kebab">
       <span class="logo-name">Arbab Kebab</span>
     </a>
     <span class="spacer"></span>
@@ -529,22 +532,20 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <a class="btn btn-dark" href="#menu">Order now</a>
         <a class="btn btn-light" id="callHero" href="#">Call us</a>
       </div>
-      <div class="badges">
-        <span class="badge">Delivery</span>
-        <span class="badge">Contactless delivery</span>
-        <span class="badge">Takeout</span>
-        <span class="badge">San Mateo · Malolos</span>
-      </div>
+      <ul class="badges">
+        <li class="badge">Delivery</li>
+        <li class="badge">Contactless delivery</li>
+        <li class="badge">Takeout</li>
+        <li class="badge">Malolos</li>
+      </ul>
     </div>
-    <div class="seal" aria-hidden="true">
-      <svg viewBox="0 0 200 200"><defs><path id="ring" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0"/></defs>
-        <text font-family="Plus Jakarta Sans" font-weight="700" font-size="11" letter-spacing="3" fill="#1E1A16"><textPath href="#ring">SHAWARMA • KEBAB • KABSA • MANDI • SHAWARMA • KEBAB • KABSA • MANDI •</textPath></text></svg>
-      <div class="seal-inner">Arbab<br>Kebab<span class="seal-ar" lang="ar">أرباب كباب</span></div>
+    <div class="seal">
+      <img src="hero-logo.png" alt="Arbab Kebab logo">
     </div>
   </div>
 </section>
 
-<main class="wrap" id="menu">
+<main id="menu">
   <div class="menu-head">
     <h2>Menu</h2>
     <label class="search">
@@ -557,8 +558,8 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 </main>
 
 <section class="wrap about" id="about">
-  <h2>Middle Eastern food delivery in San Mateo &amp; Malolos</h2>
-  <p>Arbab Kebab brings the flavors of the Middle East to your table — chicken and beef shawarma, chargrilled beef kebab and shish tawook, fragrant chicken kabsa, mandi and golden rotisserie chicken, with our famous garlic sauce. Order online for delivery or takeout from our San Mateo and Malolos branches, and send your order straight to us on Messenger or by text.</p>
+  <h2>Middle Eastern food delivery in Malolos</h2>
+  <p>Arbab Kebab brings the flavors of the Middle East to your table — chicken and beef shawarma, chargrilled beef kebab and shish tawook, fragrant chicken kabsa, mandi and golden rotisserie chicken, with our famous garlic sauce. Order online for delivery or takeout from our Malolos branch, and send your order straight to us on Messenger or by text.</p>
   <div class="faq">
     <details><summary>Do you deliver?</summary><p>Yes — we offer delivery and contactless delivery, plus takeout. We'll confirm the delivery fee for your area when we reply to your order.</p></details>
     <details><summary>How do I order?</summary><p>Add dishes to your order on this page, fill in your details, then tap “Send via Messenger” or “Send by text.” We'll reply to confirm your total.</p></details>
@@ -653,9 +654,9 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
     <div id="mOpts"></div>
     <div class="row" style="margin-top:18px">
       <div class="qty" aria-label="Quantity"><button type="button" id="mMinus" aria-label="Less">−</button><span id="mQty">1</span><button type="button" id="mPlus" aria-label="More">+</button></div>
-      <button class="add" id="mAdd">Add · <span id="mPrice"></span></button>
     </div>
-    <button class="send alt" id="mCancel" style="width:100%;margin-top:10px">Cancel</button>
+    <button class="add modal-add" id="mAdd">Add · <span id="mPrice"></span></button>
+    <button class="send alt modal-cancel" id="mCancel">Cancel</button>
   </div>
 </div>
 
@@ -672,8 +673,8 @@ const STORE = {
   email: "arabiya.official@gmail.com",
   facebook: "https://www.facebook.com/ArbabKebabOfficial",
   messenger: "https://m.me/ArbabKebabOfficial",
-  branches: ["San Mateo", "Malolos"],
-  payments: ["Cash on delivery / pickup", "GCash", "Maya"],
+  branches: ["Malolos"],
+  payments: ["Cash on delivery / pickup", "GCash"],
   currency: "₱",
   supabaseUrl: "https://addfbbpqhxsinedvnnme.supabase.co",
   supabaseKey: "sb_publishable_vNys_OaZ_iVP1bfJj64Qhw_QQvyEaQp"
@@ -745,7 +746,7 @@ function renderMenu(q=""){
     const items = MENU.filter(m => m.cat===c.id && (!q || (m.name+" "+m.desc).toLowerCase().includes(q)));
     if(!items.length) return;
     tabs.push(`<button class="tab" data-cat="${c.id}">${esc(c.name)}</button>`);
-    blocks.push(`<section class="cat" id="cat-${c.id}"><h3>${esc(c.name)}</h3>${c.sub?`<p class="sub">${esc(c.sub)}</p>`:""}<div class="grid">${items.map(card).join("")}</div></section>`);
+    blocks.push(`<section class="cat" id="cat-${c.id}"><div class="cat-inner"><h3>${esc(c.name)}</h3>${c.sub?`<p class="sub">${esc(c.sub)}</p>`:""}<div class="grid">${items.map(card).join("")}</div></div></section>`);
   });
   $("#tabs").innerHTML = tabs.join("");
   $("#cats").innerHTML = blocks.length ? blocks.join("") : `<p class="empty">No dishes match “${esc(q)}”.</p>`;
@@ -754,8 +755,8 @@ function renderMenu(q=""){
 function card(m){
   const initials = m.name.split(" ").slice(0,2).map(w=>w[0]).join("");
   return `<article class="card">
-    <div class="thumb">${m.img?`<img src="${esc(m.img)}" alt="${esc(m.name)}" loading="lazy">`:`<div class="ph" aria-hidden="true"><span>${esc(initials)}</span></div>`}${m.tag?`<span class="tag">${esc(m.tag)}</span>`:""}</div>
-    <div class="body"><div class="name">${esc(m.name)}</div><div class="desc">${esc(m.desc||"")}</div>
+    <div class="thumb">${m.img?`<img src="${esc(m.img)}" alt="${esc(m.name)}" loading="lazy">`:`<div class="ph" aria-hidden="true"><span>${esc(initials)}</span></div>`}</div>
+    <div class="body">${m.tag?`<span class="tag">${esc(m.tag)}</span>`:""}<div class="name">${esc(m.name)}</div><div class="desc">${esc(m.desc||"")}</div>
       <div class="row"><span class="price">${m.options&&m.options.some(o=>o.choices.some(c=>c.add>0))?"from ":""}${peso(m.price)}</span>
       <button class="add" data-add="${m.id}" aria-label="Add ${esc(m.name)}">Add</button></div></div>
   </article>`;

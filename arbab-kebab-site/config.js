@@ -10,8 +10,8 @@ window.SITE_CONFIG = {
 
   /* GCash details shown on the payment page (pay.html) */
   gcash: {
-    accountName: "",        // as shown in GCash, e.g. "AR**B K**AB" or the owner's masked name
-    number: "",             // e.g. "0917 123 4567"
-    qrImage: "gcash-qr.png" // upload the QR image with exactly this file name next to this file
+    accountName: "Jana May N.",        // as shown in GCash, e.g. "AR**B K**AB" or the owner's masked name
+    number: "09161118041",             // e.g. "0917 123 4567"
+    qrImage: "gcash-qr.jpg" // upload the QR image with exactly this file name next to this file
   }
 };
