@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en-PH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Arbab Kebab · Orders</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23E0701C' stroke='%231E1A16' stroke-width='5'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-family='Georgia' font-weight='700' font-size='24' fill='%231E1A16'%3EAK%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --saffron:#F5B21B; --saffron-soft:#FCE7AE; --ember:#E0701C; --ember-dark:#B9530C;
+  --char:#1E1A16; --char-2:#3A322B; --muted:#7A6D5F; --line:#E7DCC7; --bg:#F6F1E7; --card:#FFFDF8;
+  --red:#C2410C; --blue:#1D5FBF; --amber:#B7791F; --teal:#0F7C78; --purple:#6B46C1; --green:#2F7D4F; --grey:#7A7368;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--char);font-family:"Plus Jakarta Sans",system-ui,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+.mark{width:34px;height:34px;flex:none;border-radius:50%;background:var(--ember);border:3px solid var(--char);display:grid;place-items:center;font-family:Fraunces,serif;font-weight:800;font-size:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;font-weight:600;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--char-2)}
+.btn.dark{background:var(--char);border-color:var(--char);color:#fff}
+.btn.ember{background:var(--ember);border-color:var(--ember);color:#fff}
+.btn.ember:hover{background:var(--ember-dark)}
+.btn.danger{color:var(--red)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+input,select,textarea{border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
+
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--saffron)}
+.login form{width:min(380px,100%);background:var(--card);border:3px solid var(--char);border-radius:20px;padding:28px 22px;box-shadow:8px 8px 0 var(--char)}
+.login h1{font-family:Fraunces,serif;font-size:28px;margin:12px 0 2px}
+.login p{color:var(--muted);margin:0 0 18px}
+.login label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
+.login input{width:100%;padding:11px 12px}
+.login .btn{width:100%;margin-top:18px;padding:12px}
+.login .msg{min-height:1.2em;font-size:13px;margin-top:10px;color:var(--red)}
+.login .msg.ok{color:var(--green)}
+.login .link{background:none;border:0;color:var(--ember-dark);font-weight:600;padding:8px 0 0;text-decoration:underline}
+
+/* app shell */
+.top{position:sticky;top:0;z-index:20;background:var(--char);color:#fff}
+.top .in{display:flex;align-items:center;gap:10px;padding:10px 16px;max-width:1400px;margin:0 auto}
+.top h1{font-size:17px;margin:0;font-weight:800}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#cfc4b3;margin-left:4px}
+.live i{width:8px;height:8px;border-radius:50%;background:#6b6258}
+.live.on i{background:#4ADE80;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
+.top .sp{flex:1}
+.top .btn{background:transparent;border-color:#4a4038;color:#fff}
+.top .who{font-size:12px;color:#cfc4b3;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wrap{max-width:1400px;margin:0 auto;padding:14px 16px 40px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.toolbar .search{flex:1 1 200px;min-width:160px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.kpi .v{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-weight:600;font-size:13px;white-space:nowrap}
+.tab b{display:inline-block;min-width:20px;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--bg);font-size:12px}
+.tab.on{background:var(--char);border-color:var(--char);color:#fff}
+.tab.on b{background:var(--saffron);color:var(--char)}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:14px;align-items:start}
+.list{display:grid;gap:8px}
+.order{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;background:var(--card);border:1.5px solid var(--line);border-left-width:6px;border-radius:14px;padding:12px 14px;text-align:left;width:100%}
+.order:hover{border-color:var(--char-2)}
+.order.sel{border-color:var(--char);box-shadow:0 0 0 2px var(--char) inset}
+.order.flash{animation:flash 1.6s ease 2}
+@keyframes flash{50%{background:var(--saffron-soft)}}
+.order .no{font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+.order .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.order .meta{grid-column:2/4;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.order .tot{font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.order .ago{grid-column:1;font-size:12px;color:var(--muted)}
+.pill{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;color:#fff;white-space:nowrap}
+.empty{padding:50px 16px;text-align:center;color:var(--muted);background:var(--card);border:1.5px dashed var(--line);border-radius:14px}
+
+/* detail */
+.detail{position:sticky;top:70px;background:var(--card);border:1.5px solid var(--line);border-radius:18px;max-height:calc(100vh - 84px);overflow:auto}
+.detail .placeholder{padding:60px 20px;text-align:center;color:var(--muted)}
+.d-h{display:flex;align-items:flex-start;gap:10px;padding:16px 16px 12px;border-bottom:1px solid var(--line)}
+.d-h h2{margin:0;font-size:22px;font-weight:800}
+.d-h .sub{color:var(--muted);font-size:13px}
+.d-h .x{margin-left:auto;display:none}
+.sec{padding:12px 16px;border-bottom:1px solid var(--line)}
+.sec h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:600;word-break:break-word}
+.row-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+table.items{width:100%;border-collapse:collapse;font-size:14px}
+table.items td{padding:6px 0;border-bottom:1px dashed var(--line);vertical-align:top}
+table.items td.q{width:36px;font-weight:800}
+table.items td.p{text-align:right;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.items .o{color:var(--muted);font-size:12.5px}
+.sum{display:grid;gap:6px;margin-top:10px;font-variant-numeric:tabular-nums}
+.sum div{display:flex;justify-content:space-between;align-items:center}
+.sum .fee input{width:110px;text-align:right}
+.sum .grand{font-size:20px;font-weight:800;border-top:2px solid var(--char);padding-top:8px}
+.note-box{background:var(--saffron-soft);border-radius:10px;padding:8px 10px;font-size:14px}
+textarea{width:100%;resize:vertical}
+.actions{padding:14px 16px;display:grid;gap:8px;position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line)}
+.actions .btn.ember{padding:12px;font-size:16px}
+.actions .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.saved{font-size:12px;color:var(--green);margin-left:6px}
+
+.toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:var(--char);color:#fff;border-radius:12px;padding:10px 16px;font-weight:600;z-index:90;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px)}
+.toast.show{opacity:1}
+.toast.new{background:var(--ember)}
+
+@media(max-width:1000px){
+  .main{grid-template-columns:1fr}
+  .detail{position:fixed;inset:0;top:0;z-index:40;border-radius:0;max-height:none;display:none}
+  .detail.open{display:block}
+  .d-h .x{display:inline-flex}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .top .who{display:none}
+}
+
+/* print a kitchen ticket */
+@media print{
+  body{background:#fff;font-size:13px}
+  .top,.toolbar,.kpis,.tabs,.list,.actions,.d-h .x,.no-print,.toast{display:none!important}
+  .main{display:block}
+  .detail{position:static;display:block!important;border:0;max-height:none;overflow:visible}
+  input{border:0;padding:0}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<section class="login" id="loginView" hidden>
+  <form id="loginForm">
+    <span class="mark" style="width:48px;height:48px;font-size:15px">AK</span>
+    <h1>Arbab Kebab</h1>
+    <p>Staff login · Orders</p>
+    <div id="loginFields">
+      <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
+      <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
+      <button class="btn dark" type="submit" id="loginBtn">Log in</button>
+      <button class="link" type="button" id="forgot">Forgot password?</button>
+    </div>
+    <div id="resetFields" hidden>
+      <label for="pw1">New password</label><input id="pw1" type="password" autocomplete="new-password" minlength="8">
+      <button class="btn dark" type="button" id="setPw">Save new password</button>
+    </div>
+    <div class="msg" id="loginMsg" role="alert"></div>
+  </form>
+</section>
+
+<!-- ================= APP ================= -->
+<div id="appView" hidden>
+  <header class="top">
+    <div class="in">
+      <span class="mark">AK</span>
+      <h1>Orders</h1>
+      <span class="live" id="live" title="Live updates"><i></i><span id="liveTxt">connecting</span></span>
+      <span class="sp"></span>
+      <span class="who" id="who"></span>
+      <button class="btn sm" id="soundBtn" aria-pressed="true">🔔 Sound on</button>
+      <button class="btn sm" id="logout">Log out</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="toolbar">
+      <select id="range" aria-label="Date range">
+        <option value="today">Today</option>
+        <option value="yesterday">Yesterday</option>
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+      </select>
+      <select id="branchF" aria-label="Branch"></select>
+      <input class="search" id="q" type="search" placeholder="Search name, phone, ref…" aria-label="Search orders">
+      <button class="btn" id="refresh" title="Reload">↻ Refresh</button>
+      <button class="btn" id="csv">⬇ Export CSV</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+    <nav class="tabs" id="tabs" aria-label="Order status"></nav>
+
+    <div class="main">
+      <div class="list" id="list"></div>
+      <aside class="detail" id="detail" aria-label="Order details"><div class="placeholder">Select an order to see details.</div></aside>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ================= CONFIG (edit me) ================= */
+const CONFIG = {
+  supabaseUrl: "",      // Supabase → Project Settings → API → Project URL
+  supabaseKey: "",      // the anon / publishable key (same one as the order site)
+  businessName: "Arbab Kebab",
+  branches: ["San Mateo", "Malolos"],
+  timeZone: "Asia/Manila",
+  currency: "₱"
+};
+
+/* ================= HELPERS ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const peso = n => CONFIG.currency + Number(n||0).toLocaleString("en-PH", {minimumFractionDigits:0, maximumFractionDigits:2});
+const ls = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} } };
+const fmtTime = new Intl.DateTimeFormat("en-PH", {timeZone: CONFIG.timeZone, hour:"numeric", minute:"2-digit"});
+const fmtDate = new Intl.DateTimeFormat("en-PH", {timeZone: CONFIG.timeZone, month:"short", day:"numeric"});
+const fmtFull = new Intl.DateTimeFormat("en-CA", {timeZone: CONFIG.timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false});
+function ymdLocal(d){ return new Intl.DateTimeFormat("en-CA",{timeZone:CONFIG.timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(d); }
+function startOfLocalDay(daysAgo=0){ const d = new Date(Date.now() - daysAgo*864e5); return new Date(ymdLocal(d) + "T00:00:00+08:00"); }
+function ago(ts){
+  const m = Math.round((Date.now() - new Date(ts)) / 60000);
+  if(m < 1) return "just now"; if(m < 60) return m + " min ago";
+  const d = new Date(ts); return (ymdLocal(d) === ymdLocal(new Date()) ? "" : fmtDate.format(d) + " · ") + fmtTime.format(d);
+}
+
+const STATUS = {
+  new:              {label:"New",              color:"var(--red)"},
+  confirmed:        {label:"Confirmed",        color:"var(--blue)"},
+  preparing:        {label:"Preparing",        color:"var(--amber)"},
+  ready:            {label:"Ready for pickup", color:"var(--teal)"},
+  out_for_delivery: {label:"Out for delivery", color:"var(--purple)"},
+  completed:        {label:"Completed",        color:"var(--green)"},
+  cancelled:        {label:"Cancelled",        color:"var(--grey)"}
+};
+const OPEN = ["new","confirmed","preparing","ready","out_for_delivery"];
+function nextStep(o){
+  if(o.status==="new") return {to:"confirmed", label:"Confirm order"};
+  if(o.status==="confirmed") return {to:"preparing", label:"Start preparing"};
+  if(o.status==="preparing") return o.mode==="Delivery" ? {to:"out_for_delivery", label:"Out for delivery"} : {to:"ready", label:"Ready for pickup"};
+  if(o.status==="ready" || o.status==="out_for_delivery") return {to:"completed", label:"Mark completed"};
+  return null;
+}
+const pill = s => `<span class="pill" style="background:${STATUS[s]?.color||"#777"}">${esc(STATUS[s]?.label||s)}</span>`;
+
+/* ================= STATE ================= */
+let sb = null, orders = [], selId = null, tab = "open", channel = null, pollTimer = null;
+let soundOn = ls.get("ak_sound") !== "off", audioCtx = null;
+
+/* ================= AUTH ================= */
+function showLogin(msg="", ok=false){ $("#appView").hidden = true; $("#loginView").hidden = false; $("#loginMsg").textContent = msg; $("#loginMsg").className = "msg" + (ok?" ok":""); }
+async function boot(){
+  if(!CONFIG.supabaseUrl || !CONFIG.supabaseKey || !window.supabase){
+    showLogin(!window.supabase ? "Couldn't load the database library — check your internet connection." : "Setup needed: add the Supabase URL and key in the CONFIG section of this file.");
+    $("#loginBtn").disabled = true; return;
+  }
+  sb = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+  sb.auth.onAuthStateChange((event) => {
+    if(event === "PASSWORD_RECOVERY"){ showLogin("Set a new password for your account.", true); $("#loginFields").hidden = true; $("#resetFields").hidden = false; }
+  });
+  const { data } = await sb.auth.getSession();
+  if(data.session && !location.hash.includes("type=recovery")) enterApp(data.session); else if(!data.session) showLogin();
+}
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault(); unlockAudio();
+  $("#loginBtn").disabled = true; $("#loginMsg").textContent = "";
+  const { data, error } = await sb.auth.signInWithPassword({ email: $("#email").value.trim(), password: $("#pw").value });
+  $("#loginBtn").disabled = false;
+  if(error) return showLogin(error.message === "Invalid login credentials" ? "Wrong email or password." : error.message);
+  enterApp(data.session);
+});
+$("#forgot").onclick = async () => {
+  const email = $("#email").value.trim();
+  if(!email) return showLogin("Type your email above first.");
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  showLogin(error ? error.message : "If that email is on the staff list, a reset link is on its way.", !error);
+};
+$("#setPw").onclick = async () => {
+  const pw = $("#pw1").value;
+  if(pw.length < 8) return showLogin("Use at least 8 characters.");
+  const { data, error } = await sb.auth.updateUser({ password: pw });
+  if(error) return showLogin(error.message);
+  history.replaceState(null, "", location.pathname);
+  $("#loginFields").hidden = false; $("#resetFields").hidden = true;
+  const s = (await sb.auth.getSession()).data.session; if(s) enterApp(s);
+};
+$("#logout").onclick = async () => { await sb.auth.signOut(); if(channel) sb.removeChannel(channel); clearInterval(pollTimer); orders = []; showLogin("Logged out.", true); };
+
+async function enterApp(session){
+  const email = session.user.email;
+  const { data: me, error } = await sb.from("staff").select("email,name").ilike("email", email).maybeSingle();
+  if(error || !me){ await sb.auth.signOut(); return showLogin("This account isn't on the staff list. Ask the owner to add your email."); }
+  $("#who").textContent = me.name ? `${me.name} · ${email}` : email;
+  $("#loginView").hidden = true; $("#appView").hidden = false;
+  $("#branchF").innerHTML = `<option value="">All branches</option>` + CONFIG.branches.map(b=>`<option>${esc(b)}</option>`).join("");
+  const sb_ = ls.get("ak_branch"); if(sb_ !== null) $("#branchF").value = sb_;
+  setSoundBtn();
+  await load();
+  subscribe();
+  clearInterval(pollTimer); pollTimer = setInterval(load, 60000);   // safety net if live updates drop
+}
+
+/* ================= DATA ================= */
+function rangeBounds(){
+  const v = $("#range").value;
+  if(v==="today") return [startOfLocalDay(0), null];
+  if(v==="yesterday") return [startOfLocalDay(1), startOfLocalDay(0)];
+  return [startOfLocalDay(+v - 1), null];
+}
+async function load(){
+  const [from, to] = rangeBounds();
+  let q = sb.from("orders").select("*").gte("created_at", from.toISOString()).order("created_at", {ascending:false}).limit(1000);
+  if(to) q = q.lt("created_at", to.toISOString());
+  const { data, error } = await q;
+  if(error){ toast("Couldn't load orders: " + error.message); return; }
+  orders = data; render();
+}
+function inRange(o){ const [from,to] = rangeBounds(); const t = new Date(o.created_at); return t >= from && (!to || t < to); }
+function subscribe(){
+  if(channel) sb.removeChannel(channel);
+  channel = sb.channel("orders-live")
+    .on("postgres_changes", {event:"*", schema:"public", table:"orders"}, ({eventType, new: row}) => {
+      if(!row || !row.id) return;
+      const i = orders.findIndex(o => o.id === row.id);
+      if(eventType === "INSERT" && i < 0){
+        if(inRange(row)) orders.unshift(row);
+        if(!$("#branchF").value || $("#branchF").value === row.branch){
+          beep(); toast(`New order ${row.ref} · ${row.customer_name} · ${peso(row.total)}`, true);
+          flashId = row.id;
+        }
+      } else if(i >= 0) orders[i] = row;
+      else if(inRange(row)) orders.unshift(row);
+      render();
+    })
+    .subscribe(status => {
+      const on = status === "SUBSCRIBED";
+      $("#live").classList.toggle("on", on); $("#liveTxt").textContent = on ? "live" : "reconnecting";
+      if(on) load();
+    });
+}
+document.addEventListener("visibilitychange", () => { if(!document.hidden && sb && !$("#appView").hidden) load(); });
+
+async function updateOrder(id, patch, msg){
+  const { data, error } = await sb.from("orders").update(patch).eq("id", id).select().single();
+  if(error){ toast("Couldn't save: " + error.message); return false; }
+  const i = orders.findIndex(o => o.id === id); if(i >= 0) orders[i] = data;
+  render(); if(msg) toast(msg); return true;
+}
+
+/* ================= RENDER ================= */
+let flashId = null;
+function filtered(){
+  const b = $("#branchF").value, q = $("#q").value.trim().toLowerCase();
+  return orders.filter(o => (!b || o.branch === b) &&
+    (!q || [o.ref, o.order_no, o.customer_name, o.customer_phone, o.address].join(" ").toLowerCase().includes(q)));
+}
+function render(){
+  const base = filtered();
+  // KPIs (cancelled orders excluded from sales)
+  const valid = base.filter(o => o.status !== "cancelled");
+  const sales = valid.reduce((s,o)=>s + Number(o.total), 0);
+  const open = base.filter(o => OPEN.includes(o.status)).length;
+  const newCount = base.filter(o => o.status === "new").length;
+  $("#kpis").innerHTML = [
+    ["Orders", valid.length], ["Sales", peso(sales)], ["Avg order", peso(valid.length ? Math.round(sales/valid.length) : 0)], ["Open now", open]
+  ].map(([l,v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+  document.title = (newCount ? `(${newCount}) ` : "") + "Arbab Kebab · Orders";
+  // tabs
+  const counts = {open, all: base.length}; Object.keys(STATUS).forEach(s => counts[s] = base.filter(o=>o.status===s).length);
+  const tabDefs = [["open","Open"],["new","New"],["confirmed","Confirmed"],["preparing","Preparing"],["ready","Ready"],["out_for_delivery","Out for delivery"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]];
+  $("#tabs").innerHTML = tabDefs.map(([k,l]) => `<button class="tab${tab===k?" on":""}" data-tab="${k}">${l}<b>${counts[k]}</b></button>`).join("");
+  // list
+  const shown = base.filter(o => tab==="all" ? true : tab==="open" ? OPEN.includes(o.status) : o.status===tab);
+  if(tab === "open") shown.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));   // oldest open order first
+  $("#list").innerHTML = shown.length ? shown.map(o => {
+    const items = o.items.map(i => `${i.qty}× ${i.name}`).join(", ");
+    return `<button class="order${o.id===selId?" sel":""}${o.id===flashId?" flash":""}" data-id="${o.id}" style="border-left-color:${STATUS[o.status]?.color}">
+      <span class="no">#${o.order_no}</span>
+      <span class="nm">${esc(o.customer_name)} <span style="font-weight:500;color:var(--muted)">· ${esc(o.mode)} · ${esc(o.branch)}</span></span>
+      <span class="tot">${peso(o.total)}</span>
+      <span class="ago">${esc(ago(o.created_at))}</span>
+      <span class="meta">${pill(o.status)} &nbsp;${esc(items)}</span>
+    </button>`;
+  }).join("") : `<div class="empty">No orders here${$("#q").value ? " matching your search" : ""}.</div>`;
+  flashId = null;
+  renderDetail();
+}
+
+function renderDetail(){
+  const o = orders.find(x => x.id === selId), el = $("#detail");
+  if(!o){ el.innerHTML = `<div class="placeholder">Select an order to see details.</div>`; el.classList.remove("open"); return; }
+  const step = nextStep(o);
+  const phone = (o.customer_phone||"").replace(/[^\d+]/g,"");
+  const maps = o.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}` : "";
+  el.innerHTML = `
+    <div class="d-h">
+      <div>
+        <h2>#${o.order_no} <span style="font-weight:600;color:var(--muted);font-size:15px">${esc(o.ref)}</span></h2>
+        <div class="sub">${esc(fmtDate.format(new Date(o.created_at)))} · ${esc(fmtTime.format(new Date(o.created_at)))} · via ${esc(o.channel||"website")}</div>
+        <div style="margin-top:6px">${pill(o.status)}</div>
+      </div>
+      <button class="btn sm x" id="dClose" aria-label="Close">✕</button>
+    </div>
+    <div class="sec">
+      <h3>Customer</h3>
+      <dl class="kv">
+        <dt>Name</dt><dd>${esc(o.customer_name)}</dd>
+        <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
+        <dt>Order type</dt><dd>${esc(o.mode)} · ${esc(o.branch)} branch</dd>
+        ${o.address ? `<dt>Address</dt><dd>${esc(o.address)}</dd>` : ""}
+        <dt>Time</dt><dd>${esc(o.preferred_time||"ASAP")}</dd>
+        <dt>Payment</dt><dd>${esc(o.payment||"—")}</dd>
+      </dl>
+      <div class="row-btns no-print">
+        <a class="btn sm" href="tel:${esc(phone)}">📞 Call</a>
+        <a class="btn sm" href="sms:${esc(phone)}">💬 Text</a>
+        ${maps ? `<a class="btn sm" href="${maps}" target="_blank" rel="noopener">📍 Map</a>` : ""}
+      </div>
+      ${o.notes ? `<div class="note-box" style="margin-top:10px"><b>Customer note:</b> ${esc(o.notes)}</div>` : ""}
+    </div>
+    <div class="sec">
+      <h3>Items</h3>
+      <table class="items">${o.items.map(i => `<tr><td class="q">${i.qty}×</td><td>${esc(i.name)}${i.opts && i.opts.length ? `<div class="o">${esc(i.opts.join(" · "))}</div>` : ""}</td><td class="p">${peso(i.qty * i.unit)}</td></tr>`).join("")}</table>
+      <div class="sum">
+        <div><span>Subtotal</span><span>${peso(o.subtotal)}</span></div>
+        <div class="fee"><span>Delivery fee</span><span><input id="fee" type="number" min="0" step="1" inputmode="decimal" value="${Number(o.delivery_fee)}" aria-label="Delivery fee"></span></div>
+        <div class="grand"><span>Total</span><span id="grand">${peso(o.total)}</span></div>
+      </div>
+    </div>
+    <div class="sec no-print">
+      <h3>Staff notes <span class="saved" id="noteSaved"></span></h3>
+      <textarea id="staffNotes" rows="2" placeholder="Rider name, payment received, changes…">${esc(o.staff_notes||"")}</textarea>
+    </div>
+    <div class="actions no-print">
+      ${step ? `<button class="btn ember" id="next" data-to="${step.to}">${step.label} →</button>` : ""}
+      <div class="two">
+        <button class="btn" id="copyConfirm">Copy reply to customer</button>
+        <button class="btn" id="print">🖨 Print ticket</button>
+      </div>
+      <div class="two">
+        <select id="setStatus" aria-label="Set status">${Object.entries(STATUS).map(([k,v]) => `<option value="${k}"${k===o.status?" selected":""}>${v.label}</option>`).join("")}</select>
+        ${o.status !== "cancelled" ? `<button class="btn danger" id="cancel">Cancel order</button>` : `<span></span>`}
+      </div>
+    </div>`;
+  if(window.innerWidth <= 1000) el.classList.add("open");
+
+  const fee = $("#fee");
+  fee.oninput = () => $("#grand").textContent = peso(Number(o.subtotal) + Number(fee.value || 0));
+  fee.onchange = () => { const v = Math.max(0, Number(fee.value || 0)); if(v !== Number(o.delivery_fee)) updateOrder(o.id, {delivery_fee: v}, "Delivery fee saved"); };
+  $("#staffNotes").onchange = async e => { if(await updateOrder(o.id, {staff_notes: e.target.value})) { const s = $("#noteSaved"); if(s) s.textContent = "saved"; } };
+  if($("#next")) $("#next").onclick = e => updateOrder(o.id, {status: e.currentTarget.dataset.to}, `#${o.order_no} → ${STATUS[e.currentTarget.dataset.to].label}`);
+  $("#setStatus").onchange = e => updateOrder(o.id, {status: e.target.value}, `#${o.order_no} → ${STATUS[e.target.value].label}`);
+  if($("#cancel")) $("#cancel").onclick = () => { if(confirm(`Cancel order #${o.order_no} for ${o.customer_name}?`)) updateOrder(o.id, {status:"cancelled"}, `#${o.order_no} cancelled`); };
+  $("#print").onclick = () => window.print();
+  $("#copyConfirm").onclick = async () => {
+    const first = (o.customer_name || "").split(" ")[0];
+    const fee = Number(o.delivery_fee);
+    const lines = [
+      `Hi ${first}! This is ${CONFIG.businessName} 🧆`,
+      `Your order ${o.ref} is confirmed.`,
+      ``,
+      ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
+      ``,
+      `Total: ${peso(o.total)}${fee ? ` (incl. ${peso(fee)} delivery)` : ""}`,
+      `Payment: ${o.payment || "—"}`,
+      o.mode === "Delivery" ? `We'll message you when it's on the way.` : `We'll message you when it's ready for pickup at our ${o.branch} branch.`,
+      `Salamat po!`
+    ];
+    try{ await navigator.clipboard.writeText(lines.join("\n")); toast("Reply copied — paste it in Messenger"); }
+    catch(e){ prompt("Copy this reply:", lines.join("\n")); }
+  };
+  const close = $("#dClose"); if(close) close.onclick = () => { selId = null; el.classList.remove("open"); render(); };
+}
+
+/* ================= EVENTS ================= */
+$("#tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if(t){ tab = t.dataset.tab; render(); } });
+$("#list").addEventListener("click", e => { const b = e.target.closest(".order"); if(b){ selId = b.dataset.id; render(); } });
+$("#q").addEventListener("input", render);
+$("#branchF").addEventListener("change", e => { ls.set("ak_branch", e.target.value); render(); });
+$("#range").addEventListener("change", load);
+$("#refresh").onclick = () => load().then(() => toast("Up to date"));
+document.addEventListener("keydown", e => { if(e.key === "Escape" && $("#detail").classList.contains("open")){ selId = null; render(); } });
+setInterval(() => { if(!$("#appView").hidden && !document.activeElement?.closest?.(".detail")) render(); }, 30000); // refresh "x min ago"
+
+/* CSV export of what's on screen (current range + branch + search) */
+$("#csv").onclick = () => {
+  const rows = filtered();
+  if(!rows.length) return toast("Nothing to export");
+  const head = ["order_no","ref","date_time","status","mode","branch","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","channel","customer_notes","staff_notes"];
+  const q = v => { let s = String(v ?? ""); if(/^[=@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating text as a formula
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
+  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, o.mode, o.branch, o.customer_name, o.customer_phone, o.address,
+    o.items.map(i => `${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`).join("; "),
+    o.subtotal, o.delivery_fee, o.total, o.payment, o.channel, o.notes, o.staff_notes].map(q).join(","));
+  const blob = new Blob(["﻿" + [head.join(","), ...lines].join("\r\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `arbab-kebab-orders-${$("#range").value}-${ymdLocal(new Date())}.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+/* sound for new orders */
+function unlockAudio(){ try{ audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if(audioCtx.state === "suspended") audioCtx.resume(); }catch(e){} }
+document.addEventListener("pointerdown", unlockAudio, {once:true});
+function beep(){
+  if(!soundOn || !audioCtx) return;
+  try{
+    [0, .22, .44].forEach((t,i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = [880, 1175, 1568][i];
+      g.gain.setValueAtTime(.0001, audioCtx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(.35, audioCtx.currentTime + t + .02);
+      g.gain.exponentialRampToValueAtTime(.0001, audioCtx.currentTime + t + .2);
+      o.connect(g).connect(audioCtx.destination); o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + .22);
+    });
+  }catch(e){}
+}
+function setSoundBtn(){ $("#soundBtn").textContent = soundOn ? "🔔 Sound on" : "🔕 Sound off"; $("#soundBtn").setAttribute("aria-pressed", soundOn); }
+$("#soundBtn").onclick = () => { soundOn = !soundOn; ls.set("ak_sound", soundOn ? "on" : "off"); setSoundBtn(); unlockAudio(); if(soundOn) beep(); };
+
+let tt; function toast(t, isNew){ const el = $("#toast"); el.textContent = t; el.className = "toast show" + (isNew ? " new" : ""); clearTimeout(tt); tt = setTimeout(() => el.className = "toast", isNew ? 6000 : 2200); }
+
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Staff admin site — Netlify reads this when Base directory = arbab-kebab-admin
+[build]
+  publish = "."
+  command = ""
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"      # keep the admin out of Google
+    X-Frame-Options = "DENY"                # can't be embedded in other sites
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-cache"              # staff always get the latest version
