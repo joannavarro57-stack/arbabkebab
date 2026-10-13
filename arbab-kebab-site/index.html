@@ -363,10 +363,14 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 /* menu */
 .menu-head{max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;padding:34px 16px 18px}
 .menu-head h2{font-family:Arial,sans-serif;font-size:clamp(38px,7vw,64px);font-weight:900;text-transform:uppercase;letter-spacing:.14em;margin:0;line-height:.95;color:#090705}
-.search{position:relative;flex:1 1 240px;max-width:340px}
-.search input{width:100%;padding:12px 14px 12px 40px;border-radius:999px;border:1.5px solid var(--line);background:var(--paper)}
+.search{position:relative;display:flex;align-items:center;justify-content:flex-end;flex:0 0 auto}
+.search input{width:0;min-width:0;padding:0;border:0;opacity:0;visibility:hidden;border-radius:999px;background:var(--paper);transition:width .2s ease,opacity .2s ease,padding .2s ease}
 .search input:focus{outline:none;border-color:var(--ember)}
-.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search.open input{width:min(280px,calc(100vw - 100px));padding:12px 14px;border:1.5px solid var(--line);opacity:1;visibility:visible}
+.search-toggle{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;border:1.5px solid var(--line);border-radius:50%;background:var(--paper);color:var(--char);z-index:1}
+.search-toggle:hover{border-color:var(--ember);color:var(--ember-dark)}
+.search-toggle svg{width:19px;height:19px}
+.search.open .search-toggle{margin-left:-44px;border-color:transparent;background:transparent;color:var(--muted)}
 .tabs{position:sticky;top:64px;z-index:20;background:var(--cream);max-width:1120px;margin:0 auto;padding:10px 16px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
 .tabs::-webkit-scrollbar{display:none}
 .tab{white-space:nowrap;border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;color:var(--char-2)}
@@ -433,6 +437,14 @@ footer p{margin:0;padding-top:18px}
 .line .ln{font-weight:600}
 .line .lo{color:var(--muted);font-size:13px}
 .line .lp{font-weight:700;text-align:right}
+.line-main{min-width:0}
+.line-actions{display:flex;align-items:center;gap:8px;margin-top:7px}
+.line-action{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:2px 0;color:var(--ember-dark);font-size:12px;font-weight:700}
+.line-action svg{width:14px;height:14px}
+.line-delete{display:grid;place-items:center;width:26px;height:26px;border:1px solid var(--line);border-radius:50%;background:#fff;color:#9d3429}
+.line-delete:hover{background:#fff0ed;border-color:#d7a39b}
+.line-delete svg{width:14px;height:14px}
+.line-pricing{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
 .qty{display:inline-flex;align-items:center;border:1.5px solid var(--line);border-radius:999px;overflow:hidden;justify-self:end}
 .qty button{background:none;border:0;width:32px;height:30px;font-size:16px;font-weight:700}
 .qty span{min-width:22px;text-align:center;font-weight:700}
@@ -499,7 +511,6 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
   .card{grid-template-columns:112px minmax(0,1fr);gap:14px}
   .cat{padding:22px 0 28px}
   .menu-head{padding-top:26px}
-  .search{flex-basis:100%;max-width:none}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
@@ -548,10 +559,12 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 <main id="menu">
   <div class="menu-head">
     <h2>Menu</h2>
-    <label class="search">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="Search shawarma, kabsa…" aria-label="Search the menu">
-    </label>
+    <div class="search" id="menuSearch">
+      <input id="q" type="search" placeholder="Search menu…" aria-label="Search the menu" tabindex="-1">
+      <button class="search-toggle" id="searchToggle" type="button" aria-label="Open menu search" aria-expanded="false" aria-controls="q">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </button>
+    </div>
   </div>
   <nav class="tabs" id="tabs" aria-label="Menu categories"></nav>
   <div id="cats"></div>
@@ -655,7 +668,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
     <div class="row" style="margin-top:18px">
       <div class="qty" aria-label="Quantity"><button type="button" id="mMinus" aria-label="Less">−</button><span id="mQty">1</span><button type="button" id="mPlus" aria-label="More">+</button></div>
     </div>
-    <button class="add modal-add" id="mAdd">Add · <span id="mPrice"></span></button>
+    <button class="add modal-add" id="mAdd"><span id="mAction">Add</span> · <span id="mPrice"></span></button>
     <button class="send alt modal-cancel" id="mCancel">Cancel</button>
   </div>
 </div>
@@ -685,11 +698,12 @@ Object.assign(STORE, window.SITE_CONFIG || {});   // values from config.js win
    Each item: id, cat, name, desc, price, optional tag, optional img URL,
    optional options: [{label, choices:[{name, add}] }]  (add = extra peso cost)        */
 const SPICE = {label:"Spice level", choices:[{name:"Mild",add:0},{name:"Spicy",add:0},{name:"Extra spicy",add:0}]};
+const EXTRA_KABSA_RICE = {label:"Extra Kabsa Rice", choices:[{name:"No extra rice",add:0},{name:"Add Kabsa Rice",add:170}]};
 const MENU_CATS = [
-  {id:"Solo", name:"Solo Orders", sub:""},
-  {id:"Salads", name:"Salads", sub:""},
-  {id:"Potluck", name:"Potlucks", sub:""},
   {id:"MealSets", name:"Meal Sets", sub:""},
+  {id:"Potluck", name:"Potlucks", sub:""},
+  {id:"Salads", name:"Salads", sub:""},
+  {id:"Solo", name:"Solo Orders", sub:""},
   {id:"Fried", name:"Fried", sub:""},
   {id:"AddOns", name:"Add-Ons", sub:""},
   {id:"Wraps", name:"Wraps", sub:""},
@@ -697,25 +711,32 @@ const MENU_CATS = [
   {id:"Sauces", name:"Sauces", sub:""}
 ];
 const MENU = [
-  {id:"ml_set", cat:"MealSets", name:"Shawaya Set 1", desc:"Whole Chicken served with tomato chutney and garlic paste", price:375, tag:"Bestseller", options:[SPICE]},
-  {id:"ml_set", cat:"MealSets", name:"Shawaya Set 2", desc:"Spiced beef, tahini, tomatoes, onions and parsley.", price:149, options:[{label:"Size",choices:[{name:"Regular",add:0},{name:"Large",add:40}]},SPICE]},
-  {id:"ml_set", cat:"MealSets", name:"Shawaya Set 3", desc:"Cut-up wrap, toasted crisp, with fries, garlic sauce and pickles on the side.", price:199, tag:"Must try"},
-  {id:"ml_set", cat:"MealSets", name:"Shawaya Set 4", desc:"Generous chicken shawarma over Arabian rice.", price:159, options:[SPICE]},
-  {id:"slo", cat:"Solo", name:"Beef Shawarma Rice", desc:"Spiced beef shawarma over Arabian rice.", price:179, options:[SPICE]},
-  {id:"slo", cat:"Solo", name:"Beef Kebab Rice", desc:"Two skewers of chargrilled ground-beef kebab, grilled tomato.", price:189, options:[{label:"Skewers",choices:[{name:"2 skewers",add:0},{name:"3 skewers",add:70}]}]},
-  {id:"slo", cat:"Solo", name:"Shish Tawook Rice", desc:"Yogurt-marinated chicken cubes, chargrilled on skewers.", price:179},
-  {id:"slo", cat:"Solo", name:"Chicken Kabsa", desc:"Fragrant spiced rice topped with tender chicken, almonds and raisins.", price:229, tag:"Fan favorite"},
-  {id:"slo", cat:"Solo", name:"Chicken Mandi", desc:"Rotisserie-roasted chicken over smoky mandi rice, with daqoos tomato sauce.", price:249, options:[{label:"Portion",choices:[{name:"Quarter",add:0},{name:"Half",add:120}]}]},
-  {id:"slo", cat:"Solo", name:"Whole Roast Chicken", desc:"Golden rotisserie chicken, garlic sauce and pita. Add rice for the table.", price:399, options:[{label:"Add rice",choices:[{name:"No rice",add:0},{name:"With kabsa rice (good for 3)",add:150}]}]},
-  {id:"slo", cat:"Solo", name:"Shawarma Platter", desc:"Chicken & beef shawarma, rice, fries, hummus, pita, garlic sauce. Good for 3–4.", price:699},
-  {id:"slo", cat:"Solo", name:"Mixed Grill Platter", desc:"Beef kebab, shish tawook, half roast chicken, rice, salad and dips. Good for 5–6.", price:1299, tag:"For sharing"},
-  //{id:"sd-hummus", cat:"sides", name:"Hummus & Pita", desc:"Creamy chickpea dip with olive oil and warm pita.", price:119},
-  //{id:"sd-fries", cat:"sides", name:"Shawarma Fries", desc:"Fries loaded with chicken shawarma and garlic sauce.", price:149},
-  //{id:"sd-garlic", cat:"sides", name:"Extra Garlic Sauce", desc:"The good stuff. 2 oz cup.", price:25},
-  //{id:"sd-rice", cat:"sides", name:"Extra Arabian Rice", desc:"", price:40},
-  //{id:"dr-laban", cat:"drinks", name:"Laban", desc:"Chilled salted yogurt drink.", price:69},
-  //{id:"dr-mint", cat:"drinks", name:"Mint Lemonade", desc:"Fresh lemon blended with mint.", price:89},
-  //{id:"dr-tea", cat:"drinks", name:"Iced Tea", desc:"", price:45}
+  //Meal Sets
+  {id:"meal-set-1", cat:"MealSets", name:"Shawaya Set 1", desc:"Whole chicken served with tomato chutney and garlic paste", price:375, tag:"Bestseller", options:[SPICE,EXTRA_KABSA_RICE]},
+  {id:"meal-set-2", cat:"MealSets", name:"Shawaya Set 2", desc:"Whole chicken with 2 cups of rice, served with tomato chutney and garlic paste", price:475, options:[SPICE,EXTRA_KABSA_RICE]},
+  {id:"meal-set-3", cat:"MealSets", name:"Shawaya Set 3", desc:"Whole chicken with 4 pcs Arabic bread and fries platter, served with tomato chutney and garlic paste", price:595, tag:"Must try", options:[EXTRA_KABSA_RICE]},
+  {id:"meal-set-4", cat:"MealSets", name:"Shawaya Set 4", desc:"Whole chicken with 4 cups of rice and your choice of salad, served with tomato chutney and garlic paste.", price:695, options:[SPICE,EXTRA_KABSA_RICE]},
+  //Potluck
+  {id:"potluck", cat:"Potluck", name:"Potluck", desc:"Good for 4-6 pax.", price:995, options:[SPICE,EXTRA_KABSA_RICE]},
+  {id:"potluck", cat:"Potluck", name:"Shawaya Potluck", desc:"	Good for 4–6 pax", price:1299, options:[{label:"Skewers",choices:[{name:"2 skewers",add:0},{name:"3 skewers",add:70}]},EXTRA_KABSA_RICE]},
+  //Salads
+  {id:"sld", cat:"Salads", name:"Fattoush", desc:"Fresh greens with bread crisps", price:179},
+  {id:"sld", cat:"Salads", name:"Tabbouleh", desc:"Fresh parsley, tomato, onions and other greens with olive oil and lemon dressing", price:229, tag:"Fan favorite"},
+  //Solo Orders
+  {id:"slo", cat:"Solo", name:"Kabsa Chicken", desc:"Charcoal-grilled quarter chicken, served with tomato chutney", price:260},
+  {id:"slo", cat:"Solo", name:"Kabsa Beef", desc:"Tender beef chunks, served with tomato chutney", price:350, options:[{label:"Add rice",choices:[{name:"No rice",add:0},{name:"With kabsa rice (good for 3)",add:150}]}]},
+  {id:"slo", cat:"Solo", name:"Chicken Biryani", desc:"Served with yogurt salad (raita)", price:290},
+  {id:"slo", cat:"Solo", name:"Grilled Half Chicken", desc:"Charcoal-grilled half chicken with Arabic bread and fries platter, served with garlic paste and BBQ sauce", price:375,   options:[SPICE]},
+  {id:"beef-kebab-rice", cat:"Solo", name:"Beef Kebab with Rice", desc:"Served with 1 kebab; add another piece for ₱95.", price:195, options:[{label:"Extra kebab",choices:[{name:"No extra piece",add:0},{name:"Add 1 more piece",add:95}]}]},
+  {id:"chicken-kebab-rice", cat:"Solo", name:"Chicken Kebab with Rice", desc:"Served with 1 kebab; add another piece for ₱95.", price:195, options:[{label:"Extra kebab",choices:[{name:"No extra piece",add:0},{name:"Add 1 more piece",add:95}]}]},
+  
+  {id:"sd-hummus", cat:"sides", name:"Hummus & Pita", desc:"Creamy chickpea dip with olive oil and warm pita.", price:119},
+  {id:"sd-fries", cat:"sides", name:"Shawarma Fries", desc:"Fries loaded with chicken shawarma and garlic sauce.", price:149},
+  {id:"sd-garlic", cat:"sides", name:"Extra Garlic Sauce", desc:"The good stuff. 2 oz cup.", price:25},
+  {id:"sd-rice", cat:"sides", name:"Extra Arabian Rice", desc:"", price:40},
+  {id:"dr-laban", cat:"drinks", name:"Laban", desc:"Chilled salted yogurt drink.", price:69},
+  {id:"dr-mint", cat:"drinks", name:"Mint Lemonade", desc:"Fresh lemon blended with mint.", price:89},
+  {id:"dr-tea", cat:"drinks", name:"Iced Tea", desc:"", price:45}
 ];
 
 /* ================= APP ================= */
@@ -757,12 +778,29 @@ function card(m){
   return `<article class="card">
     <div class="thumb">${m.img?`<img src="${esc(m.img)}" alt="${esc(m.name)}" loading="lazy">`:`<div class="ph" aria-hidden="true"><span>${esc(initials)}</span></div>`}</div>
     <div class="body">${m.tag?`<span class="tag">${esc(m.tag)}</span>`:""}<div class="name">${esc(m.name)}</div><div class="desc">${esc(m.desc||"")}</div>
-      <div class="row"><span class="price">${m.options&&m.options.some(o=>o.choices.some(c=>c.add>0))?"from ":""}${peso(m.price)}</span>
+      <div class="row"><span class="price">${peso(m.price)}</span>
       <button class="add" data-add="${m.id}" aria-label="Add ${esc(m.name)}">Add</button></div></div>
   </article>`;
 }
 renderMenu();
 $("#q").addEventListener("input", e => renderMenu(e.target.value));
+$("#searchToggle").addEventListener("click", () => {
+  const search = $("#menuSearch"), input = $("#q"), toggle = $("#searchToggle");
+  const opening = !search.classList.contains("open");
+  search.classList.toggle("open", opening);
+  toggle.setAttribute("aria-expanded", String(opening));
+  toggle.setAttribute("aria-label", opening ? "Close menu search" : "Open menu search");
+  input.tabIndex = opening ? 0 : -1;
+  if(opening) input.focus();
+  else if(input.value){
+    input.value = "";
+    renderMenu();
+    watch();
+  }
+});
+$("#q").addEventListener("keydown", e => {
+  if(e.key === "Escape") $("#searchToggle").click();
+});
 $("#tabs").addEventListener("click", e => {
   const t = e.target.closest(".tab"); if(!t) return;
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x===t));
@@ -776,24 +814,50 @@ const watch = () => { obs.disconnect(); document.querySelectorAll(".cat").forEac
 watch(); $("#q").addEventListener("input", watch);
 
 /* item options modal */
-let cur = null, curQty = 1;
+let cur = null, curQty = 1, editIndex = null;
+function openItemModal(m, line=null, index=null){
+  cur = m;
+  curQty = line ? line.qty : 1;
+  editIndex = index;
+  $("#mTitle").textContent = m.name;
+  $("#mDesc").textContent = m.desc || "";
+  $("#mAction").textContent = line ? "Save changes" : "Add";
+  $("#mOpts").innerHTML = (m.options || []).map((o,i)=>{
+    const selected = line ? o.choices.findIndex(c=>line.opts.includes(c.name)) : 0;
+    const selectedIndex = selected >= 0 ? selected : 0;
+    return `<div class="opt-group"><p>${esc(o.label)}</p><div class="chips">${o.choices.map((c,j)=>`<label class="chip"><input type="radio" name="o${i}" value="${j}" ${j===selectedIndex?"checked":""}><span>${esc(c.name)}${c.add?` +${peso(c.add)}`:""}</span></label>`).join("")}</div></div>`;
+  }).join("");
+  updM();
+  $("#modal").classList.add("open");
+}
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-add]"); if(!b) return;
   const m = MENU.find(x=>x.id===b.dataset.add);
   if(!m.options || !m.options.length){ addToCart(m, [], 1); return; }
-  cur = m; curQty = 1;
-  $("#mTitle").textContent = m.name; $("#mDesc").textContent = m.desc || "";
-  $("#mOpts").innerHTML = m.options.map((o,i)=>`<div class="opt-group"><p>${esc(o.label)}</p><div class="chips">${o.choices.map((c,j)=>`<label class="chip"><input type="radio" name="o${i}" value="${j}" ${j===0?"checked":""}><span>${esc(c.name)}${c.add?` +${peso(c.add)}`:""}</span></label>`).join("")}</div></div>`).join("");
-  updM(); $("#modal").classList.add("open");
+  openItemModal(m);
 });
-function chosen(){ return cur.options.map((o,i)=>o.choices[+document.querySelector(`input[name=o${i}]:checked`).value]); }
+function chosen(){ return (cur.options || []).map((o,i)=>o.choices[+document.querySelector(`input[name=o${i}]:checked`).value]); }
 function updM(){ const add = chosen().reduce((s,c)=>s+c.add,0); $("#mQty").textContent = curQty; $("#mPrice").textContent = peso((cur.price+add)*curQty); }
 $("#mOpts").addEventListener("change", updM);
 $("#mMinus").onclick = ()=>{ if(curQty>1){curQty--; updM();} };
 $("#mPlus").onclick = ()=>{ curQty++; updM(); };
-$("#mCancel").onclick = ()=> $("#modal").classList.remove("open");
-$("#modal").addEventListener("click", e=>{ if(e.target.id==="modal") $("#modal").classList.remove("open"); });
-$("#mAdd").onclick = ()=>{ addToCart(cur, chosen(), curQty); $("#modal").classList.remove("open"); };
+function closeItemModal(){ $("#modal").classList.remove("open"); editIndex=null; }
+$("#mCancel").onclick = closeItemModal;
+$("#modal").addEventListener("click", e=>{ if(e.target.id==="modal") closeItemModal(); });
+$("#mAdd").onclick = ()=>{
+  const opts = chosen();
+  if(editIndex===null) addToCart(cur, opts, curQty);
+  else {
+    const index = editIndex, names = opts.map(o=>o.name);
+    const unit = cur.price + opts.reduce((s,o)=>s+o.add,0);
+    const key = cur.id + "|" + names.join("|");
+    const existing = cart.findIndex((line,i)=>i!==index && line.key===key);
+    if(existing>=0){ cart[existing].qty += curQty; cart.splice(index,1); }
+    else cart[index] = {key,id:cur.id,name:cur.name,opts:names,unit,qty:curQty};
+    save(); toast(`Updated ${cur.name}`);
+  }
+  closeItemModal();
+};
 
 /* cart */
 function addToCart(m, opts, qty){
@@ -812,15 +876,26 @@ function renderCart(){
   $("#barTotal").textContent = peso(subtotal());
   $("#bar").classList.toggle("show", n>0 && !$("#drawer").classList.contains("open"));
   $("#lines").innerHTML = cart.length ? cart.map((l,i)=>`<div class="line">
-      <div><div class="ln">${esc(l.name)}</div>${l.opts.length?`<div class="lo">${esc(l.opts.join(" · "))}</div>`:""}</div>
-      <div class="lp">${peso(l.unit*l.qty)}</div>
-      <div class="lo">${peso(l.unit)} each</div>
-      <div class="qty"><button data-dec="${i}" aria-label="Less">−</button><span>${l.qty}</span><button data-inc="${i}" aria-label="More">+</button></div>
+      <div class="line-main"><div class="ln">${esc(l.name)}</div>${l.opts.length?`<div class="lo">${esc(l.opts.join(" · "))}</div>`:""}
+        <div class="line-actions"><button class="line-action" data-edit="${i}" aria-label="Edit ${esc(l.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14 5 5 5"/><path d="M4 20h4l11-11a2.1 2.1 0 0 0-4-4L4 16v4Z"/></svg>Edit</button>
+        <button class="line-delete" data-remove="${i}" aria-label="Remove ${esc(l.name)}" title="Remove item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button></div>
+      </div>
+      <div class="line-pricing"><div class="lp">${peso(l.unit*l.qty)}</div><div class="lo">${peso(l.unit)} each</div>
+        <div class="qty"><button data-dec="${i}" aria-label="Less">−</button><span>${l.qty}</span><button data-inc="${i}" aria-label="More">+</button></div>
+      </div>
     </div>`).join("") : `<p class="empty">Your order is empty.<br>Add something masarap!</p>`;
   $("#totals").innerHTML = cart.length ? `<div><span>Subtotal</span><span>${peso(subtotal())}</span></div><div class="note"><span>Delivery fee</span><span>To be confirmed</span></div><div class="grand"><span>Estimated total</span><span>${peso(subtotal())}</span></div>` : "";
 }
 $("#lines").addEventListener("click", e=>{
+  const edit=e.target.closest("[data-edit]"), remove=e.target.closest("[data-remove]");
   const d=e.target.closest("[data-dec]"), u=e.target.closest("[data-inc]");
+  if(edit){
+    const i=+edit.dataset.edit, line=cart[i], item=MENU.find(m=>m.id===line.id) || MENU.find(m=>m.name===line.name);
+    if(!item){ toast("This menu item is no longer available to edit."); return; }
+    openItemModal(item,line,i);
+    return;
+  }
+  if(remove){ const i=+remove.dataset.remove, name=cart[i].name; cart.splice(i,1); save(); toast(`Removed ${name}`); return; }
   if(u){ cart[+u.dataset.inc].qty++; save(); }
   if(d){ const i=+d.dataset.dec; cart[i].qty--; if(cart[i].qty<=0) cart.splice(i,1); save(); }
 });
@@ -828,7 +903,7 @@ function openCart(){ $("#drawer").classList.add("open"); $("#drawer").setAttribu
 function closeCart(){ $("#drawer").classList.remove("open"); $("#drawer").setAttribute("aria-hidden","true"); $("#scrim").classList.remove("open"); renderCart(); }
 $("#openCart").onclick = openCart; $("#barBtn").onclick = openCart;
 $("#closeCart").onclick = closeCart; $("#scrim").onclick = closeCart;
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeCart(); $("#modal").classList.remove("open"); } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeCart(); closeItemModal(); } });
 
 /* form: remember details, toggle address */
 const saved = store.get("ak_details") || {};
