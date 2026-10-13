@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en-PH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Pay with GCash · Arbab Kebab</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--saffron:#F5B21B;--saffron-soft:#FCE7AE;--ember:#E0701C;--ember-dark:#B9530C;--char:#1E1A16;--char-2:#3A322B;--cream:#FFF8EA;--paper:#FFFDF8;--line:#EADFC8;--muted:#7A6D5F;--ok:#2F7D4F;--gcash:#0B5FD7}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--cream);color:var(--char);font-family:"Plus Jakarta Sans",system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+.top{background:var(--saffron);border-bottom:4px solid var(--char)}
+.top .in{max-width:520px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.mark{width:40px;height:40px;border-radius:50%;background:var(--ember);border:3px solid var(--char);display:grid;place-items:center;font-family:Fraunces,serif;font-weight:800;font-size:14px}
+.top a{color:var(--char);text-decoration:none;font-family:Fraunces,serif;font-weight:800;font-size:20px}
+main{max-width:520px;margin:0 auto;padding:18px 16px 48px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(30,26,22,.05),0 8px 24px rgba(30,26,22,.06)}
+h1{font-family:Fraunces,serif;font-size:28px;line-height:1.1;margin:0 0 4px}
+.sub{color:var(--muted);margin:0}
+.ref{font-family:ui-monospace,Menlo,monospace;background:var(--saffron-soft);padding:2px 8px;border-radius:6px;font-weight:700;letter-spacing:.03em}
+.amount{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:2px solid var(--char)}
+.amount .l{font-weight:700}
+.amount .v{font-family:Fraunces,serif;font-weight:800;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--char-2);font-weight:600;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+td{padding:5px 0;border-bottom:1px dashed var(--line);vertical-align:top}
+td.p{text-align:right;white-space:nowrap}
+.o{color:var(--muted);font-size:12.5px}
+.step{display:flex;gap:10px;align-items:baseline;margin:0 0 10px}
+.step b{flex:none;width:26px;height:26px;border-radius:50%;background:var(--char);color:#fff;display:grid;place-items:center;font-size:13px}
+.step h2{font-size:18px;margin:0}
+.qr{display:block;width:min(260px,80%);margin:8px auto 10px;border-radius:14px;border:1px solid var(--line);background:#fff;padding:8px}
+.center{text-align:center}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px}
+.row .k{font-size:12px;color:var(--muted);font-weight:600}
+.row .val{font-weight:800;font-size:17px;font-variant-numeric:tabular-nums;word-break:break-all}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:2px solid var(--char);background:#fff;border-radius:12px;padding:9px 14px;font-weight:700;text-decoration:none;color:var(--char);cursor:pointer;white-space:nowrap}
+.btn.sm{padding:6px 10px;font-size:13px;border-width:1.5px}
+.btn.dark{background:var(--char);color:#fff;width:100%;padding:14px;font-size:16px}
+.btn:disabled{opacity:.55;cursor:default}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+input{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:17px}
+input:focus{outline:none;border-color:var(--ember)}
+.err{color:#B3261E;font-size:14px;min-height:1.2em;margin:8px 0}
+.state{text-align:center;padding:28px 18px}
+.state .icon{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;font-size:30px;font-weight:800;border:3px solid var(--char)}
+.state .icon.ok{background:#CFEBD9}
+.state .icon.wait{background:var(--saffron-soft)}
+.state .icon.bad{background:#F3D6D2}
+.state h2{font-family:Fraunces,serif;font-size:24px;margin:0 0 6px}
+.state p{color:var(--char-2);margin:0 0 6px}
+.links{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--char);color:#fff;padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;transition:.2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.skeleton{height:120px;border-radius:18px;background:linear-gradient(90deg,#f3ead7,#fbf4e4,#f3ead7);background-size:200% 100%;animation:sh 1.2s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+</style>
+</head>
+<body>
+<header class="top"><div class="in"><span class="mark" aria-hidden="true">AK</span><a href="./">Arbab Kebab</a></div></header>
+
+<main id="main"><div class="skeleton" aria-label="Loading"></div></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script>
+const C = window.SITE_CONFIG || {};
+const G = C.gcash || {};
+const MESSENGER = "https://m.me/ArbabKebabOfficial";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const peso = n => "₱" + Number(n||0).toLocaleString("en-PH", {maximumFractionDigits:2});
+const ref = (new URLSearchParams(location.search).get("ref") || "").trim().toUpperCase();
+
+async function rpc(fn, body){
+  const headers = {"Content-Type":"application/json", apikey: C.supabaseKey};
+  if(C.supabaseKey && !C.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + C.supabaseKey;
+  const r = await fetch(C.supabaseUrl.replace(/\/$/,"") + "/rest/v1/rpc/" + fn, {method:"POST", headers, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => null);
+  if(!r.ok) throw new Error((j && j.message) || "Something went wrong. Please try again.");
+  return j;
+}
+async function copy(t, label){
+  try{ await navigator.clipboard.writeText(t); toast(label + " copied"); }
+  catch(e){ prompt("Copy this:", t); }
+}
+let tt; function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("show"),1800); }
+
+function state(icon, cls, title, text, extra=""){
+  $("#main").innerHTML = `<div class="card state"><div class="icon ${cls}" aria-hidden="true">${icon}</div><h2>${title}</h2><p>${text}</p>${extra}
+    <div class="links"><a class="btn sm" href="${MESSENGER}" target="_blank" rel="noopener">Message us</a><a class="btn sm" href="./">Back to menu</a></div></div>`;
+}
+function summary(o){
+  return `<div class="card">
+    <p class="sub">Order <span class="ref">${esc(o.ref)}</span> · #${o.order_no} · ${esc(o.mode)} · ${esc(o.branch)}</p>
+    <div class="amount"><span class="l">Amount to pay</span><span class="v">${peso(o.total)}</span></div>
+    <details><summary>See order details</summary>
+      <table>${o.items.map(i => `<tr><td>${i.qty}× ${esc(i.name)}${i.opts && i.opts.length ? `<div class="o">${esc(i.opts.join(" · "))}</div>` : ""}</td><td class="p">${peso(i.qty*i.unit)}</td></tr>`).join("")}
+        <tr><td>Subtotal</td><td class="p">${peso(o.subtotal)}</td></tr>
+        <tr><td>Delivery fee</td><td class="p">${peso(o.delivery_fee)}</td></tr></table>
+    </details>
+  </div>`;
+}
+
+function renderPay(o){
+  const amount = String(Number(o.total));
+  const resubmit = o.payment_status === "submitted";
+  $("#main").innerHTML = `
+    <h1>Pay with GCash</h1>
+    <p class="sub" style="margin-bottom:14px">Send the exact amount, then enter your GCash reference number below.</p>
+    ${summary(o)}
+    ${resubmit ? `<div class="card" style="background:var(--saffron-soft)"><b>We already received reference no. ending ${esc(o.payment_ref_last4)}.</b> We're checking it now — only submit again if you made a mistake.</div>` : ""}
+    <div class="card">
+      <div class="step"><b>1</b><h2>Send ${peso(o.total)} via GCash</h2></div>
+      ${G.qrImage ? `<div class="center" id="qrWrap">
+          <img class="qr" id="qr" src="${esc(G.qrImage)}" alt="Arbab Kebab GCash QR code">
+          <a class="btn sm" href="${esc(G.qrImage)}" download="ArbabKebab-GCash-QR.png">⬇ Save QR to phone</a>
+          <p class="hint">On this phone? Save the QR, then in GCash tap <b>Scan QR → Upload QR</b> and pick the saved image.</p>
+        </div>` : ""}
+      ${G.number ? `<div class="row"><div><div class="k">Or Send Money to</div><div class="val">${esc(G.number)}</div>${G.accountName ? `<div class="k">${esc(G.accountName)}</div>` : ""}</div><button class="btn sm" data-copy="${esc(G.number.replace(/\s/g,""))}" data-label="Number">Copy</button></div>` : ""}
+      <div class="row"><div><div class="k">Exact amount</div><div class="val">${peso(o.total)}</div></div><button class="btn sm" data-copy="${esc(amount)}" data-label="Amount">Copy</button></div>
+      <div class="row"><div><div class="k">Add this in the message / note</div><div class="val">${esc(o.ref)}</div></div><button class="btn sm" data-copy="${esc(o.ref)}" data-label="Order ref">Copy</button></div>
+    </div>
+    <div class="card">
+      <div class="step"><b>2</b><h2>Enter your GCash reference no.</h2></div>
+      <p class="hint" style="margin-top:0">It's on your GCash receipt after paying (“Ref No.”, 13 digits).</p>
+      <form id="f" novalidate>
+        <label for="gref">Reference number</label>
+        <input id="gref" inputmode="numeric" autocomplete="off" placeholder="e.g. 5012 345 678901" required>
+        <label for="gname">Name on your GCash account <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <input id="gname" autocomplete="name" placeholder="e.g. Juan D.">
+        <div class="err" id="err" role="alert"></div>
+        <button class="btn dark" id="sub" type="submit">I've paid — submit reference</button>
+      </form>
+    </div>`;
+  const img = $("#qr"); if(img) img.onerror = () => $("#qrWrap").remove();   // no QR uploaded yet → hide that part
+  document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copy(b.dataset.copy, b.dataset.label));
+  $("#f").onsubmit = async e => {
+    e.preventDefault();
+    const g = $("#gref").value.replace(/\D/g, "");
+    if(g.length < 10 || g.length > 20){ $("#err").textContent = "Please enter the reference number from your GCash receipt (numbers only)."; return; }
+    $("#sub").disabled = true; $("#sub").textContent = "Submitting…"; $("#err").textContent = "";
+    try{
+      await rpc("submit_payment", {p_ref: o.ref, p_gcash_ref: g, p_name: $("#gname").value.trim()});
+      state("✓", "ok", "Payment submitted!", `Salamat! We'll check reference no. ending <b>${esc(g.slice(-4))}</b> and confirm your order <span class="ref">${esc(o.ref)}</span> shortly.`);
+    }catch(err){
+      $("#err").textContent = err.message; $("#sub").disabled = false; $("#sub").textContent = "I've paid — submit reference";
+    }
+  };
+}
+
+async function start(){
+  if(!C.supabaseUrl || !C.supabaseKey) return state("!", "bad", "Payment page not set up yet", "Please message us to pay for your order.");
+  if(!/^AK-[A-Z0-9]{6}$/.test(ref)) return state("?", "bad", "Payment link incomplete", "Please open the full link we sent you, or message us.");
+  let o;
+  try{ o = await rpc("get_payment", {p_ref: ref}); }
+  catch(e){ return state("!", "bad", "Couldn't load your order", "Please check your internet connection and refresh this page."); }
+  if(!o) return state("?", "bad", "Order not found", `We couldn't find order <span class="ref">${esc(ref)}</span>. Payment links work for 14 days — message us if you need help.`);
+  if(o.status === "cancelled") return state("✕", "bad", "Order cancelled", `Order <span class="ref">${esc(o.ref)}</span> was cancelled, so no payment is needed.`);
+  if(o.payment_status === "paid" || o.payment_status === "refunded")
+    return state("✓", "ok", o.payment_status === "paid" ? "Paid — salamat!" : "Payment refunded", `Order <span class="ref">${esc(o.ref)}</span> · ${peso(o.total)}`);
+  if(o.status === "new") return state("⏳", "wait", "We're confirming your order", `Once we confirm your total (including delivery), you can pay here. Refresh this page in a few minutes, or wait for our message.`,
+    `<p style="margin-top:10px"><button class="btn sm" onclick="location.reload()">↻ Refresh</button></p>`);
+  renderPay(o);
+}
+start();
+</script>
+</body>
+</html>

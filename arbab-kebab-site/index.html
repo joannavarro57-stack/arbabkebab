@@ -661,8 +661,10 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
 <script>
-/* ================= STORE DETAILS (edit me) ================= */
+/* ================= STORE DETAILS (edit me) =================
+   Database keys and GCash details live in config.js (shared with pay.html). */
 const STORE = {
   name: "Arbab Kebab",
   phone: "+639700910888",
@@ -673,11 +675,10 @@ const STORE = {
   branches: ["San Mateo", "Malolos"],
   payments: ["Cash on delivery / pickup", "GCash", "Maya"],
   currency: "₱",
-  /* Order database (Supabase). Paste from Supabase → Project Settings → API.
-     Leave empty to run without saving orders (Messenger/text only). */
-  supabaseUrl: "https://addfbbpqhxsinedvnnme.supabase.co",          // e.g. "https://abcdefghijkl.supabase.co"
-  supabaseKey: "sb_publishable_vNys_OaZ_iVP1bfJj64Qhw_QQvyEaQp"           // the anon / publishable key (safe to be public)
+  supabaseUrl: "",
+  supabaseKey: ""
 };
+Object.assign(STORE, window.SITE_CONFIG || {});   // values from config.js win
 
 /* ================= MENU (sample — replace with real items & prices) =================
    Each item: id, cat, name, desc, price, optional tag, optional img URL,
@@ -913,6 +914,7 @@ async function finish(channel){
     ? "Your text app should open with the order filled in — just press send."
     : copied ? "Your order is copied. Open our Messenger chat and paste it to send."
              : "Open our Messenger chat and send us your order (tap “Copy order again” first).";
+  if(/gcash/i.test($("#pay").value)) $("#doneHow").textContent += " Paying by GCash? Once we confirm your total, we'll send you a payment link with our GCash QR.";
   $("#doneStatus").className = "done-status"; $("#doneStatus").textContent = STORE.supabaseUrl ? "Saving your order…" : "";
   document.querySelector(".d-body").hidden = true; $("#dFoot").hidden = true; $("#done").hidden = false;
   cart = []; store.set("ak_cart", cart); renderCart();
