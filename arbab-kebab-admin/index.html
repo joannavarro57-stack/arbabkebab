@@ -83,6 +83,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 .order .tot{font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
 .order .ago{grid-column:1;font-size:12px;color:var(--muted)}
 .pill{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;color:#fff;white-space:nowrap}
+.pay{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;border:1.5px solid currentColor;white-space:nowrap}
+.pay.unpaid{color:var(--grey)} .pay.submitted{color:#fff;background:var(--amber);border-color:var(--amber)} .pay.paid{color:var(--green)} .pay.refunded{color:var(--purple)}
+.paybox{border-radius:12px;padding:10px 12px;margin-top:8px;background:var(--bg)}
+.paybox.submitted{background:#FFF3D6;border:1.5px solid var(--amber)}
+.paybox .big{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:800;letter-spacing:.04em}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);background:var(--card);border:1.5px dashed var(--line);border-radius:14px}
 
 /* detail */
@@ -204,7 +209,7 @@ textarea{width:100%;resize:vertical}
 const CONFIG = {
   supabaseUrl: "https://addfbbpqhxsinedvnnme.supabase.co",      // Supabase → Project Settings → API → Project URL
   supabaseKey: "sb_publishable_vNys_OaZ_iVP1bfJj64Qhw_QQvyEaQp",      // the anon / publishable key (same one as the order site)
-  orderSiteUrl: "https://arbabkebab.netlify.app",
+  orderSiteUrl: "https://arbabkebab.netlify.app",   // customer site address — used for GCash payment links
   businessName: "Arbab Kebab",
   branches: ["San Mateo", "Malolos"],
   timeZone: "Asia/Manila",
@@ -244,6 +249,10 @@ function nextStep(o){
   if(o.status==="ready" || o.status==="out_for_delivery") return {to:"completed", label:"Mark completed"};
   return null;
 }
+const PAY = { unpaid:"Unpaid", submitted:"Verify payment", paid:"Paid", refunded:"Refunded" };
+const payBadge = o => `<span class="pay ${esc(o.payment_status||"unpaid")}">${o.payment_status==="paid" ? "✓ " : o.payment_status==="submitted" ? "⏳ " : ""}${PAY[o.payment_status||"unpaid"]}</span>`;
+const isGcash = o => /gcash/i.test(o.payment || "");
+const payLink = o => CONFIG.orderSiteUrl.replace(/\/$/, "") + "/pay.html?ref=" + encodeURIComponent(o.ref);
 const pill = s => `<span class="pill" style="background:${STATUS[s]?.color||"#777"}">${esc(STATUS[s]?.label||s)}</span>`;
 
 /* ================= STATE ================= */
@@ -331,7 +340,14 @@ function subscribe(){
           beep(); toast(`New order ${row.ref} · ${row.customer_name} · ${peso(row.total)}`, true);
           flashId = row.id;
         }
-      } else if(i >= 0) orders[i] = row;
+      } else if(i >= 0){
+        const before = orders[i];
+        if(row.payment_status === "submitted" && before.payment_status !== "submitted" &&
+           (!$("#branchF").value || $("#branchF").value === row.branch)){
+          beep(); toast(`💸 GCash payment to verify · #${row.order_no} · ${peso(row.total)}`, true); flashId = row.id;
+        }
+        orders[i] = row;
+      }
       else if(inRange(row)) orders.unshift(row);
       render();
     })
@@ -362,18 +378,22 @@ function render(){
   // KPIs (cancelled orders excluded from sales)
   const valid = base.filter(o => o.status !== "cancelled");
   const sales = valid.reduce((s,o)=>s + Number(o.total), 0);
+  const collected = valid.filter(o => o.payment_status === "paid").reduce((s,o)=>s + Number(o.total), 0);
   const open = base.filter(o => OPEN.includes(o.status)).length;
+  const verify = base.filter(o => o.payment_status === "submitted" && o.status !== "cancelled").length;
   const newCount = base.filter(o => o.status === "new").length;
   $("#kpis").innerHTML = [
-    ["Orders", valid.length], ["Sales", peso(sales)], ["Avg order", peso(valid.length ? Math.round(sales/valid.length) : 0)], ["Open now", open]
+    ["Orders", valid.length], ["Sales", peso(sales)], ["Collected", peso(collected)], ["Open now", open]
   ].map(([l,v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
-  document.title = (newCount ? `(${newCount}) ` : "") + "Arbab Kebab · Orders";
+  const alerts = newCount + verify;
+  document.title = (alerts ? `(${alerts}) ` : "") + "Arbab Kebab · Orders";
   // tabs
-  const counts = {open, all: base.length}; Object.keys(STATUS).forEach(s => counts[s] = base.filter(o=>o.status===s).length);
-  const tabDefs = [["open","Open"],["new","New"],["confirmed","Confirmed"],["preparing","Preparing"],["ready","Ready"],["out_for_delivery","Out for delivery"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]];
+  const counts = {open, verify, all: base.length}; Object.keys(STATUS).forEach(s => counts[s] = base.filter(o=>o.status===s).length);
+  const tabDefs = [["open","Open"],["new","New"],["verify","Verify payment"],["confirmed","Confirmed"],["preparing","Preparing"],["ready","Ready"],["out_for_delivery","Out for delivery"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]];
   $("#tabs").innerHTML = tabDefs.map(([k,l]) => `<button class="tab${tab===k?" on":""}" data-tab="${k}">${l}<b>${counts[k]}</b></button>`).join("");
   // list
-  const shown = base.filter(o => tab==="all" ? true : tab==="open" ? OPEN.includes(o.status) : o.status===tab);
+  const shown = base.filter(o => tab==="all" ? true : tab==="open" ? OPEN.includes(o.status)
+    : tab==="verify" ? (o.payment_status==="submitted" && o.status!=="cancelled") : o.status===tab);
   if(tab === "open") shown.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));   // oldest open order first
   $("#list").innerHTML = shown.length ? shown.map(o => {
     const items = o.items.map(i => `${i.qty}× ${i.name}`).join(", ");
@@ -382,7 +402,7 @@ function render(){
       <span class="nm">${esc(o.customer_name)} <span style="font-weight:500;color:var(--muted)">· ${esc(o.mode)} · ${esc(o.branch)}</span></span>
       <span class="tot">${peso(o.total)}</span>
       <span class="ago">${esc(ago(o.created_at))}</span>
-      <span class="meta">${pill(o.status)} &nbsp;${esc(items)}</span>
+      <span class="meta">${pill(o.status)} ${payBadge(o)} &nbsp;${esc(o.payment||"")} · ${esc(items)}</span>
     </button>`;
   }).join("") : `<div class="empty">No orders here${$("#q").value ? " matching your search" : ""}.</div>`;
   flashId = null;
@@ -430,6 +450,22 @@ function renderDetail(){
         <div class="grand"><span>Total</span><span id="grand">${peso(o.total)}</span></div>
       </div>
     </div>
+    <div class="sec">
+      <h3>Payment · ${esc(o.payment || "—")}</h3>
+      <div>${payBadge(o)}${o.paid_at ? ` <span style="font-size:13px;color:var(--muted)">on ${esc(fmtDate.format(new Date(o.paid_at)))} · ${esc(fmtTime.format(new Date(o.paid_at)))}</span>` : ""}</div>
+      ${o.payment_ref ? `<div class="paybox ${o.payment_status==="submitted"?"submitted":""}">
+          <div style="font-size:12px;color:var(--muted);font-weight:600">GCash reference no.</div>
+          <div class="big">${esc(o.payment_ref)}</div>
+          <div style="font-size:13px">${o.payer_name ? `From: <b>${esc(o.payer_name)}</b> · ` : ""}${o.payment_submitted_at ? `submitted ${esc(fmtTime.format(new Date(o.payment_submitted_at)))}` : ""}</div>
+          ${o.payment_status==="submitted" ? `<div style="font-size:13px;margin-top:6px">Open GCash → <b>Transactions</b>, find this Ref No. and check the amount is <b>${peso(o.total)}</b>.</div>` : ""}
+        </div>` : ""}
+      <div class="row-btns no-print">
+        ${o.payment_status==="submitted" ? `<button class="btn sm" id="payOk" style="border-color:var(--green);color:var(--green)">✓ Verified — mark paid</button><button class="btn sm danger" id="payBad">✗ Not found</button>`
+          : o.payment_status==="paid" ? `<button class="btn sm" id="payUndo">Undo paid</button>`
+          : `<button class="btn sm" id="payOk">Mark paid${isGcash(o) ? "" : " (cash)"}</button>`}
+        ${isGcash(o) && o.payment_status!=="paid" && o.status!=="cancelled" ? `<button class="btn sm" id="copyPayLink">🔗 Copy payment link</button>` : ""}
+      </div>
+    </div>
     <div class="sec no-print">
       <h3>Staff notes <span class="saved" id="noteSaved"></span></h3>
       <textarea id="staffNotes" rows="2" placeholder="Rider name, payment received, changes…">${esc(o.staff_notes||"")}</textarea>
@@ -455,6 +491,19 @@ function renderDetail(){
   $("#setStatus").onchange = e => updateOrder(o.id, {status: e.target.value}, `#${o.order_no} → ${STATUS[e.target.value].label}`);
   if($("#cancel")) $("#cancel").onclick = () => { if(confirm(`Cancel order #${o.order_no} for ${o.customer_name}?`)) updateOrder(o.id, {status:"cancelled"}, `#${o.order_no} cancelled`); };
   $("#print").onclick = () => window.print();
+  if($("#payOk")) $("#payOk").onclick = () => updateOrder(o.id, {payment_status:"paid"}, `#${o.order_no} marked paid`);
+  if($("#payUndo")) $("#payUndo").onclick = () => { if(confirm(`Mark #${o.order_no} as NOT paid?`)) updateOrder(o.id, {payment_status: o.payment_ref ? "submitted" : "unpaid"}, "Payment status changed"); };
+  if($("#payBad")) $("#payBad").onclick = async () => {
+    if(!confirm(`Payment ref ${o.payment_ref} not found in GCash? The customer will be able to submit a new reference.`)) return;
+    if(await updateOrder(o.id, {payment_status:"unpaid"}, "Marked unpaid")){
+      const msg = `Hi ${(o.customer_name||"").split(" ")[0]}! This is ${CONFIG.businessName}. We couldn't find GCash Ref No. ${o.payment_ref} for order ${o.ref}. Could you double-check your receipt and submit it again here: ${payLink(o)} — or send us a screenshot. Salamat po!`;
+      try{ await navigator.clipboard.writeText(msg); toast("Message to customer copied"); }catch(e){ prompt("Send this to the customer:", msg); }
+    }
+  };
+  if($("#copyPayLink")) $("#copyPayLink").onclick = async () => {
+    if(o.status === "new") toast("Tip: confirm the order first so the customer can pay");
+    try{ await navigator.clipboard.writeText(payLink(o)); if(o.status !== "new") toast("Payment link copied"); }catch(e){ prompt("Payment link:", payLink(o)); }
+  };
   $("#copyConfirm").onclick = async () => {
     const first = (o.customer_name || "").split(" ")[0];
     const fee = Number(o.delivery_fee);
@@ -466,6 +515,7 @@ function renderDetail(){
       ``,
       `Total: ${peso(o.total)}${fee ? ` (incl. ${peso(fee)} delivery)` : ""}`,
       `Payment: ${o.payment || "—"}`,
+      ...(isGcash(o) && o.payment_status !== "paid" ? [``, `Pay via GCash here 👉 ${payLink(o)}`, `(shows our GCash QR and the exact amount)`, ``] : []),
       o.mode === "Delivery" ? `We'll message you when it's on the way.` : `We'll message you when it's ready for pickup at our ${o.branch} branch.`,
       `Salamat po!`
     ];
@@ -489,12 +539,13 @@ setInterval(() => { if(!$("#appView").hidden && !document.activeElement?.closest
 $("#csv").onclick = () => {
   const rows = filtered();
   if(!rows.length) return toast("Nothing to export");
-  const head = ["order_no","ref","date_time","status","mode","branch","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","channel","customer_notes","staff_notes"];
+  const head = ["order_no","ref","date_time","status","mode","branch","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
   const q = v => { let s = String(v ?? ""); if(/^[=@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating text as a formula
     return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
   const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, o.mode, o.branch, o.customer_name, o.customer_phone, o.address,
     o.items.map(i => `${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`).join("; "),
-    o.subtotal, o.delivery_fee, o.total, o.payment, o.channel, o.notes, o.staff_notes].map(q).join(","));
+    o.subtotal, o.delivery_fee, o.total, o.payment, PAY[o.payment_status] || o.payment_status, o.payment_ref,
+    o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes].map(q).join(","));
   const blob = new Blob(["﻿" + [head.join(","), ...lines].join("\r\n")], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
   a.download = `arbab-kebab-orders-${$("#range").value}-${ymdLocal(new Date())}.csv`; a.click();
