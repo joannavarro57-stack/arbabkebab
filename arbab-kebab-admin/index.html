@@ -336,7 +336,7 @@ function subscribe(){
       const i = orders.findIndex(o => o.id === row.id);
       if(eventType === "INSERT" && i < 0){
         if(inRange(row)) orders.unshift(row);
-        if(!$("#branchF").value || $("#branchF").value === row.branch){
+        if(!isPendingGcash(row) && (!$("#branchF").value || $("#branchF").value === row.branch)){
           beep(); toast(`New order ${row.ref} · ${row.customer_name} · ${peso(row.total)}`, true);
           flashId = row.id;
         }
@@ -370,15 +370,16 @@ async function updateOrder(id, patch, msg){
 let flashId = null;
 function filtered(){
   const b = $("#branchF").value, q = $("#q").value.trim().toLowerCase();
-  return orders.filter(o => (!b || o.branch === b) &&
+  return orders.filter(o => !isPendingGcash(o) && (!b || o.branch === b) &&
     (!q || [o.ref, o.order_no, o.customer_name, o.customer_phone, o.address].join(" ").toLowerCase().includes(q)));
 }
+function isPendingGcash(o){ return isGcash(o) && (o.payment_status || "unpaid") === "unpaid" && o.status !== "cancelled"; }
 function render(){
   const base = filtered();
   // KPIs (cancelled orders excluded from sales)
   const valid = base.filter(o => o.status !== "cancelled");
   const sales = valid.reduce((s,o)=>s + Number(o.total), 0);
-  const collected = valid.filter(o => o.payment_status === "paid").reduce((s,o)=>s + Number(o.total), 0);
+  const collected = valid.filter(o => o.payment_status === "paid").reduce((s,o)=>s + Number(isGcash(o) ? o.subtotal : o.total), 0);
   const open = base.filter(o => OPEN.includes(o.status)).length;
   const verify = base.filter(o => o.payment_status === "submitted" && o.status !== "cancelled").length;
   const newCount = base.filter(o => o.status === "new").length;
@@ -457,7 +458,7 @@ function renderDetail(){
           <div style="font-size:12px;color:var(--muted);font-weight:600">GCash reference no.</div>
           <div class="big">${esc(o.payment_ref)}</div>
           <div style="font-size:13px">${o.payer_name ? `From: <b>${esc(o.payer_name)}</b> · ` : ""}${o.payment_submitted_at ? `submitted ${esc(fmtTime.format(new Date(o.payment_submitted_at)))}` : ""}</div>
-          ${o.payment_status==="submitted" ? `<div style="font-size:13px;margin-top:6px">Open GCash → <b>Transactions</b>, find this Ref No. and check the amount is <b>${peso(o.total)}</b>.</div>` : ""}
+          ${o.payment_status==="submitted" ? `<div style="font-size:13px;margin-top:6px">Open GCash → <b>Transactions</b>, find this Ref No. and check the amount is <b>${peso(isGcash(o) ? o.subtotal : o.total)}</b>.</div>` : ""}
         </div>` : ""}
       <div class="row-btns no-print">
         ${o.payment_status==="submitted" ? `<button class="btn sm" id="payOk" style="border-color:var(--green);color:var(--green)">✓ Verified — mark paid</button><button class="btn sm danger" id="payBad">✗ Not found</button>`
@@ -501,8 +502,7 @@ function renderDetail(){
     }
   };
   if($("#copyPayLink")) $("#copyPayLink").onclick = async () => {
-    if(o.status === "new") toast("Tip: confirm the order first so the customer can pay");
-    try{ await navigator.clipboard.writeText(payLink(o)); if(o.status !== "new") toast("Payment link copied"); }catch(e){ prompt("Payment link:", payLink(o)); }
+    try{ await navigator.clipboard.writeText(payLink(o)); toast("Payment link copied"); }catch(e){ prompt("Payment link:", payLink(o)); }
   };
   $("#copyConfirm").onclick = async () => {
     const first = (o.customer_name || "").split(" ")[0];
@@ -513,7 +513,7 @@ function renderDetail(){
       ``,
       ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
       ``,
-      `Total: ${peso(o.total)}${fee ? ` (incl. ${peso(fee)} delivery)` : ""}`,
+      `${isGcash(o) ? `GCash food subtotal: ${peso(o.subtotal)}${fee ? ` · delivery fee ${peso(fee)} is settled separately` : ""}` : `Total: ${peso(o.total)}${fee ? ` (incl. ${peso(fee)} delivery)` : ""}`}`,
       `Payment: ${o.payment || "—"}`,
       ...(isGcash(o) && o.payment_status !== "paid" ? [``, `Pay via GCash here 👉 ${payLink(o)}`, `(shows our GCash QR and the exact amount)`, ``] : []),
       o.mode === "Delivery" ? `We'll message you when it's on the way.` : `We'll message you when it's ready for pickup at our ${o.branch} branch.`,

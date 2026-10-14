@@ -1,12 +1,15 @@
 -- =====================================================================
 --  ARBAB KEBAB — order database (Supabase / Postgres)
---  Run once: Supabase dashboard → SQL Editor → New query → paste → Run.
+--  Run: Supabase dashboard → SQL Editor → New query → paste → Run.
+--  Safe to rerun after edits; payment columns and RPCs are maintained below.
 --
 --  Security model
 --   • Customers (public "anon" key) can ONLY call place_order().
 --     They cannot read, list, edit or delete any order.
 --   • Staff log in to the admin site. Only emails listed in the
 --     public.staff table can read orders and update status / fee / notes.
+--   • Unpaid GCash orders are hidden in the admin UI until a payment reference
+--     is submitted; staff then verifies the reference and marks it paid.
 -- =====================================================================
 
 -- ---------- staff allow-list ----------
@@ -40,9 +43,44 @@ create table if not exists public.orders (
   delivery_fee   numeric(10,2) not null default 0 check (delivery_fee >= 0),
   total          numeric(10,2) generated always as (subtotal + delivery_fee) stored,
   staff_notes    text,
-  channel        text                                       -- messenger / sms / copy
+  channel        text,                                      -- website
+  payment_status text not null default 'unpaid',
+  payment_ref    text,
+  payment_ref_last4 text,
+  payer_name     text,
+  payment_submitted_at timestamptz,
+  paid_at        timestamptz
 );
 
+-- Add payment tracking to databases created from earlier versions of this file.
+alter table public.orders add column if not exists payment_status text not null default 'unpaid';
+alter table public.orders add column if not exists payment_ref text;
+alter table public.orders add column if not exists payment_ref_last4 text;
+alter table public.orders add column if not exists payer_name text;
+alter table public.orders add column if not exists payment_submitted_at timestamptz;
+alter table public.orders add column if not exists paid_at timestamptz;
+update public.orders
+   set payment_status = case
+     when paid_at is not null then 'paid'
+     when payment_ref is not null then 'submitted'
+     else 'unpaid'
+   end
+ where payment_status is null;
+alter table public.orders alter column payment_status set default 'unpaid';
+alter table public.orders alter column payment_status set not null;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint
+                 where conname = 'orders_payment_status_check'
+                   and conrelid = 'public.orders'::regclass) then
+    alter table public.orders add constraint orders_payment_status_check
+      check (payment_status in ('unpaid','submitted','paid','refunded'));
+  end if;
+end $$;
+
+create unique index if not exists orders_payment_ref_unique_idx
+  on public.orders (payment_ref) where payment_ref is not null;
 create index if not exists orders_created_at_idx on public.orders (created_at desc);
 create index if not exists orders_status_idx     on public.orders (status);
 
@@ -51,6 +89,11 @@ create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$
 begin
   new.updated_at := now();
+  if new.payment_status = 'paid' and old.payment_status is distinct from 'paid' then
+    new.paid_at := coalesce(new.paid_at, now());
+  elsif new.payment_status <> 'paid' then
+    new.paid_at := null;
+  end if;
   return new;
 end $$;
 
@@ -83,7 +126,9 @@ create policy "staff can read staff"    on public.staff  for select to authentic
 revoke all on public.orders from anon, authenticated;
 revoke all on public.staff  from anon, authenticated;
 grant select on public.orders to authenticated;
-grant update (status, delivery_fee, staff_notes) on public.orders to authenticated;
+grant update (status, delivery_fee, staff_notes, payment_status, payment_ref,
+              payment_ref_last4, payer_name, payment_submitted_at, paid_at)
+  on public.orders to authenticated;
 grant select on public.staff to authenticated;
 
 -- ---------- the only way customers can create an order ----------
@@ -107,6 +152,7 @@ begin
   -- basic validation
   if v_ref is null or v_ref !~ '^AK-[A-Z0-9]{6}$' then raise exception 'invalid ref'; end if;
   if v_mode not in ('Delivery','Takeout') then raise exception 'invalid mode'; end if;
+  if v_pay is null or v_pay not in ('Cash on Delivery','Cash','GCash') then raise exception 'invalid payment method'; end if;
   if length(v_branch) not between 1 and 60 then raise exception 'invalid branch'; end if;
   if length(v_name)   not between 1 and 80 then raise exception 'invalid name'; end if;
   if v_phone !~ '^[0-9+() -]{7,20}$' then raise exception 'invalid phone'; end if;
@@ -143,12 +189,12 @@ begin
                                   preferred_time, payment, notes, items, subtotal, channel)
   values (v_ref, v_mode, v_branch, v_name, v_phone, case when v_mode = 'Delivery' then v_addr end,
           v_time, v_pay, v_notes, v_items, v_sub, v_channel)
-  on conflict (ref) do update               -- same cart sent again (e.g. Messenger then SMS)
+  on conflict (ref) do update               -- allow retrying an unsubmitted checkout
      set mode = excluded.mode, branch = excluded.branch, customer_name = excluded.customer_name,
          customer_phone = excluded.customer_phone, address = excluded.address,
          preferred_time = excluded.preferred_time, payment = excluded.payment, notes = excluded.notes,
          items = excluded.items, subtotal = excluded.subtotal, channel = excluded.channel
-     where o.status = 'new'                  -- staff-handled orders can't be overwritten
+     where o.status = 'new' and o.payment_status = 'unpaid' and o.payment_ref is null
   returning o.order_no into v_no;
 
   if v_no is null then
@@ -160,6 +206,63 @@ end $$;
 
 revoke all on function public.place_order(jsonb) from public;
 grant execute on function public.place_order(jsonb) to anon, authenticated;
+
+-- Payment pages can look up a limited set of order fields by reference only.
+create or replace function public.get_payment(p_ref text) returns jsonb
+language sql security definer set search_path = public as $$
+  select jsonb_build_object(
+    'ref', o.ref,
+    'order_no', o.order_no,
+    'mode', o.mode,
+    'branch', o.branch,
+    'subtotal', o.subtotal,
+    'delivery_fee', o.delivery_fee,
+    'total', o.total,
+    'items', o.items,
+    'status', o.status,
+    'payment_status', o.payment_status,
+    'payment_ref_last4', o.payment_ref_last4
+  )
+  from public.orders o
+  where o.ref = upper(trim(p_ref))
+    and o.payment ilike '%gcash%'
+    and o.created_at > now() - interval '14 days';
+$$;
+
+create or replace function public.submit_payment(p_ref text, p_gcash_ref text, p_name text default '')
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_ref text := upper(trim(p_ref));
+  v_gcash_ref text := regexp_replace(coalesce(p_gcash_ref, ''), '\D', '', 'g');
+  v_order public.orders%rowtype;
+begin
+  if v_gcash_ref !~ '^[0-9]{10,20}$' then raise exception 'invalid GCash reference number'; end if;
+
+  update public.orders
+     set payment_status = 'submitted',
+         payment_ref = v_gcash_ref,
+         payment_ref_last4 = right(v_gcash_ref, 4),
+         payer_name = nullif(left(trim(coalesce(p_name, '')), 80), ''),
+         payment_submitted_at = now()
+   where ref = v_ref
+     and payment ilike '%gcash%'
+     and status <> 'cancelled'
+     and payment_status in ('unpaid','submitted')
+     and created_at > now() - interval '14 days'
+  returning * into v_order;
+
+  if not found then raise exception 'order cannot accept a payment submission'; end if;
+
+  return jsonb_build_object('ok', true, 'ref', v_order.ref,
+                            'payment_status', v_order.payment_status);
+end $$;
+
+revoke all on function public.get_payment(text) from public;
+grant execute on function public.get_payment(text) to anon, authenticated;
+revoke all on function public.submit_payment(text, text, text) from public;
+grant execute on function public.submit_payment(text, text, text) to anon, authenticated;
+
 revoke all on function public.is_staff() from public;
 grant execute on function public.is_staff() to authenticated;
 

@@ -572,11 +572,11 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 
 <section class="wrap about" id="about">
   <h2>Middle Eastern food delivery in Malolos</h2>
-  <p>Arbab Kebab brings the flavors of the Middle East to your table — chicken and beef shawarma, chargrilled beef kebab and shish tawook, fragrant chicken kabsa, mandi and golden rotisserie chicken, with our famous garlic sauce. Order online for delivery or takeout from our Malolos branch, and send your order straight to us on Messenger or by text.</p>
+  <p>Arbab Kebab brings the flavors of the Middle East to your table — chicken and beef shawarma, chargrilled beef kebab and shish tawook, fragrant chicken kabsa, mandi and golden rotisserie chicken, with our famous garlic sauce. Place an order online for delivery or pickup from our Malolos branch.</p>
   <div class="faq">
     <details><summary>Do you deliver?</summary><p>Yes — we offer delivery and contactless delivery, plus takeout. We'll confirm the delivery fee for your area when we reply to your order.</p></details>
-    <details><summary>How do I order?</summary><p>Add dishes to your order on this page, fill in your details, then tap “Send via Messenger” or “Send by text.” We'll reply to confirm your total.</p></details>
-    <details><summary>How can I pay?</summary><p>Choose your payment method when you order; we'll confirm the details in our reply.</p></details>
+    <details><summary>How do I order?</summary><p>Add dishes to your cart, enter your details, and tap “Place Order.” For GCash, you'll go to the payment page to pay and submit your reference number.</p></details>
+    <details><summary>How can I pay?</summary><p>Pay by GCash using the link after placing your order, or choose cash on delivery or pickup. Delivery fees are settled separately from GCash food payments.</p></details>
     <details><summary>Do you cater for parties and offices?</summary><p>Our platters are made for sharing. For bigger orders, message us on Facebook or call us.</p></details>
   </div>
 </section>
@@ -591,7 +591,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
       <h4>How to order</h4>
       <p>1. Add your favorites to your order.</p>
       <p>2. Fill in your details and choose delivery or takeout.</p>
-      <p>3. Send it to us on Messenger or by text — we'll confirm the total and delivery fee.</p>
+      <p>3. Tap Place Order. GCash orders open the payment page; we'll review the submitted payment reference before preparing your order.</p>
     </div>
     <div>
       <h4>Contact</h4>
@@ -617,7 +617,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <legend>How do you want it?</legend>
         <div class="seg">
           <label><input type="radio" name="mode" value="Delivery" checked> Delivery</label>
-          <label><input type="radio" name="mode" value="Takeout"> Takeout</label>
+          <label><input type="radio" name="mode" value="Takeout"> Pick-Up</label>
         </div>
         <div class="f"><label for="branch">Branch</label><select id="branch" name="branch"></select></div>
       </fieldset>
@@ -631,31 +631,21 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <div class="f"><label for="nt">Notes</label><textarea id="nt" name="notes" rows="2" placeholder="Extra garlic sauce, no onions…"></textarea></div>
       </fieldset>
     </form>
-    <p class="note">Delivery fee and final total will be confirmed by Arbab Kebab when they reply. Your details are used only to prepare and deliver your order.</p>
+    <p class="note">For GCash, Place Order opens the payment page. Pay the food subtotal and submit your payment reference for review; delivery fees are settled separately. Cash orders are sent to our team as soon as you place them.</p>
   </div>
   <div class="done" id="done" hidden>
     <div class="done-icon" aria-hidden="true">✓</div>
-    <h3>Almost there!</h3>
+    <h3>Order placed!</h3>
     <p class="done-ref">Order ref <b id="doneRef"></b></p>
     <p class="done-status" id="doneStatus"></p>
     <p id="doneHow"></p>
     <div class="done-actions">
-      <a class="send primary" id="doneMessenger" href="#" target="_blank" rel="noopener">Open Messenger &amp; paste</a>
-      <a class="send alt" id="doneSms" href="#">Send by text instead</a>
-      <button class="send alt" id="doneCopy">Copy order again</button>
       <button class="link" id="doneNew">Start a new order</button>
     </div>
   </div>
   <div class="d-foot" id="dFoot">
     <div class="err" id="err" role="alert"></div>
-    <button class="send primary" id="sendMessenger">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.4 2 2 6.1 2 11.4c0 3 1.5 5.7 3.8 7.4V22l3.5-1.9c.9.3 1.8.4 2.7.4 5.6 0 10-4.1 10-9.4S17.6 2 12 2Zm1 12.6-2.5-2.7-5 2.7 5.5-5.8 2.6 2.7 4.9-2.7-5.5 5.8Z"/></svg>
-      Send via Messenger
-    </button>
-    <div class="send-row">
-      <a class="send alt" id="sendSms" href="#">Send by text</a>
-      <button class="send alt" id="copyOrder">Copy order</button>
-    </div>
+    <button class="send primary" id="placeOrder">Place Order</button>
   </div>
 </aside>
 
@@ -685,9 +675,11 @@ const STORE = {
   phoneDisplay: "+63 970 091 0888",
   email: "arabiya.official@gmail.com",
   facebook: "https://www.facebook.com/ArbabKebabOfficial",
-  messenger: "https://m.me/ArbabKebabOfficial",
   branches: ["Malolos"],
-  payments: ["Cash on delivery / pickup", "GCash"],
+  payments: {
+    Delivery: ["Cash on Delivery", "GCash"],
+    Takeout: ["Cash", "GCash"]
+  },
   currency: "₱",
   supabaseUrl: "https://addfbbpqhxsinedvnnme.supabase.co",
   supabaseKey: "sb_publishable_vNys_OaZ_iVP1bfJj64Qhw_QQvyEaQp"
@@ -710,6 +702,8 @@ const MENU_CATS = [
   {id:"Drinks", name:"Drinks", sub:""},
   {id:"Sauces", name:"Sauces", sub:""}
 ];
+
+//REMOVE SPICE LEVEL
 const MENU = [
   //Meal Sets
   {id:"MS1", cat:"MealSets", name:"Shawaya Set 1", desc:"Whole chicken served with tomato chutney and garlic paste", price:375, tag:"Bestseller", options:[SPICE,EXTRA_KABSA_RICE], img:"images/Shawaya_1.png"},
@@ -766,7 +760,6 @@ $("#mailLink").href = "mailto:" + STORE.email; $("#mailLink").textContent = STOR
 $("#fbLink").href = STORE.facebook;
 $("#branchList").innerHTML = STORE.branches.map(b => `<li>${esc(b)} branch</li>`).join("") + `<li class="note" style="color:#c9bba6">Message us for today's hours.</li>`;
 $("#branch").innerHTML = STORE.branches.map(b => `<option>${esc(b)}</option>`).join("");
-$("#pay").innerHTML = STORE.payments.map(p => `<option>${esc(p)}</option>`).join("");
 
 /* render menu */
 function renderMenu(q=""){
@@ -917,7 +910,13 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeCart(); clo
 /* form: remember details, toggle address */
 const saved = store.get("ak_details") || {};
 ["nm","ph","ad"].forEach(id=>{ if(saved[id]) $("#"+id).value = saved[id]; });
-function syncMode(){ $("#addrWrap").style.display = ($("input[name=mode]:checked").value==="Delivery") ? "" : "none"; }
+function syncMode(){
+  const mode = $("input[name=mode]:checked").value;
+  const payment = $("#pay").value;
+  $("#addrWrap").style.display = mode==="Delivery" ? "" : "none";
+  $("#pay").innerHTML = STORE.payments[mode].map(p => `<option>${esc(p)}</option>`).join("");
+  if(STORE.payments[mode].includes(payment)) $("#pay").value = payment;
+}
 document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("change", syncMode)); syncMode();
 $("#form").addEventListener("input", ()=> store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, ad:$("#ad").value}));
 
@@ -929,45 +928,19 @@ function newRef(){
 }
 let orderRef = store.get("ak_ref") || newRef(); store.set("ak_ref", orderRef);
 
-/* build the order message */
-function buildOrder(){
+function validateOrder(){
   const err = $("#err"); err.textContent = "";
-  if(!cart.length){ err.textContent = "Add at least one item first."; return null; }
+  if(!cart.length){ err.textContent = "Add at least one item first."; return false; }
   const mode = $("input[name=mode]:checked").value;
   const name = $("#nm").value.trim(), phone = $("#ph").value.trim(), addr = $("#ad").value.trim();
-  if(!name || !phone){ err.textContent = "Please add your name and mobile number."; return null; }
-  if(!/^[0-9+() -]{7,20}$/.test(phone)){ err.textContent = "Please check your mobile number (numbers only)."; return null; }
-  if(mode==="Delivery" && !addr){ err.textContent = "Please add your delivery address."; return null; }
-  const lines = cart.map(l=>`• ${l.qty}x ${l.name}${l.opts.length?` (${l.opts.join(", ")})`:""} — ${peso(l.unit*l.qty)}`);
-  return [
-    `Hi ${STORE.name}! New order 🧆`,
-    `Order ref: ${orderRef}`,
-    ``,
-    ...lines,
-    ``,
-    `Subtotal: ${peso(subtotal())} (delivery fee to follow)`,
-    ``,
-    `${mode} · ${$("#branch").value} branch`,
-    `Name: ${name}`,
-    `Mobile: ${phone}`,
-    mode==="Delivery" ? `Address: ${addr}` : null,
-    `Time: ${$("#tm").value.trim() || "ASAP"}`,
-    `Payment: ${$("#pay").value}`,
-    $("#nt").value.trim() ? `Notes: ${$("#nt").value.trim()}` : null,
-    ``,
-    `Salamat po!`
-  ].filter(x=>x!==null).join("\n");
+  if(!name || !phone){ err.textContent = "Please add your name and mobile number."; return false; }
+  if(!/^[0-9+() -]{7,20}$/.test(phone)){ err.textContent = "Please check your mobile number (numbers only)."; return false; }
+  if(mode==="Delivery" && !addr){ err.textContent = "Please add your delivery address."; return false; }
+  return true;
 }
-async function copyText(t){
-  try{ await navigator.clipboard.writeText(t); return true; }
-  catch(e){
-    const ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select();
-    let ok=false; try{ ok=document.execCommand("copy"); }catch(_){} ta.remove(); return ok;
-  }
-}
-/* save to the database (never blocks the customer from sending) */
+/* Create an order before sending GCash customers to the payment page. */
 async function saveOrder(channel){
-  if(!STORE.supabaseUrl || !STORE.supabaseKey) return {skipped:true};
+  if(!STORE.supabaseUrl || !STORE.supabaseKey) return {error:"Online ordering is not available right now. Please try again later."};
   const mode = $("input[name=mode]:checked").value;
   const payload = { ref: orderRef, mode, branch: $("#branch").value,
     name: $("#nm").value.trim(), phone: $("#ph").value.trim(),
@@ -980,48 +953,48 @@ async function saveOrder(channel){
     const r = await fetch(STORE.supabaseUrl.replace(/\/$/,"") + "/rest/v1/rpc/place_order",
       {method:"POST", headers, body: JSON.stringify({p: payload}), keepalive: true});
     const j = await r.json().catch(()=>({}));
-    return r.ok ? j : {error: j.message || ("HTTP " + r.status)};
-  }catch(e){ return {error: "offline"}; }
+    return r.ok && j && j.ok ? j : {error: (j && j.message) || "We couldn't save your order. Please try again."};
+  }catch(e){ return {error: "We couldn't reach the ordering system. Check your connection and try again."}; }
 }
 
-function smsHref(msg){
-  const sep = /iPhone|iPad|iPod/.test(navigator.userAgent) ? "&" : "?";
-  return `sms:${STORE.phone}${sep}body=${encodeURIComponent(msg)}`;
-}
-let lastMsg = "";
-async function finish(channel){
-  const msg = buildOrder(); if(!msg) return;
-  lastMsg = msg;
-  const savePromise = saveOrder(channel);
-  const copied = channel !== "sms" ? await copyText(msg) : false;
-  // show the confirmation panel, clear the cart for next time
-  $("#doneRef").textContent = orderRef;
-  $("#doneMessenger").href = STORE.messenger;
-  $("#doneSms").href = smsHref(msg);
-  $("#doneHow").textContent = channel==="sms"
-    ? "Your text app should open with the order filled in — just press send."
-    : copied ? "Your order is copied. Open our Messenger chat and paste it to send."
-             : "Open our Messenger chat and send us your order (tap “Copy order again” first).";
-  if(/gcash/i.test($("#pay").value)) $("#doneHow").textContent += " Paying by GCash? Once we confirm your total, we'll send you a payment link with our GCash QR.";
-  $("#doneStatus").className = "done-status"; $("#doneStatus").textContent = STORE.supabaseUrl ? "Saving your order…" : "";
-  document.querySelector(".d-body").hidden = true; $("#dFoot").hidden = true; $("#done").hidden = false;
-  cart = []; store.set("ak_cart", cart); renderCart();
-  if(channel==="sms") window.location.href = smsHref(msg);
-  const res = await savePromise;
-  if(res.skipped) return;
-  if(res.ok){ $("#doneStatus").className = "done-status ok"; $("#doneStatus").textContent = "Received by our kitchen system ✓ — please still send the message so we can confirm."; }
-  else { $("#doneStatus").textContent = "We couldn't save it online, but sending the message is enough."; }
+async function placeOrder(){
+  if(!validateOrder()) return;
+  const button = $("#placeOrder"), err = $("#err");
+  const payment = $("#pay").value;
+  button.disabled = true;
+  button.textContent = "Placing order…";
+  err.textContent = "";
+  try{
+    const res = await saveOrder("website");
+    if(res.error) throw new Error(res.error);
+    const placedRef = orderRef;
+    cart = []; store.set("ak_cart", cart); renderCart();
+    orderRef = newRef(); store.set("ak_ref", orderRef);
+    if(/gcash/i.test(payment)){
+      window.location.href = `pay.html?ref=${encodeURIComponent(placedRef)}`;
+      return;
+    }
+    $("#doneRef").textContent = placedRef;
+    $("#doneStatus").className = "done-status ok";
+    $("#doneStatus").textContent = "Your order has been received.";
+    $("#doneHow").textContent = "We'll confirm your order shortly. Cash will be collected on delivery or pickup.";
+    document.querySelector(".d-body").hidden = true;
+    $("#dFoot").hidden = true;
+    $("#done").hidden = false;
+  }catch(e){
+    err.textContent = e.message || "We couldn't place your order. Please try again.";
+  }finally{
+    button.disabled = false;
+    button.textContent = "Place Order";
+  }
 }
 function resetDone(){
   orderRef = newRef(); store.set("ak_ref", orderRef);
   document.querySelector(".d-body").hidden = false; $("#dFoot").hidden = false; $("#done").hidden = true;
 }
-$("#sendMessenger").onclick = ()=> finish("messenger");
-$("#sendSms").onclick = e=>{ e.preventDefault(); finish("sms"); };
-$("#copyOrder").onclick = ()=> finish("copy");
-$("#doneCopy").onclick = async ()=> toast(await copyText(lastMsg) ? "Order copied!" : "Couldn't copy — try again");
+$("#placeOrder").onclick = placeOrder;
 $("#doneNew").onclick = ()=>{ resetDone(); closeCart(); };
-/* if they come back and add items after sending, start a fresh order */
+/* If they come back and add items after placing an order, start a fresh order. */
 const _add = addToCart; addToCart = function(...a){ if(!$("#done").hidden) resetDone(); return _add.apply(this, a); };
 
 let tt; function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("show"),1800); }

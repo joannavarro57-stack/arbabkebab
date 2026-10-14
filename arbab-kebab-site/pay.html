@@ -101,32 +101,32 @@ function state(icon, cls, title, text, extra=""){
 function summary(o){
   return `<div class="card">
     <p class="sub">Order <span class="ref">${esc(o.ref)}</span> · #${o.order_no} · ${esc(o.mode)} · ${esc(o.branch)}</p>
-    <div class="amount"><span class="l">Amount to pay</span><span class="v">${peso(o.total)}</span></div>
+    <div class="amount"><span class="l">Food subtotal to pay</span><span class="v">${peso(o.subtotal)}</span></div>
     <details><summary>See order details</summary>
       <table>${o.items.map(i => `<tr><td>${i.qty}× ${esc(i.name)}${i.opts && i.opts.length ? `<div class="o">${esc(i.opts.join(" · "))}</div>` : ""}</td><td class="p">${peso(i.qty*i.unit)}</td></tr>`).join("")}
-        <tr><td>Subtotal</td><td class="p">${peso(o.subtotal)}</td></tr>
-        <tr><td>Delivery fee</td><td class="p">${peso(o.delivery_fee)}</td></tr></table>
+        <tr><td>Food subtotal</td><td class="p">${peso(o.subtotal)}</td></tr>
+        <tr><td>Delivery fee</td><td class="p">${o.mode === "Delivery" ? "Paid separately" : peso(0)}</td></tr></table>
     </details>
   </div>`;
 }
 
 function renderPay(o){
-  const amount = String(Number(o.total));
+  const amount = String(Number(o.subtotal));
   const resubmit = o.payment_status === "submitted";
   $("#main").innerHTML = `
     <h1>Pay with GCash</h1>
-    <p class="sub" style="margin-bottom:14px">Send the exact amount, then enter your GCash reference number below.</p>
+    <p class="sub" style="margin-bottom:14px">Pay the food subtotal by GCash. For delivery orders, the delivery fee is settled separately.</p>
     ${summary(o)}
     ${resubmit ? `<div class="card" style="background:var(--saffron-soft)"><b>We already received reference no. ending ${esc(o.payment_ref_last4)}.</b> We're checking it now — only submit again if you made a mistake.</div>` : ""}
     <div class="card">
-      <div class="step"><b>1</b><h2>Send ${peso(o.total)} via GCash</h2></div>
+      <div class="step"><b>1</b><h2>Send ${peso(o.subtotal)} via GCash</h2></div>
       ${G.qrImage ? `<div class="center" id="qrWrap">
           <img class="qr" id="qr" src="${esc(G.qrImage)}" alt="Arbab Kebab GCash QR code">
           <a class="btn sm" href="${esc(G.qrImage)}" download="ArbabKebab-GCash-QR.png">⬇ Save QR to phone</a>
           <p class="hint">On this phone? Save the QR, then in GCash tap <b>Scan QR → Upload QR</b> and pick the saved image.</p>
         </div>` : ""}
       ${G.number ? `<div class="row"><div><div class="k">Or Send Money to</div><div class="val">${esc(G.number)}</div>${G.accountName ? `<div class="k">${esc(G.accountName)}</div>` : ""}</div><button class="btn sm" data-copy="${esc(G.number.replace(/\s/g,""))}" data-label="Number">Copy</button></div>` : ""}
-      <div class="row"><div><div class="k">Exact amount</div><div class="val">${peso(o.total)}</div></div><button class="btn sm" data-copy="${esc(amount)}" data-label="Amount">Copy</button></div>
+      <div class="row"><div><div class="k">Exact food subtotal</div><div class="val">${peso(o.subtotal)}</div></div><button class="btn sm" data-copy="${esc(amount)}" data-label="Amount">Copy</button></div>
       <div class="row"><div><div class="k">Add this in the message / note</div><div class="val">${esc(o.ref)}</div></div><button class="btn sm" data-copy="${esc(o.ref)}" data-label="Order ref">Copy</button></div>
     </div>
     <div class="card">
@@ -166,9 +166,7 @@ async function start(){
   if(!o) return state("?", "bad", "Order not found", `We couldn't find order <span class="ref">${esc(ref)}</span>. Payment links work for 14 days — message us if you need help.`);
   if(o.status === "cancelled") return state("✕", "bad", "Order cancelled", `Order <span class="ref">${esc(o.ref)}</span> was cancelled, so no payment is needed.`);
   if(o.payment_status === "paid" || o.payment_status === "refunded")
-    return state("✓", "ok", o.payment_status === "paid" ? "Paid — salamat!" : "Payment refunded", `Order <span class="ref">${esc(o.ref)}</span> · ${peso(o.total)}`);
-  if(o.status === "new") return state("⏳", "wait", "We're confirming your order", `Once we confirm your total (including delivery), you can pay here. Refresh this page in a few minutes, or wait for our message.`,
-    `<p style="margin-top:10px"><button class="btn sm" onclick="location.reload()">↻ Refresh</button></p>`);
+    return state("✓", "ok", o.payment_status === "paid" ? "Paid — salamat!" : "Payment refunded", `Order <span class="ref">${esc(o.ref)}</span> · ${peso(o.subtotal)}`);
   renderPay(o);
 }
 start();
