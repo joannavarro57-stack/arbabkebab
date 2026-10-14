@@ -671,7 +671,10 @@ function renderDetail(){
       ...(delivery ? [`🛵 Delivery fee: ${fee ? peso(fee) : "to be confirmed"}`] : []),
       `💵 Payment: ${o.payment || "—"}`,
       ...(o.notes ? [``, `📝 Note: ${o.notes}`] : []),
-      ...(isGcash(o) && o.payment_status !== "paid" ? [``, `Pay via GCash here 👉 ${payLink(o)}`] : [])
+      ...(isGcash(o) && o.payment_status !== "paid" ? [``, `Pay via GCash here 👉 ${payLink(o)}`] : []),
+      ``,
+      o.mode === "Delivery" ? `We'll message you when it's on the way.` : `We'll message you when it's ready for pickup at our ${o.branch} branch.`,
+      `Salamat po! 🙏`
     ];
     try{ await navigator.clipboard.writeText(lines.join("\n")); toast("Reply copied — paste it in Messenger"); }
     catch(e){ prompt("Copy this reply:", lines.join("\n")); }
