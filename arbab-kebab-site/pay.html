@@ -140,7 +140,7 @@ function renderPay(o){
         <input id="gref" inputmode="numeric" autocomplete="off" placeholder="e.g. 5012 345 678901">
         <label for="gname">Name on your GCash account <span style="font-weight:400;color:var(--muted)"></span></label>
         <input id="gname" autocomplete="name" placeholder="e.g. Juan D.">
-        <label for="proof">GCash payment screenshot</label>
+        <label for="proof">GCash payment screenshot<span style="font-weight:400;color:var(--muted)">*required</span></label>
         <input id="proof" type="file" accept="image/jpeg,image/png,image/webp" required>
         <p class="hint">Upload a screenshot of your successful payment (JPG, PNG, or WebP; up to 5 MB).</p>
         <div class="err" id="err" role="alert"></div>
