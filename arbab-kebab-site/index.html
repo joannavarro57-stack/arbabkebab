@@ -691,7 +691,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <a class="chat-btn messenger" id="chatMessenger" href="#" target="_blank" rel="noopener">💬 Messenger</a>
         <a class="chat-btn instagram" id="chatInstagram" href="#" target="_blank" rel="noopener" hidden>📸 Instagram</a>
       </div>
-      <p class="chat-hint">Your order details are copied — just paste them in the chat.</p>
+      <p class="chat-hint">Your order details are already filled in — just tap Send.</p>
     </div>
     <div class="done-actions">
       <button class="link" id="doneNew">Start a new order</button>
@@ -1186,14 +1186,18 @@ async function placeOrder(){
     const res = await saveOrder("website");
     if(res.error) throw new Error(res.error);
     const placedRef = orderRef;
+    const placedItems = cart.map(l => ({name: l.name, opts: l.opts || [], qty: l.qty, unit: l.unit})), placedSubtotal = subtotal();
     cart = []; store.set("ak_cart", cart); renderCart();
     orderRef = newRef(); store.set("ak_ref", orderRef);
     if(/gcash/i.test(payment)){
       window.location.href = `pay.html?ref=${encodeURIComponent(placedRef)}`;
       return;
     }
-    setupChat({ref: placedRef, orderNo: res.order_no, mode: $("input[name=mode]:checked").value,
-      date: $("#orderDate").value, time: $("#tm").value, name: $("#nm").value.trim(), payment});
+    const placedMode = $("input[name=mode]:checked").value;
+    setupChat({ref: placedRef, orderNo: res.order_no, mode: placedMode, branch: $("#branch").value,
+      date: $("#orderDate").value, time: $("#tm").value, name: $("#nm").value.trim(), phone: $("#ph").value.trim(),
+      address: placedMode === "Delivery" ? $("#ad").value.trim() : "", notes: $("#nt").value.trim(),
+      items: placedItems, subtotal: placedSubtotal, payment});
     $("#doneRef").textContent = placedRef;
     $("#doneStatus").className = "done-status ok";
     $("#doneStatus").textContent = "Your order has been received.";
@@ -1210,9 +1214,25 @@ async function placeOrder(){
 }
 /* Messenger / Instagram buttons on the "Order placed" screen */
 function chatMessage(d){
-  const when = d.date ? new Date(d.date + "T00:00").toLocaleDateString("en-PH", {month:"short", day:"numeric"}) : "";
-  return `Hi Arbab Kebab! 👋 I just placed order ${d.ref}${d.orderNo ? ` (#${d.orderNo})` : ""} for ${d.mode === "Delivery" ? "delivery" : "pick-up"}`
-    + `${when ? ` on ${when}` : ""}${d.time ? ` at ${d.time}` : ""}. Name: ${d.name}. Payment: ${d.payment}.`;
+  const when = d.date ? new Date(d.date + "T00:00").toLocaleDateString("en-PH", {weekday:"short", month:"short", day:"numeric"}) : "";
+  const delivery = d.mode === "Delivery";
+  return [
+    `Hi Arbab Kebab! 👋 I just placed an order.`,
+    ``,
+    `🧾 Order ${d.ref}${d.orderNo ? ` (#${d.orderNo})` : ""}`,
+    `${delivery ? "🛵 Delivery" : `🏪 Pick-Up at ${d.branch || "Malolos"} branch`}${when ? ` · ${when}` : ""}${d.time ? ` · ${d.time}` : ""}`,
+    ``,
+    `👤 ${d.name}${d.phone ? ` · ${d.phone}` : ""}`,
+    ...(delivery && d.address ? [`🏠 ${d.address}`] : []),
+    ``,
+    `📦 Items:`,
+    ...(d.items || []).map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""} — ${peso(i.qty * i.unit)}`),
+    ``,
+    `🍽️ Food total: ${peso(d.subtotal || 0)}`,
+    ...(delivery ? [`🛵 Delivery fee: to be confirmed`] : []),
+    `💵 Payment: ${d.payment}`,
+    ...(d.notes ? [``, `📝 Note: ${d.notes}`] : [])
+  ].join("\n");
 }
 function setupChat(d){
   const text = chatMessage(d);
