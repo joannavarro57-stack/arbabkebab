@@ -102,15 +102,16 @@ async function copy(t, label){
 }
 let tt; function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("show"),1800); }
 
-function state(icon, cls, title, text, extra=""){
+function state(icon, cls, title, text, extra="", buttons=""){
   $("#main").innerHTML = `<div class="card state"><div class="icon ${cls}" aria-hidden="true">${icon}</div><h2>${title}</h2><p>${text}</p>${extra}
-    <div class="links">${chatLinks()}<a class="btn sm" href="./">Back to menu</a></div></div>`;
+    <div class="links">${buttons}${chatLinks()}<a class="btn sm" href="./">Back to menu</a></div></div>`;
 }
+const detailsBtn = r => `<a class="btn sm" href="pay.html?ref=${encodeURIComponent(r)}">🧾 Order details</a>`;
 function summary(o){
   return `<div class="card">
     <p class="sub">Order <span class="ref">${esc(o.ref)}</span> · #${o.order_no} · ${o.mode === "Delivery" ? "Delivery" : "Pick-Up"} · ${esc(o.branch)}</p>
     ${o.order_date ? `<p class="sub">Scheduled: ${esc(new Intl.DateTimeFormat("en-PH",{dateStyle:"medium",timeZone:"UTC"}).format(new Date(o.order_date + "T00:00:00Z")))} · ${esc(o.preferred_time || "—")}</p>` : ""}
-    <div class="amount"><span class="l">Food subtotal to pay</span><span class="v">${peso(o.subtotal)}</span></div>
+    <div class="amount"><span class="l">${o.payment_status === "paid" ? "Food subtotal paid" : o.payment_status === "submitted" ? "Food subtotal submitted" : "Food subtotal to pay"}</span><span class="v">${peso(o.subtotal)}</span></div>
     <details><summary>See order details</summary>
       <table>${o.items.map(i => `<tr><td>${i.qty}× ${esc(i.name)}${i.opts && i.opts.length ? `<div class="o">${esc(i.opts.join(" · "))}</div>` : ""}</td><td class="p">${peso(i.qty*i.unit)}</td></tr>`).join("")}
         <tr><td>Food subtotal</td><td class="p">${peso(o.subtotal)}</td></tr>
@@ -183,7 +184,7 @@ function renderPay(o){
         throw new Error((details && (details.message || details.error)) || "Couldn't upload your screenshot. Please try again.");
       }
       await rpc("submit_payment", {p_ref: o.ref, p_gcash_ref: g, p_name: $("#gname").value.trim(), p_screenshot_path:path});
-      state("✓", "ok", "Payment submitted!", `Salamat! ${g ? "Your screenshot and reference number have" : "Your screenshot has"} been sent. We'll verify payment for order <span class="ref">${esc(o.ref)}</span> shortly.`);
+      state("✓", "ok", "Payment submitted!", `Salamat! ${g ? "Your screenshot and reference number have" : "Your screenshot has"} been sent. We'll verify payment for order <span class="ref">${esc(o.ref)}</span> shortly.`, "", detailsBtn(o.ref));
     }catch(err){
       $("#err").textContent = err.message; $("#sub").disabled = false; $("#sub").textContent = "I've paid — submit reference";
     }
@@ -200,7 +201,7 @@ async function start(){
   if(o.status === "cancelled") return state("✕", "bad", "Order cancelled", `Order <span class="ref">${esc(o.ref)}</span> was cancelled, so no payment is needed.`);
   if(o.payment_status === "paid"){
     state("✓", "ok", "Already paid", `Payment received for order <span class="ref">${esc(o.ref)}</span> · ${peso(o.subtotal)}`,
-      `<div id="paidProof" class="hint">Loading your uploaded payment confirmation…</div>`);
+      `<div id="paidProof" class="hint">Loading your uploaded payment confirmation…</div><div style="text-align:left;margin-top:14px">${summary(o)}</div>`);
     loadPaidScreenshot(o.payment_screenshot_path);
     return;
   }
