@@ -515,6 +515,10 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 /* delivery pin map */
+.order-note{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--saffron-soft);border:1.5px solid var(--saffron);border-left:5px solid var(--ember);border-radius:12px;color:var(--char);font-size:14px;line-height:1.4}
+.order-note .ic{font-size:20px;line-height:1.1;flex:none}
+.order-note b{display:block;font-size:14.5px}
+.order-note span.sub{display:block;font-size:13px;color:var(--char-2);margin-top:2px}
 .pin-map{height:230px;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;isolation:isolate;background:#efe9df}
 .pin-map.need{border-color:var(--ember)}
 .pin-map .leaflet-control-layers{border-radius:10px;font-size:12px;line-height:1.3;padding:2px 2px}
@@ -666,7 +670,6 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <div class="f"><label for="nt">Notes</label><textarea id="nt" name="notes" rows="2" placeholder="Extra garlic sauce, no onions…"></textarea></div>
       </fieldset>
     </form>
-    <p class="note">For GCash, Place Order opens the payment page. Pay the food subtotal and submit your payment reference for review; delivery fees are settled separately. Cash orders are sent to our team as soon as you place them.</p>
   </div>
   <div class="done" id="done" hidden>
     <div class="done-icon" aria-hidden="true">✓</div>
@@ -679,6 +682,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
     </div>
   </div>
   <div class="d-foot" id="dFoot">
+    <div class="order-note" id="orderNote" aria-live="polite"></div>
     <div class="err" id="err" role="alert"></div>
     <button class="send primary" id="placeOrder">Place Order</button>
   </div>
@@ -1058,7 +1062,20 @@ function syncMode(){
   $("#pay").innerHTML = STORE.payments[mode].map(p => `<option>${esc(p)}</option>`).join("");
   if(STORE.payments[mode].includes(payment)) $("#pay").value = payment;
 }
-document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("change", syncMode)); syncMode();
+/* short, payment-specific instructions under the form */
+function syncOrderNote(){
+  const gcash = /gcash/i.test($("#pay").value);
+  const delivery = $("input[name=mode]:checked").value === "Delivery";
+  $("#orderNote").innerHTML = `<span class="ic" aria-hidden="true">${gcash ? "📲" : "✅"}</span><span>`
+    + (gcash ? `<b>Pay with GCash to confirm your order.</b>` : `<b>We'll confirm your order shortly.</b>`)
+    + (delivery ? `<span class="sub">🛵 Delivery fee is arranged separately.</span>` : "")
+    + `</span>`;
+  const btn = $("#placeOrder");
+  if(!btn.disabled) btn.textContent = gcash ? "Proceed to Payment (GCash)" : "Place Order";
+}
+document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("change", ()=>{ syncMode(); syncOrderNote(); }));
+$("#pay").addEventListener("change", syncOrderNote);
+syncMode(); syncOrderNote();
 const ORDER_HOURS = Array.from({length:10}, (_, i) => i + 11);
 function localDateString(date){
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
@@ -1170,7 +1187,7 @@ async function placeOrder(){
     err.textContent = e.message || "We couldn't place your order. Please try again.";
   }finally{
     button.disabled = false;
-    button.textContent = "Place Order";
+    syncOrderNote();
   }
 }
 function resetDone(){
