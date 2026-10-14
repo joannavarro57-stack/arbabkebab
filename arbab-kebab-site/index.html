@@ -517,6 +517,9 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 /* delivery pin map */
 .pin-map{height:230px;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;isolation:isolate;background:#efe9df}
 .pin-map.need{border-color:var(--ember)}
+.pin-map .leaflet-control-layers{border-radius:10px;font-size:12px;line-height:1.3;padding:2px 2px}
+.pin-map .leaflet-control-layers-expanded{padding:4px 8px}
+.pin-map .leaflet-control-layers label{margin:1px 0}
 .pin-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px}
 .pin-btn{padding:8px 12px;border:1.5px solid var(--line);border-radius:999px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:var(--char-2)}
 .pin-btn:hover{border-color:var(--ember)}
@@ -978,8 +981,20 @@ function initPinMap(){
   if(!window.L || $("#pinWrap").style.display === "none" || !$("#drawer").classList.contains("open")) return;
   if(pinMap){ pinMap.invalidateSize(); return; }
   pinMap = L.map("pinMap", {scrollWheelZoom: false, tap: true}).setView(pin ? [pin.lat, pin.lng] : [MAP_HOME.lat, MAP_HOME.lng], pin ? 17 : MAP_HOME.zoom);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(pinMap);
+  const esri = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+  const streets = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'});
+  const satellite = L.layerGroup([   // recent aerial photos, with road and place names on top
+    L.tileLayer(esri + "World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom: 19,
+      attribution: 'Imagery &copy; <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics'}),
+    L.tileLayer(esri + "Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", {maxZoom: 19}),
+    L.tileLayer(esri + "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {maxZoom: 19})
+  ]);
+  const layers = {"Satellite": satellite, "Street map": streets};
+  let view = "Satellite"; try{ if(localStorage.getItem("ak_map_view") === "Street map") view = "Street map"; }catch(e){}
+  layers[view].addTo(pinMap);
+  L.control.layers(layers, null, {position: "topright", collapsed: false}).addTo(pinMap);
+  pinMap.on("baselayerchange", e => { try{ localStorage.setItem("ak_map_view", e.name); }catch(err){} });
   pinMap.on("click", e => setPin(e.latlng.lat, e.latlng.lng, true));
   if(pin) setPin(pin.lat, pin.lng, false);
 }
