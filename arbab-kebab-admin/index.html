@@ -557,7 +557,6 @@ function renderDetail(){
       </dl>
       <div class="row-btns no-print">
         <a class="btn sm" href="tel:${esc(phone)}">📞 Call</a>
-        <a class="btn sm" href="sms:${esc(phone)}">💬 Text</a>
         ${maps ? `<a class="btn sm" href="${maps}" target="_blank" rel="noopener">📍 ${hasPin ? "Open pin" : "Map"}</a>` : ""}
         ${hasPin ? `<a class="btn sm" href="https://www.google.com/maps/dir/?api=1&destination=${pinQuery}" target="_blank" rel="noopener">🧭 Directions</a>` : ""}
         ${o.mode === "Delivery" ? `<button class="btn sm" id="copyDriver" type="button" title="Copy a delivery message for the driver">🛵 Copy for driver</button>` : ""}
