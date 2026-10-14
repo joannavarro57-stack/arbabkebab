@@ -400,10 +400,6 @@ function filtered(){
   const b = $("#branchF").value, q = $("#q").value.trim().toLowerCase();
   return orders.filter(o => !o.deleted_at && !isPendingGcash(o) && matchesOrderFilters(o, b, q));
 }
-function filteredDeleted(){
-  const b = $("#branchF").value, q = $("#q").value.trim().toLowerCase();
-  return orders.filter(o => o.deleted_at && matchesOrderFilters(o, b, q));
-}
 function matchesOrderFilters(o, b, q){
   return (!b || o.branch === b) &&
     (!q || [o.ref, o.order_no, o.customer_name, o.customer_phone, o.address].join(" ").toLowerCase().includes(q));
@@ -411,7 +407,6 @@ function matchesOrderFilters(o, b, q){
 function isPendingGcash(o){ return isGcash(o) && (o.payment_status || "unpaid") === "unpaid" && o.status !== "cancelled"; }
 function render(){
   const base = filtered();
-  const deleted = filteredDeleted();
   // KPIs (cancelled orders excluded from sales)
   const valid = base.filter(o => o.status !== "cancelled");
   const sales = valid.reduce((s,o)=>s + Number(o.total), 0);
@@ -425,11 +420,11 @@ function render(){
   const alerts = newCount + verify;
   document.title = (alerts ? `(${alerts}) ` : "") + "Arbab Kebab · Orders";
   // tabs
-  const counts = {open, verify, all: base.length, deleted: deleted.length}; Object.keys(STATUS).forEach(s => counts[s] = base.filter(o=>o.status===s).length);
-  const tabDefs = [["open","Open"],["new","New"],["verify","Verify payment"],["confirmed","Confirmed"],["preparing","Preparing"],["ready","Ready"],["out_for_delivery","Out for delivery"],["completed","Completed"],["cancelled","Cancelled"],["all","All"],["deleted","Deleted"]];
+  const counts = {open, verify, all: base.length}; Object.keys(STATUS).forEach(s => counts[s] = base.filter(o=>o.status===s).length);
+  const tabDefs = [["open","Open"],["new","New"],["verify","Verify payment"],["confirmed","Confirmed"],["preparing","Preparing"],["ready","Ready"],["out_for_delivery","Out for delivery"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]];
   $("#tabs").innerHTML = tabDefs.map(([k,l]) => `<button class="tab${tab===k?" on":""}" data-tab="${k}">${l}<b>${counts[k]}</b></button>`).join("");
   // list
-  const shown = tab === "deleted" ? deleted : base.filter(o => tab==="all" ? true : tab==="open" ? OPEN.includes(o.status)
+  const shown = base.filter(o => tab==="all" ? true : tab==="open" ? OPEN.includes(o.status)
     : tab==="verify" ? (o.payment_status==="submitted" && o.status!=="cancelled") : o.status===tab);
   if(tab === "open") shown.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));   // oldest open order first
   $("#list").innerHTML = shown.length ? shown.map(o => {
@@ -626,7 +621,7 @@ $("#deleteForm").addEventListener("submit", async event => {
     if(!data || data.id !== order.id) throw new Error("This order was already deleted or is no longer available.");
     const index = orders.findIndex(item => item.id === data.id);
     if(index >= 0) orders[index] = data;
-    tab = "deleted";
+    tab = "all";
     $("#deleteDialog").close();
     render();
     toast(`#${order.order_no} removed from active orders; record retained`);
@@ -675,17 +670,17 @@ $("#refresh").onclick = () => load().then(() => toast("Up to date"));
 document.addEventListener("keydown", e => { if(e.key === "Escape" && $("#detail").classList.contains("open")){ selId = null; render(); } });
 setInterval(() => { if(!$("#appView").hidden && !document.activeElement?.closest?.(".detail")) render(); }, 30000); // refresh "x min ago"
 
-/* CSV export of what's on screen (current range + branch + search) */
+/* CSV export of active orders matching the current range, branch, and search */
 $("#csv").onclick = () => {
-  const rows = tab === "deleted" ? filteredDeleted() : filtered();
+  const rows = filtered();
   if(!rows.length) return toast("Nothing to export");
-  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes","deleted_at","deleted_by","delete_reason"];
+  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
   const q = v => { let s = String(v ?? ""); if(/^[=@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating text as a formula
     return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
   const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, o.mode, o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.address,
     o.items.map(i => `${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`).join("; "),
     o.subtotal, o.delivery_fee, o.total, o.payment, PAY[o.payment_status] || o.payment_status, o.payment_ref,
-    o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes, o.deleted_at, o.deleted_by, o.delete_reason].map(q).join(","));
+    o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes].map(q).join(","));
   const blob = new Blob(["﻿" + [head.join(","), ...lines].join("\r\n")], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
   a.download = `arbab-kebab-orders-${$("#range").value}-${ymdLocal(new Date())}.csv`; a.click();
