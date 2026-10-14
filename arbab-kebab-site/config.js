@@ -8,6 +8,11 @@ window.SITE_CONFIG = {
   supabaseUrl: "https://addfbbpqhxsinedvnnme.supabase.co",          // e.g. "https://abcdefghijkl.supabase.co"
   supabaseKey: "sb_publishable_vNys_OaZ_iVP1bfJj64Qhw_QQvyEaQp",          // e.g. "sb_publishable_..."
 
+  /* Chat buttons shown after an order is placed (index.html and pay.html).
+     instagram: the account's username without @, e.g. "arbabkebab". Leave "" to hide the button. */
+  messenger: "https://m.me/ArbabKebabOfficial",
+  instagram: "",
+
   /* GCash details shown on the payment page (pay.html) */
   gcash: {
     accountName: "Jana May N.",        // as shown in GCash, e.g. "AR**B K**AB" or the owner's masked name

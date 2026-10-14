@@ -477,6 +477,14 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .done-status{font-size:13px;color:var(--muted);margin:0 0 14px;min-height:1em}
 .done-status.ok{color:var(--ok)}
 .done p{color:var(--char-2)}
+.chat-box{margin:18px 0 0;padding:14px;border:1.5px solid var(--line);border-radius:14px;background:#fff}
+.chat-title{margin:0 0 10px;font-weight:700;color:var(--char)}
+.chat-btns{display:flex;gap:8px}
+.chat-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:12px;font-weight:700;text-decoration:none;color:#fff}
+.chat-btn[hidden]{display:none}
+.chat-btn.messenger{background:#0866FF}
+.chat-btn.instagram{background:linear-gradient(45deg,#F58529,#DD2A7B 55%,#8134AF)}
+.chat-hint{margin:8px 0 0;font-size:12.5px;color:var(--muted)}
 .done-actions{display:grid;gap:8px;margin-top:18px;text-align:center}
 .link{background:none;border:0;color:var(--ember-dark);font-weight:700;text-decoration:underline;padding:10px}
 
@@ -677,6 +685,14 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
     <p class="done-ref">Order ref <b id="doneRef"></b></p>
     <p class="done-status" id="doneStatus"></p>
     <p id="doneHow"></p>
+    <div class="chat-box" id="doneChat">
+      <p class="chat-title">Message us about your order</p>
+      <div class="chat-btns">
+        <a class="chat-btn messenger" id="chatMessenger" href="#" target="_blank" rel="noopener">💬 Messenger</a>
+        <a class="chat-btn instagram" id="chatInstagram" href="#" target="_blank" rel="noopener" hidden>📸 Instagram</a>
+      </div>
+      <p class="chat-hint">Your order details are copied — just paste them in the chat.</p>
+    </div>
     <div class="done-actions">
       <button class="link" id="doneNew">Start a new order</button>
     </div>
@@ -1176,6 +1192,8 @@ async function placeOrder(){
       window.location.href = `pay.html?ref=${encodeURIComponent(placedRef)}`;
       return;
     }
+    setupChat({ref: placedRef, orderNo: res.order_no, mode: $("input[name=mode]:checked").value,
+      date: $("#orderDate").value, time: $("#tm").value, name: $("#nm").value.trim(), payment});
     $("#doneRef").textContent = placedRef;
     $("#doneStatus").className = "done-status ok";
     $("#doneStatus").textContent = "Your order has been received.";
@@ -1189,6 +1207,22 @@ async function placeOrder(){
     button.disabled = false;
     syncOrderNote();
   }
+}
+/* Messenger / Instagram buttons on the "Order placed" screen */
+function chatMessage(d){
+  const when = d.date ? new Date(d.date + "T00:00").toLocaleDateString("en-PH", {month:"short", day:"numeric"}) : "";
+  return `Hi Arbab Kebab! 👋 I just placed order ${d.ref}${d.orderNo ? ` (#${d.orderNo})` : ""} for ${d.mode === "Delivery" ? "delivery" : "pick-up"}`
+    + `${when ? ` on ${when}` : ""}${d.time ? ` at ${d.time}` : ""}. Name: ${d.name}. Payment: ${d.payment}.`;
+}
+function setupChat(d){
+  const text = chatMessage(d);
+  const copy = async () => { try{ await navigator.clipboard.writeText(text); }catch(e){} };
+  const m = $("#chatMessenger"), ig = $("#chatInstagram");
+  m.href = (STORE.messenger || "https://m.me/ArbabKebabOfficial") + "?text=" + encodeURIComponent(text);
+  m.onclick = copy;
+  const handle = (STORE.instagram || "").replace(/^@/, "").trim();
+  ig.hidden = !handle;
+  if(handle){ ig.href = "https://ig.me/m/" + encodeURIComponent(handle); ig.onclick = copy; }
 }
 function resetDone(){
   orderRef = newRef(); store.set("ak_ref", orderRef);

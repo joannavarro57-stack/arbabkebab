@@ -76,7 +76,10 @@ input[type=file]{font-size:14px}
 <script>
 const C = window.SITE_CONFIG || {};
 const G = C.gcash || {};
-const MESSENGER = "https://m.me/ArbabKebabOfficial";
+const MESSENGER = C.messenger || "https://m.me/ArbabKebabOfficial";
+const IG = (C.instagram || "").replace(/^@/, "").trim();
+const chatLinks = () => `<a class="btn sm" href="${MESSENGER}${ref ? `?text=${encodeURIComponent(`Hi Arbab Kebab! 👋 About my order ${ref}:`)}` : ""}" target="_blank" rel="noopener">💬 Messenger</a>`
+  + (IG ? `<a class="btn sm" href="https://ig.me/m/${encodeURIComponent(IG)}" target="_blank" rel="noopener">📸 Instagram</a>` : "");
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const peso = n => "₱" + Number(n||0).toLocaleString("en-PH", {maximumFractionDigits:2});
@@ -98,7 +101,7 @@ let tt; function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.
 
 function state(icon, cls, title, text, extra=""){
   $("#main").innerHTML = `<div class="card state"><div class="icon ${cls}" aria-hidden="true">${icon}</div><h2>${title}</h2><p>${text}</p>${extra}
-    <div class="links"><a class="btn sm" href="${MESSENGER}" target="_blank" rel="noopener">Message us</a><a class="btn sm" href="./">Back to menu</a></div></div>`;
+    <div class="links">${chatLinks()}<a class="btn sm" href="./">Back to menu</a></div></div>`;
 }
 function summary(o){
   return `<div class="card">
