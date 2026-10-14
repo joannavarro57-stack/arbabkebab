@@ -1208,6 +1208,7 @@ async function placeOrder(){
     setupChat({ref: placedRef, orderNo: res.order_no, mode: placedMode, branch: $("#branch").value,
       date: $("#orderDate").value, time: $("#tm").value, name: $("#nm").value.trim(), phone: $("#ph").value.trim(),
       address: placedMode === "Delivery" ? $("#ad").value.trim() : "", notes: $("#nt").value.trim(),
+      pin: placedMode === "Delivery" && pin ? {lat: pin.lat, lng: pin.lng} : null,
       items: placedItems, subtotal: placedSubtotal, payment});
     $("#doneRef").textContent = placedRef;
     $("#doneStatus").className = "done-status ok";
@@ -1235,6 +1236,7 @@ function chatMessage(d){
     ``,
     `👤 ${d.name}${d.phone ? ` · ${d.phone}` : ""}`,
     ...(delivery && d.address ? [`🏠 ${d.address}`] : []),
+    ...(delivery && d.pin ? [`📍 Pinned location: https://www.google.com/maps/search/?api=1&query=${d.pin.lat},${d.pin.lng}`] : []),
     ``,
     `📦 Items:`,
     ...(d.items || []).map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""} — ${peso(i.qty * i.unit)}`),
