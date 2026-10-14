@@ -941,7 +941,7 @@ function syncTimeSlots(){
   select.innerHTML = `<option value="">Choose a time</option>` + ORDER_HOURS.map(hour => {
     const label = formatOrderHour(hour);
     const disabled = isToday && hour <= currentHour;
-    return `<option value="${label}"${disabled ? " disabled" : ""}>${label}${disabled ? " — passed" : ""}</option>`;
+    return `<option value="${label}"${disabled ? " disabled" : ""}>${label}</option>`;
   }).join("");
   if(previous && !Array.from(select.options).find(option => option.value === previous)?.disabled){
     select.value = previous;
