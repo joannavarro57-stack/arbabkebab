@@ -139,6 +139,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 .kv dt{color:var(--muted)}
 .kv dd{margin:0;font-weight:600;word-break:break-word}
 .row-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.row-btns.one-line{flex-wrap:nowrap}
+.row-btns.one-line .btn{flex:1 1 auto;min-width:0;padding:6px 8px;font-size:12.5px;gap:4px;overflow:hidden}
 table.items{width:100%;border-collapse:collapse;font-size:14px}
 table.items td{padding:6px 0;border-bottom:1px dashed var(--line);vertical-align:top}
 table.items td.q{width:36px;font-weight:800}
@@ -549,17 +551,16 @@ function renderDetail(){
         <dt>Name</dt><dd>${esc(o.customer_name)}</dd>
         <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
         <dt>Order type</dt><dd>${orderModeLabel(o.mode)} · ${esc(o.branch)} branch</dd>
-        ${o.address ? `<dt>Address</dt><dd>${esc(o.address)}</dd>` : ""}
+        ${o.address ? `<dt>Address</dt><dd>${!hasPin && maps ? `<a href="${maps}" target="_blank" rel="noopener">${esc(o.address)}</a>` : esc(o.address)}</dd>` : ""}
         ${hasPin ? `<dt>Pinned</dt><dd><a href="${maps}" target="_blank" rel="noopener">📍 ${esc(pinQuery)}</a></dd>` : (o.mode === "Delivery" ? `<dt>Pinned</dt><dd style="color:var(--muted)">No map pin</dd>` : "")}
         <dt>Date</dt><dd>${esc(fmtOrderDate(o.order_date))}</dd>
         <dt>Time</dt><dd>${esc(o.preferred_time||"—")}</dd>
         <dt>Payment</dt><dd>${esc(o.payment||"—")}</dd>
       </dl>
-      <div class="row-btns no-print">
+      <div class="row-btns one-line no-print">
         <a class="btn sm" href="tel:${esc(phone)}">📞 Call</a>
-        ${maps ? `<a class="btn sm" href="${maps}" target="_blank" rel="noopener">📍 ${hasPin ? "Open pin" : "Map"}</a>` : ""}
         ${hasPin ? `<a class="btn sm" href="https://www.google.com/maps/dir/?api=1&destination=${pinQuery}" target="_blank" rel="noopener">🧭 Directions</a>` : ""}
-        ${o.mode === "Delivery" ? `<button class="btn sm" id="copyDriver" type="button" title="Copy a delivery message for the driver">🛵 Copy for driver</button>` : ""}
+        ${o.mode === "Delivery" ? `<button class="btn sm" id="copyDriver" type="button" title="Copy a delivery message for the driver">🛵 For driver</button>` : ""}
       </div>
       ${o.notes ? `<div class="note-box" style="margin-top:10px"><b>Customer note:</b> ${esc(o.notes)}</div>` : ""}
     </div>
