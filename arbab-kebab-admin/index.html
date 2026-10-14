@@ -150,6 +150,9 @@ table.items .o{color:var(--muted);font-size:12.5px}
 .sum div{display:flex;justify-content:space-between;align-items:center}
 .sum .fee input{width:110px;text-align:right}
 .sum .grand{font-size:20px;font-weight:800;border-top:2px solid var(--char);padding-top:8px}
+.driver-msg{margin:0;padding:10px 12px;background:#fff;border:1.5px solid var(--line);border-radius:10px;font:13px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto}
+.driver-copy{width:100%;margin-top:8px}
+.driver-hint{margin:6px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .note-box{background:var(--saffron-soft);border-radius:10px;padding:8px 10px;font-size:14px}
 textarea{width:100%;resize:vertical}
 .actions{padding:14px 16px;display:grid;gap:8px;position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line)}
@@ -551,7 +554,7 @@ function renderDetail(){
         <dt>Name</dt><dd>${esc(o.customer_name)}</dd>
         <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
         <dt>Order type</dt><dd>${orderModeLabel(o.mode)} · ${esc(o.branch)} branch</dd>
-        ${o.address ? `<dt>Address</dt><dd>${!hasPin && maps ? `<a href="${maps}" target="_blank" rel="noopener">${esc(o.address)}</a>` : esc(o.address)}</dd>` : ""}
+        ${o.address ? `<dt>Address</dt><dd>${esc(o.address)}</dd>` : ""}
         ${hasPin ? `<dt>Pinned</dt><dd><a href="${maps}" target="_blank" rel="noopener">📍 ${esc(pinQuery)}</a></dd>` : (o.mode === "Delivery" ? `<dt>Pinned</dt><dd style="color:var(--muted)">No map pin</dd>` : "")}
         <dt>Date</dt><dd>${esc(fmtOrderDate(o.order_date))}</dd>
         <dt>Time</dt><dd>${esc(o.preferred_time||"—")}</dd>
@@ -559,8 +562,8 @@ function renderDetail(){
       </dl>
       <div class="row-btns one-line no-print">
         <a class="btn sm" href="tel:${esc(phone)}">📞 Call</a>
+        ${maps ? `<a class="btn sm" href="${maps}" target="_blank" rel="noopener">📍 ${hasPin ? "Open pin" : "Map"}</a>` : ""}
         ${hasPin ? `<a class="btn sm" href="https://www.google.com/maps/dir/?api=1&destination=${pinQuery}" target="_blank" rel="noopener">🧭 Directions</a>` : ""}
-        ${o.mode === "Delivery" ? `<button class="btn sm" id="copyDriver" type="button" title="Copy a delivery message for the driver">🛵 For driver</button>` : ""}
       </div>
       ${o.notes ? `<div class="note-box" style="margin-top:10px"><b>Customer note:</b> ${esc(o.notes)}</div>` : ""}
     </div>
@@ -590,6 +593,12 @@ function renderDetail(){
         ${isGcash(o) && o.payment_status!=="paid" && o.status!=="cancelled" ? `<button class="btn sm" id="copyPayLink">🔗 Copy payment link</button>` : ""}
       </div>
     </div>
+    ${o.mode === "Delivery" ? `<div class="sec no-print">
+      <h3>Message for driver</h3>
+      <pre class="driver-msg" id="driverMsg">${esc(driverMessage(o))}</pre>
+      <button class="btn driver-copy" id="copyDriver" type="button">📋 Copy message</button>
+      <p class="driver-hint">Paste it in WhatsApp, Viber or Messenger.</p>
+    </div>` : ""}
     <div class="sec no-print">
       <h3>Staff notes <span class="saved" id="noteSaved"></span></h3>
       <textarea id="staffNotes" rows="2" placeholder="Rider name, payment received, changes…">${esc(o.staff_notes||"")}</textarea>
@@ -633,34 +642,8 @@ function renderDetail(){
     try{ await navigator.clipboard.writeText(payLink(o)); toast("Payment link copied"); }catch(e){ prompt("Payment link:", payLink(o)); }
   };
   if($("#copyDriver")) $("#copyDriver").onclick = async () => {
-    // Only what the driver needs: where, who, when, what's in the bag, and what to collect.
-    const fee = Number(o.delivery_fee) || 0;
-    let collect;
-    if(isGcash(o)){
-      collect = o.payment_status === "paid"
-        ? (fee ? `${peso(fee)} cash — delivery fee only (food already paid via GCash)` : `Nothing — already paid via GCash`)
-        : `⚠️ GCash payment NOT confirmed yet — check with the shop before handing over${fee ? ` · delivery fee ${peso(fee)} cash` : ""}`;
-    } else {
-      collect = `${peso(o.total)} cash${fee ? ` (food ${peso(o.subtotal)} + delivery ${peso(fee)})` : ` (food only — delivery fee not set, check with the shop)`}`;
-    }
-    const itemCount = o.items.reduce((n, i) => n + Number(i.qty || 0), 0);
-    const lines = [
-      `🛵 DELIVERY — Order #${o.order_no} (${o.ref})`,
-      `📅 ${fmtOrderDate(o.order_date)} · ${o.preferred_time || "ASAP"}`,
-      ``,
-      `👤 ${o.customer_name}`,
-      `📞 ${o.customer_phone}`,
-      `🏠 ${o.address || "—"}`,
-      hasPin ? `📍 ${maps}` : `📍 No map pin — use the address above`,
-      ``,
-      `📦 Items (${itemCount}):`,
-      ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
-      ``,
-      `💵 Collect: ${collect}`,
-      ...(o.notes ? [`📝 Customer note: ${o.notes}`] : [])
-    ];
-    const text = lines.join("\n");
-    try{ await navigator.clipboard.writeText(text); toast("Driver message copied — paste it to the driver"); }
+    const text = driverMessage(o);
+    try{ await navigator.clipboard.writeText(text); toast("Driver message copied — paste it in WhatsApp, Viber or Messenger"); }
     catch(e){ prompt("Copy this for the driver:", text); }
   };
   $("#copyConfirm").onclick = async () => {
@@ -683,6 +666,38 @@ function renderDetail(){
     catch(e){ prompt("Copy this reply:", lines.join("\n")); }
   };
   const close = $("#dClose"); if(close) close.onclick = () => { selId = null; el.classList.remove("open"); render(); };
+}
+
+/* Message for the delivery driver: only where, who, when, what's in the bag and what to collect. */
+function driverMessage(o){
+  const hasPin = o.delivery_lat != null && o.delivery_lng != null;
+  const maps = hasPin ? `https://www.google.com/maps/search/?api=1&query=${Number(o.delivery_lat)},${Number(o.delivery_lng)}` : "";
+  const fee = Number(o.delivery_fee) || 0;
+  let collect;
+  if(isGcash(o)){
+    collect = o.payment_status === "paid"
+      ? (fee ? `${peso(fee)} cash — delivery fee only (food already paid via GCash)` : `Nothing — already paid via GCash`)
+      : `⚠️ GCash payment NOT confirmed yet — check with the shop before handing over${fee ? ` · delivery fee ${peso(fee)} cash` : ""}`;
+  } else {
+    collect = `${peso(o.total)} cash${fee ? ` (food ${peso(o.subtotal)} + delivery ${peso(fee)})` : ` (food only — delivery fee not set, check with the shop)`}`;
+  }
+  const itemCount = o.items.reduce((n, i) => n + Number(i.qty || 0), 0);
+  const lines = [
+    `🛵 DELIVERY — Order #${o.order_no} (${o.ref})`,
+    `📅 ${fmtOrderDate(o.order_date)} · ${o.preferred_time || "ASAP"}`,
+    ``,
+    `👤 ${o.customer_name}`,
+    `📞 ${o.customer_phone}`,
+    `🏠 ${o.address || "—"}`,
+    hasPin ? `📍 ${maps}` : `📍 No map pin — use the address above`,
+    ``,
+    `📦 Items (${itemCount}):`,
+    ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
+    ``,
+    `💵 Collect: ${collect}`,
+    ...(o.notes ? [`📝 Customer note: ${o.notes}`] : [])
+  ];
+  return lines.join("\n");
 }
 
 function orderField(label, id, value, type="text", wide=false, extra=""){
