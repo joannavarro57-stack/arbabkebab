@@ -673,14 +673,15 @@ function driverMessage(o){
   const hasPin = o.delivery_lat != null && o.delivery_lng != null;
   const maps = hasPin ? `https://www.google.com/maps/search/?api=1&query=${Number(o.delivery_lat)},${Number(o.delivery_lng)}` : "";
   const fee = Number(o.delivery_fee) || 0;
-  let collect;
-  if(isGcash(o)){
-    collect = o.payment_status === "paid"
-      ? (fee ? `${peso(fee)} cash — delivery fee only (food already paid via GCash)` : `Nothing — already paid via GCash`)
-      : `⚠️ GCash payment NOT confirmed yet — check with the shop before handing over${fee ? ` · delivery fee ${peso(fee)} cash` : ""}`;
-  } else {
-    collect = `${peso(o.total)} cash${fee ? ` (food ${peso(o.subtotal)} + delivery ${peso(fee)})` : ` (food only — delivery fee not set, check with the shop)`}`;
-  }
+  // GCash covers the food only; the delivery fee is always collected in cash by the driver.
+  const feeLine = fee ? `${peso(fee)}` : `not set yet — confirm with the shop`;
+  const collect = isGcash(o)
+    ? [`💵 Collect: ${fee ? `${peso(fee)} cash (delivery fee)` : `delivery fee in cash`}`,
+       `   Food ${peso(o.subtotal)} — paid via GCash`,
+       `   Delivery fee ${feeLine}`]
+    : [`💵 Collect: ${fee ? `${peso(o.total)} cash` : `${peso(o.subtotal)} + delivery fee in cash`}`,
+       `   Food ${peso(o.subtotal)}`,
+       `   Delivery fee ${feeLine}`];
   const itemCount = o.items.reduce((n, i) => n + Number(i.qty || 0), 0);
   const lines = [
     `🛵 DELIVERY — Order #${o.order_no} (${o.ref})`,
@@ -694,7 +695,7 @@ function driverMessage(o){
     `📦 Items (${itemCount}):`,
     ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
     ``,
-    `💵 Collect: ${collect}`,
+    ...collect,
     ...(o.notes ? [`📝 Customer note: ${o.notes}`] : [])
   ];
   return lines.join("\n");
