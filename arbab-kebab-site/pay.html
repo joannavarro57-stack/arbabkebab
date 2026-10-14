@@ -117,13 +117,15 @@ function summary(o){
 }
 
 function renderPay(o){
+  setTimeout(() => { if(o.payment_status === "submitted") loadPaidScreenshot(o.payment_screenshot_path); }, 0);
   const amount = String(Number(o.subtotal));
   const resubmit = o.payment_status === "submitted";
   $("#main").innerHTML = `
     <h1>Pay with GCash</h1>
     <p class="sub" style="margin-bottom:14px">Pay the food subtotal by GCash. For delivery orders, the delivery fee is settled separately.</p>
     ${summary(o)}
-    ${resubmit ? `<div class="card" style="background:var(--saffron-soft)"><b>${o.payment_ref_last4 ? `We already received reference no. ending ${esc(o.payment_ref_last4)}.` : "We already received your payment screenshot."}</b> We're checking it now — only submit again if you need to update your payment proof.</div>` : ""}
+    ${resubmit ? `<div class="card" style="background:var(--saffron-soft)"><b>${o.payment_ref_last4 ? `We already received reference no. ending ${esc(o.payment_ref_last4)}.` : "We already received your payment screenshot."}</b> We're checking it now — only submit again if you need to update your payment proof.
+      <div id="paidProof" class="hint" style="margin-top:8px">Loading your uploaded payment screenshot…</div></div>` : ""}
     <div class="card">
       <div class="step"><b>1</b><h2>Send ${peso(o.subtotal)} via GCash</h2></div>
       ${G.qrImage ? `<div class="center" id="qrWrap">
@@ -221,11 +223,11 @@ async function loadPaidScreenshot(path){
     const image = document.createElement("img");
     image.className = "proof-image";
     image.src = imageUrl;
-    image.alt = "Your GCash payment confirmation";
+    image.alt = "Your GCash payment screenshot";
     proof.textContent = "";
     proof.append(image);
   }catch(error){
-    proof.textContent = "Payment is confirmed, but we couldn't load the uploaded screenshot. Please refresh or contact us.";
+    proof.textContent = "We couldn't load your uploaded screenshot. Please refresh the page or message us.";
   }
 }
 start();

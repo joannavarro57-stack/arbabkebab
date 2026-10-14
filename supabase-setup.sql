@@ -331,7 +331,7 @@ language sql stable security definer set search_path = public as $$
     select 1 from public.orders o
     where o.ref = p_ref
       and o.payment ilike '%gcash%'
-      and o.payment_status = 'paid'
+      and o.payment_status in ('submitted','paid')
       and o.payment_screenshot_path = p_path
       and o.created_at > now() - interval '14 days'
   );
@@ -459,7 +459,7 @@ language sql security definer set search_path = public as $$
     'status', o.status,
     'payment_status', o.payment_status,
     'payment_ref_last4', o.payment_ref_last4,
-    'payment_screenshot_path', case when o.payment_status = 'paid' then o.payment_screenshot_path end
+    'payment_screenshot_path', case when o.payment_status in ('submitted','paid') then o.payment_screenshot_path end
   )
   from public.orders o
   where o.ref = upper(trim(p_ref))
