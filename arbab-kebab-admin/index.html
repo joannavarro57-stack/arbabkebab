@@ -41,6 +41,29 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 .delete-dialog input,.delete-dialog textarea{width:100%}
 .delete-dialog .msg{min-height:1.3em;color:var(--red);font-size:13px;margin:10px 0 0}
 .delete-dialog .buttons{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.order-edit-dialog{width:min(820px,calc(100% - 24px));max-height:min(90vh,900px);overflow:auto;border:2px solid var(--char);border-radius:16px;padding:0;background:var(--card);color:var(--char);box-shadow:0 18px 60px rgba(0,0,0,.3)}
+.order-edit-dialog::backdrop{background:rgba(30,26,22,.58)}
+.edit-head,.edit-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;background:var(--card)}
+.edit-head{position:sticky;top:0;z-index:2;border-bottom:1px solid var(--line)}
+.edit-head h2{margin:0;font-size:20px}
+.edit-foot{position:sticky;bottom:0;border-top:1px solid var(--line);justify-content:flex-end}
+.edit-body{padding:14px 18px}
+.edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.edit-field{display:grid;gap:4px;font-size:13px;font-weight:700}
+.edit-field input,.edit-field select,.edit-field textarea{width:100%;min-width:0}
+.edit-field.wide{grid-column:1/-1}
+.edit-items{display:grid;gap:8px;margin-top:10px}
+.edit-item,.edit-item-head{display:grid;grid-template-columns:minmax(140px,2fr) minmax(90px,.7fr) minmax(100px,.8fr) minmax(120px,1.2fr) 34px;gap:7px;align-items:center}
+.edit-item input,.edit-item select{width:100%;min-width:0}
+.edit-item .remove{width:34px;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--red)}
+.edit-total{font-weight:800;text-align:right;margin-top:10px}
+.edit-msg{min-height:1.3em;color:var(--red);font-size:13px;margin-top:8px}
+@media(max-width:620px){
+  .edit-grid{grid-template-columns:1fr}
+  .edit-field.wide{grid-column:auto}
+  .edit-item,.edit-item-head{grid-template-columns:minmax(0,1fr) 72px 92px 34px}
+  .edit-item .edit-options{grid-column:1/4;grid-row:2}
+}
 
 /* login */
 .login{min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--saffron)}
@@ -106,6 +129,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 .d-h h2{margin:0;font-size:22px;font-weight:800}
 .d-h .sub{color:var(--muted);font-size:13px}
 .d-h .x{margin-left:auto;display:none}
+.d-status-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.icon-btn{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--red)}
+.icon-btn:hover{border-color:var(--red);background:#FEF2F2}
+.icon-btn svg{width:15px;height:15px}
 .sec{padding:12px 16px;border-bottom:1px solid var(--line)}
 .sec h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px}
 .kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:14px}
@@ -198,6 +225,7 @@ textarea{width:100%;resize:vertical}
       <select id="branchF" aria-label="Branch"></select>
       <input class="search" id="q" type="search" placeholder="Search name, phone, ref…" aria-label="Search orders">
       <button class="btn" id="refresh" title="Reload">↻ Refresh</button>
+      <button class="btn ember" id="addOrder">＋ Add order</button>
       <button class="btn" id="csv">⬇ Export CSV</button>
     </div>
 
@@ -227,6 +255,22 @@ textarea{width:100%;resize:vertical}
     </div>
   </form>
 </dialog>
+<dialog class="order-edit-dialog" id="orderEditDialog" aria-labelledby="orderEditTitle">
+  <form id="orderEditForm">
+    <div class="edit-head"><h2 id="orderEditTitle">Edit order</h2><button class="btn sm" type="button" id="orderEditClose" aria-label="Close">✕</button></div>
+    <div class="edit-body">
+      <div class="edit-grid" id="orderEditFields"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:18px">
+        <h3 style="font-size:14px;margin:0">Items</h3><button class="btn sm" type="button" id="addOrderItem">＋ Add item</button>
+      </div>
+      <div class="edit-item-head" style="margin-top:8px;font-size:12px;color:var(--muted);font-weight:700"><span>Product</span><span>Qty</span><span>Unit price</span><span>Options</span><span></span></div>
+      <div class="edit-items" id="orderEditItems"></div>
+      <div class="edit-total" id="orderEditTotal"></div>
+      <div class="edit-msg" id="orderEditMsg" role="alert"></div>
+    </div>
+    <div class="edit-foot"><button class="btn" type="button" id="orderEditCancel">Cancel</button><button class="btn dark" id="orderEditSave" type="submit">Save order</button></div>
+  </form>
+</dialog>
 
 <script>
 /* ================= CONFIG (edit me) ================= */
@@ -239,6 +283,22 @@ const CONFIG = {
   timeZone: "Asia/Manila",
   currency: "₱"
 };
+const ADMIN_PRODUCTS = [
+  {id:"MS1",name:"Shawaya Set 1",price:375},{id:"MS2",name:"Shawaya Set 2",price:475},
+  {id:"MS3",name:"Shawaya Set 3",price:595},{id:"MS4",name:"Shawaya Set 4",price:695},
+  {id:"PL1",name:"Potluck",price:995},{id:"PL2",name:"Shawaya Potluck",price:1299},
+  {id:"SLD1",name:"Fattoush",price:179},{id:"SLD2",name:"Tabbouleh",price:229},
+  {id:"sloKC",name:"Kabsa Chicken",price:260},{id:"sloKB",name:"Kabsa Beef",price:350},
+  {id:"sloCB",name:"Chicken Biryani",price:290},{id:"sloGHC",name:"Grilled Half Chicken",price:375},
+  {id:"sloBKR",name:"Beef Kebab with Rice",price:195},{id:"sloCKR",name:"Chicken Kebab with Rice",price:170},
+  {id:"ChkW",name:"Chicken Wings",price:180},{id:"Falafel",name:"Fried Falafel",price:150},
+  {id:"FFries",name:"Fries Platter",price:150},{id:"BKS",name:"Beef Kebab Shawarma",price:150},
+  {id:"CSma",name:"Chicken Shawarma",price:135},{id:"CKS",name:"Chicken Kebab Shawarma",price:130},
+  {id:"FLW",name:"Falafel Wrap",price:130},{id:"BTR_Chk",name:"Buttered Chicken",price:195},
+  {id:"CHN_Msla",name:"Chana Masala",price:150},{id:"Hms",name:"Hummus",price:150},
+  {id:"Kbs_Rice",name:"Kabsa Rice",price:170},{id:"Wtr",name:"Water",price:35},
+  {id:"Sfd",name:"Soda",price:50}
+];
 
 /* ================= HELPERS ================= */
 const $ = s => document.querySelector(s);
@@ -284,7 +344,7 @@ const payLink = o => CONFIG.orderSiteUrl.replace(/\/$/, "") + "/pay.html?ref=" +
 const pill = s => `<span class="pill" style="background:${STATUS[s]?.color||"#777"}">${esc(STATUS[s]?.label||s)}</span>`;
 
 /* ================= STATE ================= */
-let sb = null, orders = [], selId = null, tab = "open", channel = null, pollTimer = null, staffEmail = "";
+let sb = null, orders = [], selId = null, tab = "open", channel = null, pollTimer = null, staffEmail = "", editingOrderId = null;
 let soundOn = ls.get("ak_sound") !== "off", audioCtx = null;
 
 /* ================= AUTH ================= */
@@ -476,7 +536,7 @@ function renderDetail(){
       <div>
         <h2>#${o.order_no} <span style="font-weight:600;color:var(--muted);font-size:15px">${esc(o.ref)}</span></h2>
         <div class="sub">${esc(fmtDate.format(new Date(o.created_at)))} · ${esc(fmtTime.format(new Date(o.created_at)))} · via ${esc(o.channel||"website")}</div>
-        <div style="margin-top:6px">${pill(o.status)}</div>
+        <div class="d-status-row">${pill(o.status)}<button class="icon-btn" id="deleteOrder" type="button" aria-label="Delete order" title="Delete order"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-.9 14H5.9L5 6m4 4v6m6-6v6"/></svg></button></div>
       </div>
       <button class="btn sm x" id="dClose" aria-label="Close">✕</button>
     </div>
@@ -538,7 +598,7 @@ function renderDetail(){
         <select id="setStatus" aria-label="Set status">${Object.entries(STATUS).map(([k,v]) => `<option value="${k}"${k===o.status?" selected":""}>${v.label}</option>`).join("")}</select>
         ${o.status !== "cancelled" ? `<button class="btn danger" id="cancel">Cancel order</button>` : `<span></span>`}
       </div>
-      <button class="btn danger" id="deleteOrder">Delete order</button>
+      ${!isGcash(o) ? `<button class="btn" id="editOrder" type="button">Edit order</button>` : ""}
     </div>`;
   if(window.innerWidth <= 1000) el.classList.add("open");
   if(o.payment_screenshot_path) loadPaymentScreenshot(o.id, o.payment_screenshot_path);
@@ -550,6 +610,7 @@ function renderDetail(){
   if($("#next")) $("#next").onclick = e => updateOrder(o.id, {status: e.currentTarget.dataset.to}, `#${o.order_no} → ${STATUS[e.currentTarget.dataset.to].label}`);
   $("#setStatus").onchange = e => updateOrder(o.id, {status: e.target.value}, `#${o.order_no} → ${STATUS[e.target.value].label}`);
   if($("#cancel")) $("#cancel").onclick = () => { if(confirm(`Cancel order #${o.order_no} for ${o.customer_name}?`)) updateOrder(o.id, {status:"cancelled"}, `#${o.order_no} cancelled`); };
+  if($("#editOrder")) $("#editOrder").onclick = () => openOrderEditor(o);
   $("#deleteOrder").onclick = () => openDeleteDialog(o);
   $("#print").onclick = () => window.print();
   if($("#payOk")) $("#payOk").onclick = () => updateOrder(o.id, {payment_status:"paid"}, `#${o.order_no} marked paid`);
@@ -586,6 +647,174 @@ function renderDetail(){
   };
   const close = $("#dClose"); if(close) close.onclick = () => { selId = null; el.classList.remove("open"); render(); };
 }
+
+function orderField(label, id, value, type="text", wide=false, extra=""){
+  return `<label class="edit-field${wide?" wide":""}" for="${id}">${label}<input id="${id}" type="${type}" value="${esc(value)}" ${extra}></label>`;
+}
+function productOptions(item){
+  const match = item && ADMIN_PRODUCTS.find(product => product.name === item.name);
+  const products = ADMIN_PRODUCTS.map(product =>
+    `<option value="${esc(product.id)}"${match && match.id === product.id ? " selected" : ""}>${esc(product.name)} · ${peso(product.price)}</option>`
+  ).join("");
+  const existing = item && !match
+    ? `<option value="__current__" selected>Existing: ${esc(item.name)}</option>`
+    : "";
+  return `<option value="">Choose product…</option>${existing}${products}`;
+}
+function orderItemRow(item){
+  const match = item && ADMIN_PRODUCTS.find(product => product.name === item.name);
+  const options = Array.isArray(item?.opts) ? item.opts.join(", ") : "";
+  return `<div class="edit-item" data-existing-name="${esc(item && !match ? item.name : "")}">
+    <select class="edit-product" aria-label="Product" required>${productOptions(item)}</select>
+    <input class="edit-qty" type="number" min="1" max="99" step="1" value="${item ? Number(item.qty) : 1}" aria-label="Quantity" required>
+    <input class="edit-unit" type="number" min="0" max="100000" step="0.01" value="${item ? Number(item.unit) : ""}" aria-label="Unit price" required>
+    <input class="edit-options" type="text" value="${esc(options)}" placeholder="Options, comma-separated" aria-label="Options">
+    <button class="remove" type="button" aria-label="Remove item" title="Remove item">×</button>
+  </div>`;
+}
+function updateOrderEditorTotal(){
+  const subtotal = Array.from(document.querySelectorAll("#orderEditItems .edit-item")).reduce((sum, row) => {
+    return sum + Number(row.querySelector(".edit-qty").value || 0) * Number(row.querySelector(".edit-unit").value || 0);
+  }, 0);
+  const fee = Number($("#editDeliveryFee")?.value || 0);
+  $("#orderEditTotal").textContent = `Subtotal ${peso(subtotal)} · Total ${peso(subtotal + fee)}`;
+}
+function refreshEditorPayment(selected=""){
+  const mode = $("#editMode").value;
+  const allowed = mode === "Delivery"
+    ? [["Cash on Delivery","Cash on Delivery"],["GCash","GCash"]]
+    : [["Cash","Cash"],["GCash","GCash"]];
+  $("#editPayment").innerHTML = allowed.map(([value,label]) =>
+    `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`
+  ).join("");
+  if(!allowed.some(([value]) => value === selected)) $("#editPayment").value = allowed[0][0];
+}
+function openOrderEditor(order=null){
+  if(order && isGcash(order)){ toast("GCash orders can't be edited from the admin."); return; }
+  editingOrderId = order?.id || null;
+  const isNew = !order;
+  $("#orderEditTitle").textContent = isNew ? "Add order" : `Edit order #${order.order_no}`;
+  $("#orderEditSave").textContent = isNew ? "Create order" : "Save changes";
+  $("#orderEditMsg").textContent = "";
+  const branches = [...new Set([...CONFIG.branches, ...(order?.branch ? [order.branch] : [])])];
+  const statuses = Object.entries(STATUS).map(([value,status]) =>
+    `<option value="${value}"${value === (order?.status || "new") ? " selected" : ""}>${status.label}</option>`
+  ).join("");
+  const branchOptions = branches.map(branch =>
+    `<option value="${esc(branch)}"${branch === (order?.branch || branches[0]) ? " selected" : ""}>${esc(branch)}</option>`
+  ).join("");
+  const mode = order?.mode || "Delivery";
+  const values = {
+    name: order?.customer_name || "", phone: order?.customer_phone || "",
+    address: order?.address || "", date: order?.order_date || ymdLocal(new Date()),
+    time: order?.preferred_time || "", fee: order ? Number(order.delivery_fee) : 0,
+    notes: order?.notes || "", staffNotes: order?.staff_notes || ""
+  };
+  $("#orderEditFields").innerHTML = `
+    ${orderField("Customer name","editName",values.name,"text",false,"maxlength=\"80\" required autocomplete=\"name\"")}
+    ${orderField("Mobile number","editPhone",values.phone,"tel",false,"maxlength=\"20\" required autocomplete=\"tel\"")}
+    <label class="edit-field" for="editMode">Order type<select id="editMode"><option value="Delivery"${mode==="Delivery"?" selected":""}>Delivery</option><option value="Pick-Up"${mode==="Pick-Up"?" selected":""}>Pick-Up</option></select></label>
+    <label class="edit-field" for="editBranch">Branch<select id="editBranch" required>${branchOptions}</select></label>
+    <label class="edit-field wide" for="editAddress">Delivery address<textarea id="editAddress" rows="2" maxlength="300">${esc(values.address)}</textarea></label>
+    <label class="edit-field" for="editDate">Delivery / Pick-Up date<input id="editDate" type="date" value="${esc(values.date)}" required></label>
+    ${orderField("Preferred time","editTime",values.time,"text",false,"maxlength=\"60\" placeholder=\"e.g. 6:00 PM\"")}
+    <label class="edit-field" for="editPayment">Payment<select id="editPayment"></select></label>
+    <label class="edit-field" for="editStatus">Status<select id="editStatus">${statuses}</select></label>
+    ${orderField("Delivery fee","editDeliveryFee",values.fee,"number",false,"min=\"0\" max=\"100000\" step=\"0.01\" required")}
+    <label class="edit-field wide" for="editNotes">Customer notes<textarea id="editNotes" rows="2" maxlength="500">${esc(values.notes)}</textarea></label>
+    <label class="edit-field wide" for="editStaffNotes">Staff notes<textarea id="editStaffNotes" rows="2" maxlength="1000">${esc(values.staffNotes)}</textarea></label>`;
+  const items = order?.items?.length ? order.items : [];
+  $("#orderEditItems").innerHTML = items.map(orderItemRow).join("");
+  $("#orderEditDialog").showModal();
+  refreshEditorPayment(order?.payment || "");
+  updateOrderEditorTotal();
+}
+function newOrderReference(){
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return "AK-" + Array.from(bytes, byte => chars[byte % chars.length]).join("");
+}
+$("#addOrder").onclick = () => openOrderEditor();
+$("#orderEditClose").onclick = () => $("#orderEditDialog").close();
+$("#orderEditCancel").onclick = () => $("#orderEditDialog").close();
+$("#orderEditDialog").addEventListener("close", () => { $("#orderEditForm").reset(); editingOrderId = null; });
+$("#orderEditFields").addEventListener("change", event => {
+  if(event.target.id === "editMode") refreshEditorPayment($("#editPayment").value);
+});
+$("#addOrderItem").onclick = () => {
+  $("#orderEditItems").insertAdjacentHTML("beforeend", orderItemRow(null));
+  updateOrderEditorTotal();
+};
+$("#orderEditItems").addEventListener("click", event => {
+  const remove = event.target.closest(".remove");
+  if(remove){ remove.closest(".edit-item").remove(); updateOrderEditorTotal(); }
+});
+$("#orderEditItems").addEventListener("change", event => {
+  const select = event.target.closest(".edit-product");
+  if(select){
+    const product = ADMIN_PRODUCTS.find(item => item.id === select.value);
+    if(product) select.closest(".edit-item").querySelector(".edit-unit").value = product.price;
+  }
+  updateOrderEditorTotal();
+});
+$("#orderEditForm").addEventListener("input", event => {
+  if(event.target.id === "editDeliveryFee" || event.target.matches(".edit-qty,.edit-unit"))
+    updateOrderEditorTotal();
+});
+$("#orderEditForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const message = $("#orderEditMsg");
+  const button = $("#orderEditSave");
+  const rows = Array.from(document.querySelectorAll("#orderEditItems .edit-item"));
+  const items = [];
+  for(const row of rows){
+    const select = row.querySelector(".edit-product");
+    const product = ADMIN_PRODUCTS.find(item => item.id === select.value);
+    const name = product?.name || (select.value === "__current__" ? row.dataset.existingName : "");
+    const qty = Number(row.querySelector(".edit-qty").value);
+    const unit = Number(row.querySelector(".edit-unit").value);
+    if(!name || !Number.isInteger(qty) || qty < 1 || qty > 99 || !Number.isFinite(unit) || unit < 0 || unit > 100000){
+      message.textContent = "Choose a product and enter a valid quantity and unit price for every line.";
+      return;
+    }
+    items.push({name, opts:row.querySelector(".edit-options").value.split(",").map(value=>value.trim()).filter(Boolean), qty, unit});
+  }
+  if(items.length < 1 || items.length > 50){ message.textContent = "An order needs between 1 and 50 line items."; return; }
+  if($("#editMode").value === "Delivery" && !$("#editAddress").value.trim()){
+    message.textContent = "Enter a delivery address.";
+    return;
+  }
+  const payload = {
+    ref:editingOrderId ? orders.find(item=>item.id===editingOrderId)?.ref : newOrderReference(),
+    mode:$("#editMode").value, branch:$("#editBranch").value,
+    name:$("#editName").value.trim(), phone:$("#editPhone").value.trim(),
+    address:$("#editAddress").value.trim(), order_date:$("#editDate").value,
+    time:$("#editTime").value.trim(), payment:$("#editPayment").value,
+    status:$("#editStatus").value, delivery_fee:$("#editDeliveryFee").value,
+    notes:$("#editNotes").value.trim(), staff_notes:$("#editStaffNotes").value.trim(), items
+  };
+  const isUpdate = Boolean(editingOrderId);
+  button.disabled = true;
+  message.textContent = "Saving order…";
+  try{
+    const {data, error} = await sb.rpc("save_staff_order", {p_order_id:editingOrderId, p_order:payload});
+    if(error) throw new Error("Couldn't save order: " + error.message);
+    if(!data || !data.id) throw new Error("The database did not return the saved order.");
+    const index = orders.findIndex(item => item.id === data.id);
+    if(index >= 0) orders[index] = data;
+    else orders.unshift(data);
+    if(!isUpdate) $("#range").value = "today";
+    selId = data.id;
+    tab = "all";
+    $("#orderEditDialog").close();
+    render();
+    toast(isUpdate ? `Order #${data.order_no} updated` : `Order #${data.order_no} created`);
+  }catch(error){
+    message.textContent = error.message || "Couldn't save order.";
+  }finally{
+    button.disabled = false;
+  }
+});
 
 function openDeleteDialog(order){
   $("#deleteTitle").textContent = `Delete order #${order.order_no}?`;

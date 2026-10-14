@@ -7,8 +7,8 @@
 --   • Customers (public "anon" key) can place orders and submit GCash payment
 --     proof through restricted RPCs. They cannot read, list, edit or delete orders.
 --   • Staff log in to the admin site. Only emails listed in the
---     public.staff table can read orders and update order details. Deletions
---     are soft deletes with reason and staff audit fields; rows are retained.
+--     public.staff table can read, create and edit orders. Deletions are soft
+--     deletes with reason and staff audit fields; rows are retained.
 --   • Unpaid GCash orders are hidden in the admin UI until a payment reference
 --     is submitted; staff then verifies the reference and marks it paid.
 -- =====================================================================
@@ -168,6 +168,121 @@ begin
 end $$;
 revoke all on function public.archive_order(uuid, text) from public, anon;
 grant execute on function public.archive_order(uuid, text) to authenticated;
+
+-- Staff-only order creation and editing. Items and subtotal are recalculated
+-- and validated together so the generated total remains consistent.
+create or replace function public.save_staff_order(p_order_id uuid, p_order jsonb)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_order public.orders%rowtype;
+  v_mode text := p_order ->> 'mode';
+  v_branch text := trim(coalesce(p_order ->> 'branch', ''));
+  v_name text := trim(coalesce(p_order ->> 'name', ''));
+  v_phone text := trim(coalesce(p_order ->> 'phone', ''));
+  v_address text := nullif(trim(coalesce(p_order ->> 'address', '')), '');
+  v_date date;
+  v_time text := nullif(left(trim(coalesce(p_order ->> 'time', '')), 60), '');
+  v_payment text := p_order ->> 'payment';
+  v_notes text := nullif(left(trim(coalesce(p_order ->> 'notes', '')), 500), '');
+  v_staff_notes text := nullif(left(trim(coalesce(p_order ->> 'staff_notes', '')), 1000), '');
+  v_status text := coalesce(p_order ->> 'status', 'new');
+  v_delivery_fee numeric(10,2);
+  v_items jsonb := '[]'::jsonb;
+  v_item jsonb;
+  v_opts jsonb;
+  v_qty integer;
+  v_unit numeric(10,2);
+  v_subtotal numeric(10,2) := 0;
+  v_ref text := upper(trim(coalesce(p_order ->> 'ref', '')));
+  v_phone_pattern constant text := '^[0-9+() -]{7,20}$';
+begin
+  if not public.is_staff() then raise exception 'staff access required'; end if;
+  if jsonb_typeof(p_order) <> 'object' then raise exception 'invalid order'; end if;
+  if v_mode is null or v_mode not in ('Delivery','Pick-Up') then raise exception 'invalid order type'; end if;
+  if length(v_branch) not between 1 and 60 then raise exception 'invalid branch'; end if;
+  if length(v_name) not between 1 and 80 then raise exception 'invalid customer name'; end if;
+  if v_phone !~ v_phone_pattern then raise exception 'invalid phone'; end if;
+  if v_mode = 'Delivery' and (v_address is null or length(v_address) > 300) then
+    raise exception 'delivery address is required';
+  end if;
+  if v_payment is null or v_payment not in ('Cash on Delivery','Cash','GCash')
+     or (v_mode = 'Delivery' and v_payment = 'Cash')
+     or (v_mode = 'Pick-Up' and v_payment = 'Cash on Delivery') then
+    raise exception 'invalid payment method for order type';
+  end if;
+  if coalesce(p_order ->> 'order_date', '') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
+    raise exception 'invalid order date';
+  end if;
+  v_date := (p_order ->> 'order_date')::date;
+  if coalesce(p_order ->> 'time', '') <> '' and length(p_order ->> 'time') > 60 then
+    raise exception 'invalid preferred time';
+  end if;
+  if v_status not in ('new','confirmed','preparing','ready','out_for_delivery','completed','cancelled') then
+    raise exception 'invalid order status';
+  end if;
+  if coalesce(p_order ->> 'delivery_fee', '') !~ '^[0-9]+(\.[0-9]{1,2})?$' then
+    raise exception 'invalid delivery fee';
+  end if;
+  v_delivery_fee := (p_order ->> 'delivery_fee')::numeric;
+  if v_delivery_fee not between 0 and 100000 then raise exception 'invalid delivery fee'; end if;
+  if jsonb_typeof(p_order -> 'items') <> 'array'
+     or jsonb_array_length(p_order -> 'items') not between 1 and 50 then
+    raise exception 'order must contain 1 to 50 items';
+  end if;
+
+  for v_item in select value from jsonb_array_elements(p_order -> 'items') loop
+    if length(trim(coalesce(v_item ->> 'name', ''))) not between 1 and 100
+       or coalesce(v_item ->> 'qty', '') !~ '^[0-9]+$'
+       or coalesce(v_item ->> 'unit', '') !~ '^[0-9]+(\.[0-9]{1,2})?$' then
+      raise exception 'invalid order item';
+    end if;
+    v_qty := (v_item ->> 'qty')::integer;
+    v_unit := (v_item ->> 'unit')::numeric;
+    if v_qty not between 1 and 99 or v_unit not between 0 and 100000 then
+      raise exception 'invalid order item quantity or price';
+    end if;
+    if jsonb_typeof(v_item -> 'opts') = 'array' then
+      select coalesce(jsonb_agg(left(value, 60)), '[]'::jsonb) into v_opts
+      from jsonb_array_elements_text(v_item -> 'opts') as option_value(value);
+    else
+      v_opts := '[]'::jsonb;
+    end if;
+    v_items := v_items || jsonb_build_array(jsonb_build_object(
+      'name', trim(v_item ->> 'name'), 'opts', v_opts, 'qty', v_qty, 'unit', v_unit
+    ));
+    v_subtotal := v_subtotal + v_qty * v_unit;
+  end loop;
+  if v_subtotal > 1000000 then raise exception 'order subtotal is too large'; end if;
+
+  if p_order_id is null then
+    if v_ref !~ '^AK-[A-Z0-9]{6}$' then raise exception 'invalid order reference'; end if;
+    insert into public.orders
+      (ref, mode, branch, customer_name, customer_phone, address, order_date,
+       preferred_time, payment, notes, items, subtotal, delivery_fee, status,
+       staff_notes, channel)
+    values
+      (v_ref, v_mode, v_branch, v_name, v_phone,
+       case when v_mode = 'Delivery' then v_address end, v_date, v_time, v_payment,
+       v_notes, v_items, v_subtotal, v_delivery_fee, v_status, v_staff_notes, 'admin')
+    returning * into v_order;
+  else
+    update public.orders
+       set mode = v_mode, branch = v_branch, customer_name = v_name,
+           customer_phone = v_phone,
+           address = case when v_mode = 'Delivery' then v_address end,
+           order_date = v_date, preferred_time = v_time, payment = v_payment,
+           notes = v_notes, items = v_items, subtotal = v_subtotal,
+           delivery_fee = v_delivery_fee, status = v_status, staff_notes = v_staff_notes
+     where id = p_order_id and deleted_at is null
+     returning * into v_order;
+    if not found then raise exception 'order not found or already deleted'; end if;
+  end if;
+
+  return to_jsonb(v_order);
+end $$;
+revoke all on function public.save_staff_order(uuid, jsonb) from public, anon;
+grant execute on function public.save_staff_order(uuid, jsonb) to authenticated;
 
 -- Private GCash proof uploads: customers can upload only for an unpaid GCash order.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
