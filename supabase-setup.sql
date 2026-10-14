@@ -31,7 +31,7 @@ create table if not exists public.orders (
   updated_at     timestamptz not null default now(),
   status         text not null default 'new'
                  check (status in ('new','confirmed','preparing','ready','out_for_delivery','completed','cancelled')),
-  mode           text not null check (mode in ('Delivery','Takeout')),
+  mode           text not null check (mode in ('Delivery','Pick-Up')),
   branch         text not null,
   customer_name  text not null,
   customer_phone text not null,
@@ -70,6 +70,9 @@ alter table public.orders add column if not exists paid_at timestamptz;
 alter table public.orders add column if not exists deleted_at timestamptz;
 alter table public.orders add column if not exists deleted_by text;
 alter table public.orders add column if not exists delete_reason text;
+alter table public.orders drop constraint if exists orders_mode_check;
+update public.orders set mode = 'Pick-Up' where mode = 'Takeout';
+alter table public.orders add constraint orders_mode_check check (mode in ('Delivery','Pick-Up'));
 update public.orders
    set payment_status = case
      when paid_at is not null then 'paid'
@@ -244,7 +247,7 @@ declare
 begin
   -- basic validation
   if v_ref is null or v_ref !~ '^AK-[A-Z0-9]{6}$' then raise exception 'invalid ref'; end if;
-  if v_mode not in ('Delivery','Takeout') then raise exception 'invalid mode'; end if;
+  if v_mode not in ('Delivery','Pick-Up') then raise exception 'invalid mode'; end if;
   if v_pay is null or v_pay not in ('Cash on Delivery','Cash','GCash') then raise exception 'invalid payment method'; end if;
   if coalesce(p ->> 'order_date', '') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'invalid order date'; end if;
   v_order_date := (p ->> 'order_date')::date;

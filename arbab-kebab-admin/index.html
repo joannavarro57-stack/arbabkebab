@@ -279,6 +279,7 @@ function nextStep(o){
 const PAY = { unpaid:"Unpaid", submitted:"Verify payment", paid:"Paid", refunded:"Refunded" };
 const payBadge = o => `<span class="pay ${esc(o.payment_status||"unpaid")}">${o.payment_status==="paid" ? "✓ " : o.payment_status==="submitted" ? "⏳ " : ""}${PAY[o.payment_status||"unpaid"]}</span>`;
 const isGcash = o => /gcash/i.test(o.payment || "");
+const orderModeLabel = mode => mode === "Delivery" ? "Delivery" : "Pick-Up";
 const payLink = o => CONFIG.orderSiteUrl.replace(/\/$/, "") + "/pay.html?ref=" + encodeURIComponent(o.ref);
 const pill = s => `<span class="pill" style="background:${STATUS[s]?.color||"#777"}">${esc(STATUS[s]?.label||s)}</span>`;
 
@@ -431,7 +432,7 @@ function render(){
     const items = o.items.map(i => `${i.qty}× ${i.name}`).join(", ");
     return `<button class="order${o.id===selId?" sel":""}${o.id===flashId?" flash":""}" data-id="${o.id}" style="border-left-color:${STATUS[o.status]?.color}">
       <span class="no">#${o.order_no}</span>
-      <span class="nm">${esc(o.customer_name)} <span style="font-weight:500;color:var(--muted)">· ${esc(o.mode)} · ${esc(o.branch)}</span></span>
+      <span class="nm">${esc(o.customer_name)} <span style="font-weight:500;color:var(--muted)">· ${orderModeLabel(o.mode)} · ${esc(o.branch)}</span></span>
       <span class="tot">${peso(o.total)}</span>
       <span class="ago">${esc(ago(o.created_at))}</span>
       <span class="meta">${pill(o.status)} ${payBadge(o)} &nbsp;${esc(o.payment||"")} · ${esc(items)}</span>
@@ -484,7 +485,7 @@ function renderDetail(){
       <dl class="kv">
         <dt>Name</dt><dd>${esc(o.customer_name)}</dd>
         <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
-        <dt>Order type</dt><dd>${esc(o.mode)} · ${esc(o.branch)} branch</dd>
+        <dt>Order type</dt><dd>${orderModeLabel(o.mode)} · ${esc(o.branch)} branch</dd>
         ${o.address ? `<dt>Address</dt><dd>${esc(o.address)}</dd>` : ""}
         <dt>Date</dt><dd>${esc(fmtOrderDate(o.order_date))}</dd>
         <dt>Time</dt><dd>${esc(o.preferred_time||"—")}</dd>
@@ -677,7 +678,7 @@ $("#csv").onclick = () => {
   const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
   const q = v => { let s = String(v ?? ""); if(/^[=@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating text as a formula
     return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
-  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, o.mode, o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.address,
+  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, orderModeLabel(o.mode), o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.address,
     o.items.map(i => `${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`).join("; "),
     o.subtotal, o.delivery_fee, o.total, o.payment, PAY[o.payment_status] || o.payment_status, o.payment_ref,
     o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes].map(q).join(","));
