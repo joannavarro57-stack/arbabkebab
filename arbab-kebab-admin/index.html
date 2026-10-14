@@ -550,7 +550,7 @@ function renderDetail(){
         <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
         <dt>Order type</dt><dd>${orderModeLabel(o.mode)} · ${esc(o.branch)} branch</dd>
         ${o.address ? `<dt>Address</dt><dd>${esc(o.address)}</dd>` : ""}
-        ${hasPin ? `<dt>Pinned</dt><dd><a href="${maps}" target="_blank" rel="noopener">📍 ${esc(pinQuery)}</a></dd>` : (o.mode === "Delivery" ? `<dt>Pinned</dt><dd style="color:var(--muted)">No map pin</dd>` : "")}
+        ${hasPin ? `<dt>Pinned</dt><dd style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px"><a href="${maps}" target="_blank" rel="noopener">📍 ${esc(pinQuery)}</a><button class="btn sm no-print" id="copyPin" type="button" title="Copy the Google Maps link to send to the driver">📋 Copy link</button></dd>` : (o.mode === "Delivery" ? `<dt>Pinned</dt><dd style="color:var(--muted)">No map pin</dd>` : "")}
         <dt>Date</dt><dd>${esc(fmtOrderDate(o.order_date))}</dd>
         <dt>Time</dt><dd>${esc(o.preferred_time||"—")}</dd>
         <dt>Payment</dt><dd>${esc(o.payment||"—")}</dd>
@@ -627,6 +627,10 @@ function renderDetail(){
       try{ await navigator.clipboard.writeText(msg); toast("Message to customer copied"); }catch(e){ prompt("Send this to the customer:", msg); }
     }
 
+  };
+  if($("#copyPin")) $("#copyPin").onclick = async () => {
+    try{ await navigator.clipboard.writeText(maps); toast("Pin link copied — paste it to the driver"); }
+    catch(e){ prompt("Pin link for the driver:", maps); }
   };
   if($("#copyPayLink")) $("#copyPayLink").onclick = async () => {
     try{ await navigator.clipboard.writeText(payLink(o)); toast("Payment link copied"); }catch(e){ prompt("Payment link:", payLink(o)); }
