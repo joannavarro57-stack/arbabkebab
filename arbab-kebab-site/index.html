@@ -522,6 +522,15 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .pin-btn:hover{border-color:var(--ember)}
 .pin-btn:disabled{opacity:.6;cursor:wait}
 #pinStatus.ok{color:#2e7d32}
+.pin-search{position:relative;display:flex;gap:6px;margin-bottom:6px}
+.pin-search input{flex:1;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff}
+.pin-search input:focus{outline:none;border-color:var(--ember)}
+.pin-results{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;margin:0;padding:4px;list-style:none;background:#fff;border:1.5px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:240px;overflow:auto}
+.pin-results[hidden]{display:none}
+.pin-results button{display:block;width:100%;text-align:left;padding:9px 10px;border:0;border-radius:8px;background:none;font-size:13px;line-height:1.35;cursor:pointer;color:var(--char-2)}
+.pin-results button:hover,.pin-results button:focus{background:#f6efe4;outline:none}
+.pin-results b{display:block;font-size:13.5px}
+.pin-results .empty{padding:9px 10px;font-size:13px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -637,6 +646,11 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <div class="f" id="addrWrap"><label for="ad">Delivery address</label><textarea id="ad" name="address" rows="2" autocomplete="street-address" placeholder="House no., street, barangay, city, landmark"></textarea></div>
         <div class="f" id="pinWrap">
           <label for="pinMap">Pin your delivery location</label>
+          <div class="pin-search" role="search">
+            <input id="pinSearch" type="search" enterkeyhint="search" autocomplete="off" placeholder="Search street, subdivision, barangay or landmark" aria-label="Search for your location" aria-controls="pinResults">
+            <button type="button" class="pin-btn" id="pinSearchBtn">Search</button>
+            <ul class="pin-results" id="pinResults" hidden></ul>
+          </div>
           <div class="pin-map" id="pinMap" role="application" aria-label="Map — tap to drop a pin on your delivery location"></div>
           <div class="pin-tools">
             <button type="button" class="pin-btn" id="locateMe">📍 Use my current location</button>
@@ -969,6 +983,44 @@ function initPinMap(){
   pinMap.on("click", e => setPin(e.latlng.lat, e.latlng.lng, true));
   if(pin) setPin(pin.lat, pin.lng, false);
 }
+/* location search (OpenStreetMap Nominatim, Philippines only, nearer Malolos first) */
+let searchSeq = 0;
+function hideResults(){ $("#pinResults").hidden = true; }
+async function searchPlace(){
+  const q = $("#pinSearch").value.trim(), list = $("#pinResults"), btn = $("#pinSearchBtn");
+  if(q.length < 3){ list.innerHTML = `<li class="empty">Type at least 3 characters.</li>`; list.hidden = false; return; }
+  const seq = ++searchSeq;
+  btn.disabled = true; btn.textContent = "Searching…";
+  const c = pinMap ? pinMap.getCenter() : {lat: MAP_HOME.lat, lng: MAP_HOME.lng};
+  const box = [c.lng - 0.35, c.lat + 0.35, c.lng + 0.35, c.lat - 0.35].map(n => n.toFixed(4)).join(",");
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=ph&limit=6&addressdetails=0&viewbox=${box}&q=${encodeURIComponent(q)}`, {headers: {"Accept-Language": "en"}});
+    const rows = await r.json();
+    if(seq !== searchSeq) return;
+    list.innerHTML = rows.length ? rows.map((x, i) => {
+      const parts = x.display_name.split(", ").filter(p => p !== "Philippines" && !/^\d{4}$/.test(p));
+      return `<li><button type="button" data-i="${i}"><b>${esc(parts[0])}</b>${esc(parts.slice(1).join(", "))}</button></li>`;
+    }).join("") : `<li class="empty">No matches. Try a nearby landmark or barangay, or tap the map.</li>`;
+    list.hidden = false;
+    list.querySelectorAll("button").forEach(b => b.onclick = () => {
+      const x = rows[+b.dataset.i];
+      initPinMap(); if(!pinMap) return;
+      hideResults();
+      $("#pinSearch").value = b.querySelector("b").textContent;
+      pinMap.setView([+x.lat, +x.lon], 18);
+      setPin(+x.lat, +x.lon, true);
+      setPinStatus("✓ Pin placed near your search. Drag it to your exact gate or door.", true);
+    });
+  }catch(e){
+    if(seq === searchSeq){ list.innerHTML = `<li class="empty">Search isn't available right now — tap the map instead.</li>`; list.hidden = false; }
+  }finally{
+    if(seq === searchSeq){ btn.disabled = false; btn.textContent = "Search"; }
+  }
+}
+$("#pinSearchBtn").onclick = searchPlace;
+$("#pinSearch").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); searchPlace(); } else if(e.key === "Escape"){ e.stopPropagation(); hideResults(); } });
+$("#pinSearch").addEventListener("input", () => { if(!$("#pinSearch").value.trim()) hideResults(); });
+document.addEventListener("click", e => { if(!e.target.closest(".pin-search")) hideResults(); });
 $("#locateMe").onclick = () => {
   if(!navigator.geolocation){ setPinStatus("Your browser can't share location — tap the map instead."); return; }
   const btn = $("#locateMe"); btn.disabled = true; btn.textContent = "Finding you…";
