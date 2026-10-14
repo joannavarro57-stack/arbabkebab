@@ -35,6 +35,7 @@ create table if not exists public.orders (
   customer_name  text not null,
   customer_phone text not null,
   address        text,
+  order_date     date,
   preferred_time text,
   payment        text,
   notes          text,
@@ -60,6 +61,7 @@ alter table public.orders add column if not exists payment_ref_last4 text;
 alter table public.orders add column if not exists payer_name text;
 alter table public.orders add column if not exists payment_submitted_at timestamptz;
 alter table public.orders add column if not exists payment_screenshot_path text;
+alter table public.orders add column if not exists order_date date;
 alter table public.orders add column if not exists paid_at timestamptz;
 update public.orders
    set payment_status = case
@@ -200,6 +202,7 @@ declare
   v_name    text := trim(coalesce(p ->> 'name', ''));
   v_phone   text := trim(coalesce(p ->> 'phone', ''));
   v_addr    text := nullif(trim(coalesce(p ->> 'address', '')), '');
+  v_order_date date;
   v_time    text := nullif(left(trim(coalesce(p ->> 'time', '')), 60), '');
   v_pay     text := nullif(left(trim(coalesce(p ->> 'payment', '')), 60), '');
   v_notes   text := nullif(left(trim(coalesce(p ->> 'notes', '')), 500), '');
@@ -212,6 +215,8 @@ begin
   if v_ref is null or v_ref !~ '^AK-[A-Z0-9]{6}$' then raise exception 'invalid ref'; end if;
   if v_mode not in ('Delivery','Takeout') then raise exception 'invalid mode'; end if;
   if v_pay is null or v_pay not in ('Cash on Delivery','Cash','GCash') then raise exception 'invalid payment method'; end if;
+  if coalesce(p ->> 'order_date', '') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'invalid order date'; end if;
+  v_order_date := (p ->> 'order_date')::date;
   if length(v_branch) not between 1 and 60 then raise exception 'invalid branch'; end if;
   if length(v_name)   not between 1 and 80 then raise exception 'invalid name'; end if;
   if v_phone !~ '^[0-9+() -]{7,20}$' then raise exception 'invalid phone'; end if;
@@ -244,14 +249,15 @@ begin
     raise exception 'too many orders, please wait a few minutes';
   end if;
 
-  insert into public.orders as o (ref, mode, branch, customer_name, customer_phone, address,
+  insert into public.orders as o (ref, mode, branch, customer_name, customer_phone, address, order_date,
                                   preferred_time, payment, notes, items, subtotal, channel)
   values (v_ref, v_mode, v_branch, v_name, v_phone, case when v_mode = 'Delivery' then v_addr end,
-          v_time, v_pay, v_notes, v_items, v_sub, v_channel)
+          v_order_date, v_time, v_pay, v_notes, v_items, v_sub, v_channel)
   on conflict (ref) do update               -- allow retrying an unsubmitted checkout
      set mode = excluded.mode, branch = excluded.branch, customer_name = excluded.customer_name,
          customer_phone = excluded.customer_phone, address = excluded.address,
-         preferred_time = excluded.preferred_time, payment = excluded.payment, notes = excluded.notes,
+         order_date = excluded.order_date, preferred_time = excluded.preferred_time,
+         payment = excluded.payment, notes = excluded.notes,
          items = excluded.items, subtotal = excluded.subtotal, channel = excluded.channel
      where o.status = 'new' and o.payment_status = 'unpaid' and o.payment_ref is null
   returning o.order_no into v_no;
@@ -274,6 +280,7 @@ language sql security definer set search_path = public as $$
     'order_no', o.order_no,
     'mode', o.mode,
     'branch', o.branch,
+    'order_date', o.order_date,
     'subtotal', o.subtotal,
     'delivery_fee', o.delivery_fee,
     'total', o.total,

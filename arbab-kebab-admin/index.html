@@ -224,6 +224,9 @@ const peso = n => CONFIG.currency + Number(n||0).toLocaleString("en-PH", {minimu
 const ls = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} } };
 const fmtTime = new Intl.DateTimeFormat("en-PH", {timeZone: CONFIG.timeZone, hour:"numeric", minute:"2-digit"});
 const fmtDate = new Intl.DateTimeFormat("en-PH", {timeZone: CONFIG.timeZone, month:"short", day:"numeric"});
+const fmtOrderDate = value => value
+  ? new Intl.DateTimeFormat("en-PH", {timeZone:"UTC", dateStyle:"medium"}).format(new Date(value + "T00:00:00Z"))
+  : "—";
 const fmtFull = new Intl.DateTimeFormat("en-CA", {timeZone: CONFIG.timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false});
 function ymdLocal(d){ return new Intl.DateTimeFormat("en-CA",{timeZone:CONFIG.timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(d); }
 function startOfLocalDay(daysAgo=0){ const d = new Date(Date.now() - daysAgo*864e5); return new Date(ymdLocal(d) + "T00:00:00+08:00"); }
@@ -434,7 +437,8 @@ function renderDetail(){
         <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
         <dt>Order type</dt><dd>${esc(o.mode)} · ${esc(o.branch)} branch</dd>
         ${o.address ? `<dt>Address</dt><dd>${esc(o.address)}</dd>` : ""}
-        <dt>Time</dt><dd>${esc(o.preferred_time||"ASAP")}</dd>
+        <dt>Date</dt><dd>${esc(fmtOrderDate(o.order_date))}</dd>
+        <dt>Time</dt><dd>${esc(o.preferred_time||"—")}</dd>
         <dt>Payment</dt><dd>${esc(o.payment||"—")}</dd>
       </dl>
       <div class="row-btns no-print">
@@ -514,6 +518,7 @@ function renderDetail(){
     const lines = [
       `Hi ${first}! This is ${CONFIG.businessName} 🧆`,
       `Your order ${o.ref} is confirmed.`,
+      `Date: ${fmtOrderDate(o.order_date)} · Time: ${o.preferred_time || "—"}`,
       ``,
       ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
       ``,
@@ -570,10 +575,10 @@ setInterval(() => { if(!$("#appView").hidden && !document.activeElement?.closest
 $("#csv").onclick = () => {
   const rows = filtered();
   if(!rows.length) return toast("Nothing to export");
-  const head = ["order_no","ref","date_time","status","mode","branch","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
+  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
   const q = v => { let s = String(v ?? ""); if(/^[=@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating text as a formula
     return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
-  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, o.mode, o.branch, o.customer_name, o.customer_phone, o.address,
+  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, o.mode, o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.address,
     o.items.map(i => `${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`).join("; "),
     o.subtotal, o.delivery_fee, o.total, o.payment, PAY[o.payment_status] || o.payment_status, o.payment_ref,
     o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes].map(q).join(","));

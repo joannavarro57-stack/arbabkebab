@@ -103,6 +103,7 @@ function state(icon, cls, title, text, extra=""){
 function summary(o){
   return `<div class="card">
     <p class="sub">Order <span class="ref">${esc(o.ref)}</span> · #${o.order_no} · ${esc(o.mode)} · ${esc(o.branch)}</p>
+    ${o.order_date ? `<p class="sub">Scheduled: ${esc(new Intl.DateTimeFormat("en-PH",{dateStyle:"medium",timeZone:"UTC"}).format(new Date(o.order_date + "T00:00:00Z")))} · ${esc(o.preferred_time || "—")}</p>` : ""}
     <div class="amount"><span class="l">Food subtotal to pay</span><span class="v">${peso(o.subtotal)}</span></div>
     <details><summary>See order details</summary>
       <table>${o.items.map(i => `<tr><td>${i.qty}× ${esc(i.name)}${i.opts && i.opts.length ? `<div class="o">${esc(i.opts.join(" · "))}</div>` : ""}</td><td class="p">${peso(i.qty*i.unit)}</td></tr>`).join("")}

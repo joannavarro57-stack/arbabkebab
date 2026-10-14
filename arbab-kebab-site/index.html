@@ -626,7 +626,8 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <div class="f"><label for="nm">Name</label><input id="nm" name="name" autocomplete="name" required></div>
         <div class="f"><label for="ph">Mobile number</label><input id="ph" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09XX XXX XXXX" required></div>
         <div class="f" id="addrWrap"><label for="ad">Delivery address</label><textarea id="ad" name="address" rows="2" autocomplete="street-address" placeholder="House no., street, barangay, city, landmark"></textarea></div>
-        <div class="f"><label for="tm">Preferred time</label><input id="tm" name="time" placeholder="ASAP, or e.g. 6:30 PM"></div>
+        <div class="f"><label for="orderDate">Delivery / Pick-Up date</label><input id="orderDate" name="orderDate" type="date" required></div>
+        <div class="f"><label for="tm">Preferred time</label><select id="tm" name="time" required></select><p class="note" id="timeAvailability" aria-live="polite"></p></div>
         <div class="f"><label for="pay">Payment</label><select id="pay" name="pay"></select></div>
         <div class="f"><label for="nt">Notes</label><textarea id="nt" name="notes" rows="2" placeholder="Extra garlic sauce, no onions…"></textarea></div>
       </fieldset>
@@ -918,6 +919,41 @@ function syncMode(){
   if(STORE.payments[mode].includes(payment)) $("#pay").value = payment;
 }
 document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("change", syncMode)); syncMode();
+const ORDER_HOURS = Array.from({length:10}, (_, i) => i + 11);
+function localDateString(date){
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+function formatOrderHour(hour){
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:00 ${hour < 12 ? "AM" : "PM"}`;
+}
+$("#orderDate").value = localDateString(new Date());
+function syncTimeSlots(){
+  const select = $("#tm");
+  const previous = select.value;
+  const now = new Date();
+  const today = localDateString(now);
+  const dateInput = $("#orderDate");
+  dateInput.min = today;
+  if(!dateInput.value || dateInput.value < today) dateInput.value = today;
+  const isToday = dateInput.value === today;
+  const currentHour = isToday ? now.getHours() : 0;
+  select.innerHTML = `<option value="">Choose a time</option>` + ORDER_HOURS.map(hour => {
+    const label = formatOrderHour(hour);
+    const disabled = isToday && hour <= currentHour;
+    return `<option value="${label}"${disabled ? " disabled" : ""}>${label}${disabled ? " — passed" : ""}</option>`;
+  }).join("");
+  if(previous && !Array.from(select.options).find(option => option.value === previous)?.disabled){
+    select.value = previous;
+  }
+  const available = !isToday || ORDER_HOURS.some(hour => hour > currentHour);
+  $("#timeAvailability").textContent = available
+    ? `Choose an available hourly slot between 11:00 AM and 8:00 PM${isToday ? ". Past times are disabled." : "."}`
+    : "No time slots remain today. Choose a future date to see its available times.";
+}
+syncTimeSlots();
+window.setInterval(syncTimeSlots, 60 * 1000);
+$("#orderDate").addEventListener("change", syncTimeSlots);
 $("#form").addEventListener("input", ()=> store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, ad:$("#ad").value}));
 
 /* order reference — one per cart, so resending the same cart doesn't duplicate it */
@@ -931,6 +967,9 @@ let orderRef = store.get("ak_ref") || newRef(); store.set("ak_ref", orderRef);
 function validateOrder(){
   const err = $("#err"); err.textContent = "";
   if(!cart.length){ err.textContent = "Add at least one item first."; return false; }
+  syncTimeSlots();
+  if(!$("#orderDate").value || $("#orderDate").value < localDateString(new Date())){ err.textContent = "Please choose today or a future date."; return false; }
+  if(!$("#tm").value){ err.textContent = $("#timeAvailability").textContent.startsWith("No time slots") ? $("#timeAvailability").textContent : "Please choose an available preferred time."; return false; }
   const mode = $("input[name=mode]:checked").value;
   const name = $("#nm").value.trim(), phone = $("#ph").value.trim(), addr = $("#ad").value.trim();
   if(!name || !phone){ err.textContent = "Please add your name and mobile number."; return false; }
@@ -945,6 +984,7 @@ async function saveOrder(channel){
   const payload = { ref: orderRef, mode, branch: $("#branch").value,
     name: $("#nm").value.trim(), phone: $("#ph").value.trim(),
     address: mode==="Delivery" ? $("#ad").value.trim() : "",
+    order_date: $("#orderDate").value,
     time: $("#tm").value.trim() || "ASAP", payment: $("#pay").value, notes: $("#nt").value.trim(),
     channel, items: cart.map(l=>({name: l.name, opts: l.opts, qty: l.qty, unit: l.unit})) };
   const headers = {"Content-Type":"application/json", apikey: STORE.supabaseKey};
