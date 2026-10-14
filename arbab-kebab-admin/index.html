@@ -483,8 +483,8 @@ function render(){
   $("#kpis").innerHTML = [
     ["Orders", valid.length], ["Sales", peso(sales)], ["Collected", peso(collected)], ["Open now", open]
   ].map(([l,v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
-  const alerts = newCount + verify;
-  document.title = (alerts ? `(${alerts}) ` : "") + "Arbab Kebab · Orders";
+  // Browser tab shows the same number as the "New" tab.
+  document.title = (newCount ? `(${newCount}) ` : "") + "Arbab Kebab · Orders";
   // tabs
   const counts = {open, verify, all: base.length}; Object.keys(STATUS).forEach(s => counts[s] = base.filter(o=>o.status===s).length);
   const tabDefs = [["open","Open"],["new","New"],["verify","Verify payment"],["confirmed","Confirmed"],["preparing","Preparing"],["ready","Ready"],["out_for_delivery","Out for delivery"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]];
