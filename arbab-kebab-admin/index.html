@@ -674,11 +674,11 @@ function driverMessage(o){
   const maps = hasPin ? `https://www.google.com/maps/search/?api=1&query=${Number(o.delivery_lat)},${Number(o.delivery_lng)}` : "";
   const fee = Number(o.delivery_fee) || 0;
   // GCash covers the food only; the delivery fee is always collected in cash by the driver.
-  const feeText = fee ? `${peso(fee)} - Collect cash` : `Pending`;
+  const feeText = fee ? `${peso(fee)} - 💵 Collect cash` : `⏳ Pending`;
   const collect = isGcash(o)
-    ? [`Food - ${peso(o.subtotal)} - Paid thru GCash`, `Delivery Fee - ${feeText}`]
-    : [`Food - ${peso(o.subtotal)} - Collect cash`, `Delivery Fee - ${feeText}`,
-       ...(fee ? [`Total to collect - ${peso(o.total)}`] : [])];
+    ? [`🍽️ Food - ${peso(o.subtotal)} - ✅ Paid thru GCash`, `🛵 Delivery Fee - ${feeText}`]
+    : [`🍽️ Food - ${peso(o.subtotal)} - 💵 Collect cash`, `🛵 Delivery Fee - ${feeText}`,
+       ...(fee ? [`💰 Total to collect - ${peso(o.total)}`] : [])];
   const itemCount = o.items.reduce((n, i) => n + Number(i.qty || 0), 0);
   const lines = [
     `🛵 DELIVERY — Order #${o.order_no} (${o.ref})`,
@@ -693,7 +693,9 @@ function driverMessage(o){
     ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
     ``,
     ...collect,
-    ...(o.notes ? [`📝 Customer note: ${o.notes}`] : [])
+    ...(o.notes ? [``, `📝 Customer note: ${o.notes}`] : []),
+    ``,
+    `🙏 Salamat po! Ingat sa byahe 🛵💨`
   ];
   return lines.join("\n");
 }
