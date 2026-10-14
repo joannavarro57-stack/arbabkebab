@@ -648,20 +648,30 @@ function renderDetail(){
     catch(e){ prompt("Copy this for the driver:", text); }
   };
   $("#copyConfirm").onclick = async () => {
-    const first = (o.customer_name || "").split(" ")[0];
-    const fee = Number(o.delivery_fee);
+    const first = (o.customer_name || "").trim().split(" ")[0];
+    const fee = Number(o.delivery_fee) || 0;
+    const delivery = o.mode === "Delivery";
+    const hasPin = o.delivery_lat != null && o.delivery_lng != null;
+    const when = o.order_date ? new Date(o.order_date + "T00:00:00").toLocaleDateString("en-PH", {weekday:"short", month:"short", day:"numeric"}) : "";
     const lines = [
       `Hi ${first}! This is ${CONFIG.businessName} 🧆`,
-      `Your order ${o.ref} is confirmed.`,
-      `Date: ${fmtOrderDate(o.order_date)} · Time: ${o.preferred_time || "—"}`,
+      `Thanks for placing your order, see details below:`,
       ``,
-      ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
+      `🧾 Order ${o.ref} (#${o.order_no})`,
+      `${delivery ? "🛵 Delivery" : `🏪 Pick-Up at ${o.branch} branch`}${when ? ` · ${when}` : ""}${o.preferred_time ? ` · ${o.preferred_time}` : ""}`,
       ``,
-      `${isGcash(o) ? `GCash food subtotal: ${peso(o.subtotal)}${fee ? ` · delivery fee ${peso(fee)} is settled separately` : ""}` : `Total: ${peso(o.total)}${fee ? ` (incl. ${peso(fee)} delivery)` : ""}`}`,
-      `Payment: ${o.payment || "—"}`,
-      ...(isGcash(o) && o.payment_status !== "paid" ? [``, `Pay via GCash here 👉 ${payLink(o)}`, `(shows our GCash QR and the exact amount)`, ``] : []),
-      o.mode === "Delivery" ? `We'll message you when it's on the way.` : `We'll message you when it's ready for pickup at our ${o.branch} branch.`,
-      `Salamat po!`
+      `👤 ${o.customer_name} · ${o.customer_phone}`,
+      ...(delivery && o.address ? [`🏠 ${o.address}`] : []),
+      ...(delivery && hasPin ? [`📍 Pinned location: https://www.google.com/maps/search/?api=1&query=${Number(o.delivery_lat)},${Number(o.delivery_lng)}`] : []),
+      ``,
+      `📦 Items:`,
+      ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""} — ${peso(i.qty * i.unit)}`),
+      ``,
+      `🍽️ Food total: ${peso(o.subtotal)}`,
+      ...(delivery ? [`🛵 Delivery fee: ${fee ? peso(fee) : "to be confirmed"}`] : []),
+      `💵 Payment: ${o.payment || "—"}`,
+      ...(o.notes ? [``, `📝 Note: ${o.notes}`] : []),
+      ...(isGcash(o) && o.payment_status !== "paid" ? [``, `Pay via GCash here 👉 ${payLink(o)}`] : [])
     ];
     try{ await navigator.clipboard.writeText(lines.join("\n")); toast("Reply copied — paste it in Messenger"); }
     catch(e){ prompt("Copy this reply:", lines.join("\n")); }
