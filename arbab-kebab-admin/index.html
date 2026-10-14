@@ -33,6 +33,14 @@ a{color:inherit}
 .btn:disabled{opacity:.5;cursor:default}
 input,select,textarea{border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
+.delete-dialog{width:min(440px,calc(100% - 32px));border:2px solid var(--char);border-radius:16px;padding:22px;background:var(--card);color:var(--char);box-shadow:0 18px 60px rgba(0,0,0,.3)}
+.delete-dialog::backdrop{background:rgba(30,26,22,.58)}
+.delete-dialog h2{margin:0 0 6px;font-size:20px}
+.delete-dialog p{margin:0 0 12px;color:var(--muted)}
+.delete-dialog label{display:block;font-weight:700;font-size:13px;margin:12px 0 5px}
+.delete-dialog input,.delete-dialog textarea{width:100%}
+.delete-dialog .msg{min-height:1.3em;color:var(--red);font-size:13px;margin:10px 0 0}
+.delete-dialog .buttons{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 
 /* login */
 .login{min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--saffron)}
@@ -204,6 +212,21 @@ textarea{width:100%;resize:vertical}
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog class="delete-dialog" id="deleteDialog" aria-labelledby="deleteTitle">
+  <form id="deleteForm">
+    <h2 id="deleteTitle">Delete order?</h2>
+    <p id="deleteContext">The order will be removed from active views. Its database record will be retained.</p>
+    <label for="deleteReason">Reason for deletion</label>
+    <textarea id="deleteReason" rows="3" maxlength="500" required></textarea>
+    <label for="deletePassword">Staff account password</label>
+    <input id="deletePassword" type="password" autocomplete="current-password" required>
+    <p class="msg" id="deleteMsg" role="alert"></p>
+    <div class="buttons">
+      <button class="btn" type="button" id="deleteCancel">Keep order</button>
+      <button class="btn danger" type="submit" id="deleteConfirm">Delete order</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
 /* ================= CONFIG (edit me) ================= */
@@ -260,7 +283,7 @@ const payLink = o => CONFIG.orderSiteUrl.replace(/\/$/, "") + "/pay.html?ref=" +
 const pill = s => `<span class="pill" style="background:${STATUS[s]?.color||"#777"}">${esc(STATUS[s]?.label||s)}</span>`;
 
 /* ================= STATE ================= */
-let sb = null, orders = [], selId = null, tab = "open", channel = null, pollTimer = null;
+let sb = null, orders = [], selId = null, tab = "open", channel = null, pollTimer = null, staffEmail = "";
 let soundOn = ls.get("ak_sound") !== "off", audioCtx = null;
 
 /* ================= AUTH ================= */
@@ -300,10 +323,11 @@ $("#setPw").onclick = async () => {
   $("#loginFields").hidden = false; $("#resetFields").hidden = true;
   const s = (await sb.auth.getSession()).data.session; if(s) enterApp(s);
 };
-$("#logout").onclick = async () => { await sb.auth.signOut(); if(channel) sb.removeChannel(channel); clearInterval(pollTimer); orders = []; showLogin("Logged out.", true); };
+$("#logout").onclick = async () => { await sb.auth.signOut(); if(channel) sb.removeChannel(channel); clearInterval(pollTimer); orders = []; staffEmail = ""; showLogin("Logged out.", true); };
 
 async function enterApp(session){
   const email = session.user.email;
+  staffEmail = email;
   const { data: me, error } = await sb.from("staff").select("email,name").ilike("email", email).maybeSingle();
   if(error || !me){ await sb.auth.signOut(); return showLogin("This account isn't on the staff list. Ask the owner to add your email."); }
   $("#who").textContent = me.name ? `${me.name} · ${email}` : email;
@@ -340,7 +364,7 @@ function subscribe(){
       const i = orders.findIndex(o => o.id === row.id);
       if(eventType === "INSERT" && i < 0){
         if(inRange(row)) orders.unshift(row);
-        if(!isPendingGcash(row) && (!$("#branchF").value || $("#branchF").value === row.branch)){
+        if(!row.deleted_at && !isPendingGcash(row) && (!$("#branchF").value || $("#branchF").value === row.branch)){
           beep(); toast(`New order ${row.ref} · ${row.customer_name} · ${peso(row.total)}`, true);
           flashId = row.id;
         }
@@ -374,12 +398,20 @@ async function updateOrder(id, patch, msg){
 let flashId = null;
 function filtered(){
   const b = $("#branchF").value, q = $("#q").value.trim().toLowerCase();
-  return orders.filter(o => !isPendingGcash(o) && (!b || o.branch === b) &&
-    (!q || [o.ref, o.order_no, o.customer_name, o.customer_phone, o.address].join(" ").toLowerCase().includes(q)));
+  return orders.filter(o => !o.deleted_at && !isPendingGcash(o) && matchesOrderFilters(o, b, q));
+}
+function filteredDeleted(){
+  const b = $("#branchF").value, q = $("#q").value.trim().toLowerCase();
+  return orders.filter(o => o.deleted_at && matchesOrderFilters(o, b, q));
+}
+function matchesOrderFilters(o, b, q){
+  return (!b || o.branch === b) &&
+    (!q || [o.ref, o.order_no, o.customer_name, o.customer_phone, o.address].join(" ").toLowerCase().includes(q));
 }
 function isPendingGcash(o){ return isGcash(o) && (o.payment_status || "unpaid") === "unpaid" && o.status !== "cancelled"; }
 function render(){
   const base = filtered();
+  const deleted = filteredDeleted();
   // KPIs (cancelled orders excluded from sales)
   const valid = base.filter(o => o.status !== "cancelled");
   const sales = valid.reduce((s,o)=>s + Number(o.total), 0);
@@ -393,11 +425,11 @@ function render(){
   const alerts = newCount + verify;
   document.title = (alerts ? `(${alerts}) ` : "") + "Arbab Kebab · Orders";
   // tabs
-  const counts = {open, verify, all: base.length}; Object.keys(STATUS).forEach(s => counts[s] = base.filter(o=>o.status===s).length);
-  const tabDefs = [["open","Open"],["new","New"],["verify","Verify payment"],["confirmed","Confirmed"],["preparing","Preparing"],["ready","Ready"],["out_for_delivery","Out for delivery"],["completed","Completed"],["cancelled","Cancelled"],["all","All"]];
+  const counts = {open, verify, all: base.length, deleted: deleted.length}; Object.keys(STATUS).forEach(s => counts[s] = base.filter(o=>o.status===s).length);
+  const tabDefs = [["open","Open"],["new","New"],["verify","Verify payment"],["confirmed","Confirmed"],["preparing","Preparing"],["ready","Ready"],["out_for_delivery","Out for delivery"],["completed","Completed"],["cancelled","Cancelled"],["all","All"],["deleted","Deleted"]];
   $("#tabs").innerHTML = tabDefs.map(([k,l]) => `<button class="tab${tab===k?" on":""}" data-tab="${k}">${l}<b>${counts[k]}</b></button>`).join("");
   // list
-  const shown = base.filter(o => tab==="all" ? true : tab==="open" ? OPEN.includes(o.status)
+  const shown = tab === "deleted" ? deleted : base.filter(o => tab==="all" ? true : tab==="open" ? OPEN.includes(o.status)
     : tab==="verify" ? (o.payment_status==="submitted" && o.status!=="cancelled") : o.status===tab);
   if(tab === "open") shown.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));   // oldest open order first
   $("#list").innerHTML = shown.length ? shown.map(o => {
@@ -417,6 +449,28 @@ function render(){
 function renderDetail(){
   const o = orders.find(x => x.id === selId), el = $("#detail");
   if(!o){ el.innerHTML = `<div class="placeholder">Select an order to see details.</div>`; el.classList.remove("open"); return; }
+  if(o.deleted_at){
+    el.innerHTML = `
+      <div class="d-h">
+        <div><h2>Deleted order #${o.order_no}</h2><div class="sub">${esc(o.ref)} · ${esc(fmtDate.format(new Date(o.created_at)))}</div></div>
+        <button class="btn sm x" id="dClose" aria-label="Close">✕</button>
+      </div>
+      <div class="sec"><h3>Deletion record</h3><dl class="kv">
+        <dt>Deleted on</dt><dd>${esc(fmtFull.format(new Date(o.deleted_at)))}</dd>
+        <dt>Deleted by</dt><dd>${esc(o.deleted_by || "—")}</dd>
+        <dt>Reason</dt><dd>${esc(o.delete_reason || "—")}</dd>
+      </dl></div>
+      <div class="sec"><h3>Order</h3><dl class="kv">
+        <dt>Customer</dt><dd>${esc(o.customer_name)}</dd>
+        <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
+        <dt>Status</dt><dd>${esc(STATUS[o.status]?.label || o.status)}</dd>
+        <dt>Total</dt><dd>${peso(o.total)}</dd>
+      </dl></div>
+      <div class="sec"><h3>Items</h3><table class="items">${o.items.map(i => `<tr><td class="q">${i.qty}×</td><td>${esc(i.name)}</td><td class="p">${peso(i.qty * i.unit)}</td></tr>`).join("")}</table></div>`;
+    if(window.innerWidth <= 1000) el.classList.add("open");
+    const closeDeleted = $("#dClose"); if(closeDeleted) closeDeleted.onclick = () => { selId = null; el.classList.remove("open"); render(); };
+    return;
+  }
   const step = nextStep(o);
   const phone = (o.customer_phone||"").replace(/[^\d+]/g,"");
   const maps = o.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}` : "";
@@ -488,6 +542,7 @@ function renderDetail(){
         <select id="setStatus" aria-label="Set status">${Object.entries(STATUS).map(([k,v]) => `<option value="${k}"${k===o.status?" selected":""}>${v.label}</option>`).join("")}</select>
         ${o.status !== "cancelled" ? `<button class="btn danger" id="cancel">Cancel order</button>` : `<span></span>`}
       </div>
+      <button class="btn danger" id="deleteOrder">Delete order</button>
     </div>`;
   if(window.innerWidth <= 1000) el.classList.add("open");
   if(o.payment_screenshot_path) loadPaymentScreenshot(o.id, o.payment_screenshot_path);
@@ -499,6 +554,7 @@ function renderDetail(){
   if($("#next")) $("#next").onclick = e => updateOrder(o.id, {status: e.currentTarget.dataset.to}, `#${o.order_no} → ${STATUS[e.currentTarget.dataset.to].label}`);
   $("#setStatus").onchange = e => updateOrder(o.id, {status: e.target.value}, `#${o.order_no} → ${STATUS[e.target.value].label}`);
   if($("#cancel")) $("#cancel").onclick = () => { if(confirm(`Cancel order #${o.order_no} for ${o.customer_name}?`)) updateOrder(o.id, {status:"cancelled"}, `#${o.order_no} cancelled`); };
+  $("#deleteOrder").onclick = () => openDeleteDialog(o);
   $("#print").onclick = () => window.print();
   if($("#payOk")) $("#payOk").onclick = () => updateOrder(o.id, {payment_status:"paid"}, `#${o.order_no} marked paid`);
   if($("#payUndo")) $("#payUndo").onclick = () => { if(confirm(`Mark #${o.order_no} as NOT paid?`)) updateOrder(o.id, {payment_status: o.payment_ref ? "submitted" : "unpaid"}, "Payment status changed"); };
@@ -508,6 +564,7 @@ function renderDetail(){
       const msg = `Hi ${(o.customer_name||"").split(" ")[0]}! This is ${CONFIG.businessName}. We couldn't find GCash Ref No. ${o.payment_ref} for order ${o.ref}. Could you double-check your receipt and submit it again here: ${payLink(o)} — or send us a screenshot. Salamat po!`;
       try{ await navigator.clipboard.writeText(msg); toast("Message to customer copied"); }catch(e){ prompt("Send this to the customer:", msg); }
     }
+
   };
   if($("#copyPayLink")) $("#copyPayLink").onclick = async () => {
     try{ await navigator.clipboard.writeText(payLink(o)); toast("Payment link copied"); }catch(e){ prompt("Payment link:", payLink(o)); }
@@ -533,6 +590,53 @@ function renderDetail(){
   };
   const close = $("#dClose"); if(close) close.onclick = () => { selId = null; el.classList.remove("open"); render(); };
 }
+
+function openDeleteDialog(order){
+  $("#deleteTitle").textContent = `Delete order #${order.order_no}?`;
+  $("#deleteContext").textContent = "The order will be removed from active views. Its database record will be retained in Deleted with your reason.";
+  $("#deleteMsg").textContent = "";
+  $("#deleteReason").value = "";
+  $("#deletePassword").value = "";
+  $("#deleteConfirm").disabled = false;
+  $("#deleteDialog").showModal();
+  $("#deleteReason").focus();
+}
+
+$("#deleteCancel").onclick = () => $("#deleteDialog").close();
+$("#deleteDialog").addEventListener("close", () => { $("#deleteForm").reset(); $("#deleteMsg").textContent = ""; });
+$("#deleteForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const order = orders.find(item => item.id === selId);
+  const reason = $("#deleteReason").value.trim();
+  const password = $("#deletePassword").value;
+  $("#deletePassword").value = "";
+  if(!order || order.deleted_at){ $("#deleteMsg").textContent = "This order is no longer available to delete."; return; }
+  if(!reason){ $("#deleteMsg").textContent = "Enter a reason before deleting."; return; }
+  const button = $("#deleteConfirm");
+  button.disabled = true;
+  $("#deleteMsg").textContent = "Verifying password…";
+  try{
+    const {data: sessionData, error: sessionError} = await sb.auth.getSession();
+    if(sessionError || !sessionData.session) throw new Error("Your staff session has expired. Log in again.");
+    const {data: authData, error: authError} = await sb.auth.signInWithPassword({email:staffEmail, password});
+    if(authError || !authData.user || authData.user.id !== sessionData.session.user.id)
+      throw new Error("Password verification failed. Check your staff account password and try again.");
+    const {data, error} = await sb.rpc("archive_order", {p_order_id:order.id, p_reason:reason});
+    if(error) throw new Error("Couldn't delete the order: " + error.message);
+    if(!data || data.id !== order.id) throw new Error("This order was already deleted or is no longer available.");
+    const index = orders.findIndex(item => item.id === data.id);
+    if(index >= 0) orders[index] = data;
+    tab = "deleted";
+    $("#deleteDialog").close();
+    render();
+    toast(`#${order.order_no} removed from active orders; record retained`);
+  }catch(error){
+    $("#deleteMsg").textContent = error.message || "Couldn't delete the order.";
+  }finally{
+    button.disabled = false;
+    $("#deletePassword").value = "";
+  }
+});
 
 async function loadPaymentScreenshot(orderId, path){
   if(!$("#paymentScreenshot")) return;
@@ -573,15 +677,15 @@ setInterval(() => { if(!$("#appView").hidden && !document.activeElement?.closest
 
 /* CSV export of what's on screen (current range + branch + search) */
 $("#csv").onclick = () => {
-  const rows = filtered();
+  const rows = tab === "deleted" ? filteredDeleted() : filtered();
   if(!rows.length) return toast("Nothing to export");
-  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
+  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes","deleted_at","deleted_by","delete_reason"];
   const q = v => { let s = String(v ?? ""); if(/^[=@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating text as a formula
     return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
   const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, o.mode, o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.address,
     o.items.map(i => `${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`).join("; "),
     o.subtotal, o.delivery_fee, o.total, o.payment, PAY[o.payment_status] || o.payment_status, o.payment_ref,
-    o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes].map(q).join(","));
+    o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes, o.deleted_at, o.deleted_by, o.delete_reason].map(q).join(","));
   const blob = new Blob(["﻿" + [head.join(","), ...lines].join("\r\n")], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
   a.download = `arbab-kebab-orders-${$("#range").value}-${ymdLocal(new Date())}.csv`; a.click();

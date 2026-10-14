@@ -7,7 +7,8 @@
 --   • Customers (public "anon" key) can place orders and submit GCash payment
 --     proof through restricted RPCs. They cannot read, list, edit or delete orders.
 --   • Staff log in to the admin site. Only emails listed in the
---     public.staff table can read orders and update status / fee / notes.
+--     public.staff table can read orders and update order details. Deletions
+--     are soft deletes with reason and staff audit fields; rows are retained.
 --   • Unpaid GCash orders are hidden in the admin UI until a payment reference
 --     is submitted; staff then verifies the reference and marks it paid.
 -- =====================================================================
@@ -51,7 +52,10 @@ create table if not exists public.orders (
   payer_name     text,
   payment_submitted_at timestamptz,
   payment_screenshot_path text,
-  paid_at        timestamptz
+  paid_at        timestamptz,
+  deleted_at     timestamptz,
+  deleted_by     text,
+  delete_reason  text
 );
 
 -- Add payment tracking to databases created from earlier versions of this file.
@@ -63,6 +67,9 @@ alter table public.orders add column if not exists payment_submitted_at timestam
 alter table public.orders add column if not exists payment_screenshot_path text;
 alter table public.orders add column if not exists order_date date;
 alter table public.orders add column if not exists paid_at timestamptz;
+alter table public.orders add column if not exists deleted_at timestamptz;
+alter table public.orders add column if not exists deleted_by text;
+alter table public.orders add column if not exists delete_reason text;
 update public.orders
    set payment_status = case
      when paid_at is not null then 'paid'
@@ -134,6 +141,30 @@ grant update (status, delivery_fee, staff_notes, payment_status, payment_ref,
               payment_ref_last4, payer_name, payment_submitted_at, payment_screenshot_path, paid_at)
   on public.orders to authenticated;
 grant select on public.staff to authenticated;
+
+-- Retain deleted orders with an immutable staff identity and required reason.
+create or replace function public.archive_order(p_order_id uuid, p_reason text)
+returns jsonb
+language plpgsql security definer set search_path = public, auth as $$
+declare
+  v_order public.orders%rowtype;
+  v_email text := auth.jwt() ->> 'email';
+begin
+  if not public.is_staff() then raise exception 'staff access required'; end if;
+  if p_reason is null or length(trim(p_reason)) not between 1 and 500 then
+    raise exception 'deletion reason must be 1 to 500 characters';
+  end if;
+
+  update public.orders
+     set deleted_at = now(), deleted_by = v_email, delete_reason = trim(p_reason)
+   where id = p_order_id and deleted_at is null
+   returning * into v_order;
+  if not found then raise exception 'order not found or already deleted'; end if;
+
+  return to_jsonb(v_order);
+end $$;
+revoke all on function public.archive_order(uuid, text) from public, anon;
+grant execute on function public.archive_order(uuid, text) to authenticated;
 
 -- Private GCash proof uploads: customers can upload only for an unpaid GCash order.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

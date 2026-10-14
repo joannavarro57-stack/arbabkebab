@@ -8,4 +8,4 @@
 
 Editing a file in one folder only redeploys that site.
 
-Run `supabase-setup.sql` in the Supabase SQL Editor to create or update the database schema, payment RPCs, and private GCash confirmation screenshot bucket. The script is designed to be rerun after deployment changes.
+Run `supabase-setup.sql` in the Supabase SQL Editor to create or update the database schema, payment RPCs, private GCash confirmation screenshot bucket, and soft-delete audit fields/RPC. The script is designed to be rerun after deployment changes. Staff can delete an order from the admin interface by entering a reason and confirming their staff-account password; the order remains available under the Deleted tab.
