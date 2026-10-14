@@ -28,6 +28,9 @@ h1{font-family:Fraunces,serif;font-size:28px;line-height:1.1;margin:0 0 4px}
 .amount .l{font-weight:700}
 .amount .v{font-family:Fraunces,serif;font-weight:800;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
 details{margin-top:10px}
+details.resend{margin:4px 0 0}
+details.resend > summary{padding:12px 14px;border:1.5px dashed var(--line);border-radius:12px;background:#fff;text-align:center}
+details.resend[open] > summary{margin-bottom:10px}
 summary{cursor:pointer;color:var(--char-2);font-weight:600;font-size:14px}
 table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
 td{padding:5px 0;border-bottom:1px dashed var(--line);vertical-align:top}
@@ -121,11 +124,12 @@ function renderPay(o){
   const amount = String(Number(o.subtotal));
   const resubmit = o.payment_status === "submitted";
   $("#main").innerHTML = `
-    <h1>Pay with GCash</h1>
-    <p class="sub" style="margin-bottom:14px">Pay the food subtotal by GCash. For delivery orders, the delivery fee is settled separately.</p>
+    <h1>${resubmit ? "Payment submitted ✓" : "Pay with GCash"}</h1>
+    <p class="sub" style="margin-bottom:14px">${resubmit ? "We're checking your GCash payment. No need to pay again." : "Pay the food subtotal by GCash. For delivery orders, the delivery fee is settled separately."}</p>
     ${summary(o)}
     ${resubmit ? `<div class="card" style="background:var(--saffron-soft)"><b>${o.payment_ref_last4 ? `We already received reference no. ending ${esc(o.payment_ref_last4)}.` : "We already received your payment screenshot."}</b> We're checking it now — only submit again if you need to update your payment proof.
       <div id="paidProof" class="hint" style="margin-top:8px">Loading your uploaded payment screenshot…</div></div>` : ""}
+    ${resubmit ? `<details class="resend"><summary>Need to update your payment proof? Tap here</summary>` : ""}
     <div class="card">
       <div class="step"><b>1</b><h2>Send ${peso(o.subtotal)} via GCash</h2></div>
       ${G.qrImage ? `<div class="center" id="qrWrap">
@@ -151,7 +155,8 @@ function renderPay(o){
         <div class="err" id="err" role="alert"></div>
         <button class="btn dark" id="sub" type="submit">I've paid — submit reference</button>
       </form>
-    </div>`;
+    </div>
+    ${resubmit ? `</details>` : ""}`;
   const img = $("#qr"); if(img) img.onerror = () => $("#qrWrap").remove();   // no QR uploaded yet → hide that part
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copy(b.dataset.copy, b.dataset.label));
   $("#f").onsubmit = async e => {
