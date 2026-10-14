@@ -36,6 +36,8 @@ create table if not exists public.orders (
   customer_name  text not null,
   customer_phone text not null,
   address        text,
+  delivery_lat   numeric(9,6),                              -- pinned delivery location (map)
+  delivery_lng   numeric(9,6),
   order_date     date,
   preferred_time text,
   payment        text,
@@ -70,6 +72,8 @@ alter table public.orders add column if not exists paid_at timestamptz;
 alter table public.orders add column if not exists deleted_at timestamptz;
 alter table public.orders add column if not exists deleted_by text;
 alter table public.orders add column if not exists delete_reason text;
+alter table public.orders add column if not exists delivery_lat numeric(9,6);
+alter table public.orders add column if not exists delivery_lng numeric(9,6);
 alter table public.orders drop constraint if exists orders_mode_check;
 update public.orders set mode = 'Pick-Up' where mode = 'Takeout';
 alter table public.orders add constraint orders_mode_check check (mode in ('Delivery','Pick-Up'));
@@ -271,6 +275,8 @@ begin
        set mode = v_mode, branch = v_branch, customer_name = v_name,
            customer_phone = v_phone,
            address = case when v_mode = 'Delivery' then v_address end,
+           delivery_lat = case when v_mode = 'Delivery' then delivery_lat end,
+           delivery_lng = case when v_mode = 'Delivery' then delivery_lng end,
            order_date = v_date, preferred_time = v_time, payment = v_payment,
            notes = v_notes, items = v_items, subtotal = v_subtotal,
            delivery_fee = v_delivery_fee, status = v_status, staff_notes = v_staff_notes
@@ -356,6 +362,8 @@ declare
   v_pay     text := nullif(left(trim(coalesce(p ->> 'payment', '')), 60), '');
   v_notes   text := nullif(left(trim(coalesce(p ->> 'notes', '')), 500), '');
   v_channel text := left(coalesce(p ->> 'channel', ''), 20);
+  v_lat     numeric(9,6);
+  v_lng     numeric(9,6);
   v_items   jsonb;
   v_sub     numeric(10,2);
   v_no      integer;
@@ -372,6 +380,18 @@ begin
   if v_mode = 'Delivery' and (v_addr is null or length(v_addr) > 300) then raise exception 'invalid address'; end if;
   if jsonb_typeof(p -> 'items') <> 'array'
      or jsonb_array_length(p -> 'items') not between 1 and 50 then raise exception 'invalid items'; end if;
+
+  -- optional map pin for deliveries (must be inside the Philippines)
+  if v_mode = 'Delivery' and coalesce(p ->> 'lat', '') <> '' and coalesce(p ->> 'lng', '') <> '' then
+    if (p ->> 'lat') !~ '^-?[0-9]{1,3}(\.[0-9]+)?$' or (p ->> 'lng') !~ '^-?[0-9]{1,3}(\.[0-9]+)?$' then
+      raise exception 'invalid map location';
+    end if;
+    v_lat := round((p ->> 'lat')::numeric, 6);
+    v_lng := round((p ->> 'lng')::numeric, 6);
+    if v_lat not between 4 and 22 or v_lng not between 116 and 127 then
+      raise exception 'pinned location must be in the Philippines';
+    end if;
+  end if;
 
   -- clean the items list (only known fields, sane numbers)
   select jsonb_agg(jsonb_build_object(
@@ -398,13 +418,15 @@ begin
     raise exception 'too many orders, please wait a few minutes';
   end if;
 
-  insert into public.orders as o (ref, mode, branch, customer_name, customer_phone, address, order_date,
+  insert into public.orders as o (ref, mode, branch, customer_name, customer_phone, address,
+                                  delivery_lat, delivery_lng, order_date,
                                   preferred_time, payment, notes, items, subtotal, channel)
   values (v_ref, v_mode, v_branch, v_name, v_phone, case when v_mode = 'Delivery' then v_addr end,
-          v_order_date, v_time, v_pay, v_notes, v_items, v_sub, v_channel)
+          v_lat, v_lng, v_order_date, v_time, v_pay, v_notes, v_items, v_sub, v_channel)
   on conflict (ref) do update               -- allow retrying an unsubmitted checkout
      set mode = excluded.mode, branch = excluded.branch, customer_name = excluded.customer_name,
          customer_phone = excluded.customer_phone, address = excluded.address,
+         delivery_lat = excluded.delivery_lat, delivery_lng = excluded.delivery_lng,
          order_date = excluded.order_date, preferred_time = excluded.preferred_time,
          payment = excluded.payment, notes = excluded.notes,
          items = excluded.items, subtotal = excluded.subtotal, channel = excluded.channel

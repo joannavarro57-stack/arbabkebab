@@ -529,7 +529,10 @@ function renderDetail(){
   }
   const step = nextStep(o);
   const phone = (o.customer_phone||"").replace(/[^\d+]/g,"");
-  const maps = o.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}` : "";
+  const hasPin = o.delivery_lat != null && o.delivery_lng != null;
+  const pinQuery = hasPin ? `${Number(o.delivery_lat)},${Number(o.delivery_lng)}` : "";
+  const maps = hasPin ? `https://www.google.com/maps/search/?api=1&query=${pinQuery}`
+    : o.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}` : "";
   const hasPaymentEvidence = o.payment_ref || o.payment_screenshot_path;
   el.innerHTML = `
     <div class="d-h">
@@ -547,6 +550,7 @@ function renderDetail(){
         <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
         <dt>Order type</dt><dd>${orderModeLabel(o.mode)} · ${esc(o.branch)} branch</dd>
         ${o.address ? `<dt>Address</dt><dd>${esc(o.address)}</dd>` : ""}
+        ${hasPin ? `<dt>Pinned</dt><dd><a href="${maps}" target="_blank" rel="noopener">📍 ${esc(pinQuery)}</a></dd>` : (o.mode === "Delivery" ? `<dt>Pinned</dt><dd style="color:var(--muted)">No map pin</dd>` : "")}
         <dt>Date</dt><dd>${esc(fmtOrderDate(o.order_date))}</dd>
         <dt>Time</dt><dd>${esc(o.preferred_time||"—")}</dd>
         <dt>Payment</dt><dd>${esc(o.payment||"—")}</dd>
@@ -554,7 +558,8 @@ function renderDetail(){
       <div class="row-btns no-print">
         <a class="btn sm" href="tel:${esc(phone)}">📞 Call</a>
         <a class="btn sm" href="sms:${esc(phone)}">💬 Text</a>
-        ${maps ? `<a class="btn sm" href="${maps}" target="_blank" rel="noopener">📍 Map</a>` : ""}
+        ${maps ? `<a class="btn sm" href="${maps}" target="_blank" rel="noopener">📍 ${hasPin ? "Open pin" : "Map"}</a>` : ""}
+        ${hasPin ? `<a class="btn sm" href="https://www.google.com/maps/dir/?api=1&destination=${pinQuery}" target="_blank" rel="noopener">🧭 Directions</a>` : ""}
       </div>
       ${o.notes ? `<div class="note-box" style="margin-top:10px"><b>Customer note:</b> ${esc(o.notes)}</div>` : ""}
     </div>
@@ -904,10 +909,10 @@ setInterval(() => { if(!$("#appView").hidden && !document.activeElement?.closest
 $("#csv").onclick = () => {
   const rows = filtered();
   if(!rows.length) return toast("Nothing to export");
-  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
+  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","pin_lat","pin_lng","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
   const q = v => { let s = String(v ?? ""); if(/^[=@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating text as a formula
     return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
-  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, orderModeLabel(o.mode), o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.address,
+  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, orderModeLabel(o.mode), o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.address, o.delivery_lat, o.delivery_lng,
     o.items.map(i => `${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`).join("; "),
     o.subtotal, o.delivery_fee, o.total, o.payment, PAY[o.payment_status] || o.payment_status, o.payment_ref,
     o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes].map(q).join(","));

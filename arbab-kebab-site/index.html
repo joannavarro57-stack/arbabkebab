@@ -293,6 +293,7 @@
 }
 </script>
 
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Reem+Kufi:wght@600&display=swap" rel="stylesheet">
@@ -513,6 +514,14 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
   .menu-head{padding-top:26px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+/* delivery pin map */
+.pin-map{height:230px;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;isolation:isolate;background:#efe9df}
+.pin-map.need{border-color:var(--ember)}
+.pin-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px}
+.pin-btn{padding:8px 12px;border:1.5px solid var(--line);border-radius:999px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:var(--char-2)}
+.pin-btn:hover{border-color:var(--ember)}
+.pin-btn:disabled{opacity:.6;cursor:wait}
+#pinStatus.ok{color:#2e7d32}
 </style>
 </head>
 <body>
@@ -626,6 +635,14 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <div class="f"><label for="nm">Name</label><input id="nm" name="name" autocomplete="name" required></div>
         <div class="f"><label for="ph">Mobile number</label><input id="ph" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09XX XXX XXXX" required></div>
         <div class="f" id="addrWrap"><label for="ad">Delivery address</label><textarea id="ad" name="address" rows="2" autocomplete="street-address" placeholder="House no., street, barangay, city, landmark"></textarea></div>
+        <div class="f" id="pinWrap">
+          <label for="pinMap">Pin your delivery location</label>
+          <div class="pin-map" id="pinMap" role="application" aria-label="Map — tap to drop a pin on your delivery location"></div>
+          <div class="pin-tools">
+            <button type="button" class="pin-btn" id="locateMe">📍 Use my current location</button>
+            <span class="note" id="pinStatus" aria-live="polite">Tap the map to drop a pin, then drag it to your exact gate or door.</span>
+          </div>
+        </div>
         <div class="f"><label for="orderDate">Delivery / Pick-Up date</label><input id="orderDate" name="orderDate" type="date" required></div>
         <div class="f"><label for="tm">Preferred time</label><select id="tm" name="time" required></select><p class="note" id="timeAvailability" aria-live="polite"></p></div>
         <div class="f"><label for="pay">Payment</label><select id="pay" name="pay"></select></div>
@@ -666,6 +683,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
 <script src="config.js"></script>
 <script>
 /* ================= STORE DETAILS (edit me) =================
@@ -902,7 +920,7 @@ $("#lines").addEventListener("click", e=>{
   if(u){ cart[+u.dataset.inc].qty++; save(); }
   if(d){ const i=+d.dataset.dec; cart[i].qty--; if(cart[i].qty<=0) cart.splice(i,1); save(); }
 });
-function openCart(){ $("#drawer").classList.add("open"); $("#drawer").setAttribute("aria-hidden","false"); $("#scrim").classList.add("open"); $("#bar").classList.remove("show"); $("#err").textContent=""; }
+function openCart(){ setTimeout(()=>{ if(typeof initPinMap==="function") initPinMap(); }, 350); $("#drawer").classList.add("open"); $("#drawer").setAttribute("aria-hidden","false"); $("#scrim").classList.add("open"); $("#bar").classList.remove("show"); $("#err").textContent=""; }
 function closeCart(){ $("#drawer").classList.remove("open"); $("#drawer").setAttribute("aria-hidden","true"); $("#scrim").classList.remove("open"); renderCart(); }
 $("#openCart").onclick = openCart; $("#barBtn").onclick = openCart;
 $("#closeCart").onclick = closeCart; $("#scrim").onclick = closeCart;
@@ -911,10 +929,65 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeCart(); clo
 /* form: remember details, toggle address */
 const saved = store.get("ak_details") || {};
 ["nm","ph","ad"].forEach(id=>{ if(saved[id]) $("#"+id).value = saved[id]; });
+/* delivery pin: Leaflet + OpenStreetMap (no API key needed) */
+const MAP_HOME = {lat: 14.8433, lng: 120.8114, zoom: 14};   // Malolos branch area
+let pinMap = null, pinMarker = null, pin = saved.pin && isFinite(saved.pin.lat) && isFinite(saved.pin.lng) ? saved.pin : null;
+function rememberDetails(){ store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, ad:$("#ad").value, pin}); }
+function setPinStatus(text, ok){ const el = $("#pinStatus"); el.textContent = text; el.className = "note" + (ok ? " ok" : ""); }
+function setPin(lat, lng, fromUser){
+  pin = {lat: +lat.toFixed(6), lng: +lng.toFixed(6)};
+  if(!pinMarker){
+    pinMarker = L.marker([pin.lat, pin.lng], {draggable: true, autoPan: true, title: "Delivery location"}).addTo(pinMap);
+    pinMarker.on("dragend", () => { const p = pinMarker.getLatLng(); setPin(p.lat, p.lng, true); });
+  } else pinMarker.setLatLng([pin.lat, pin.lng]);
+  $("#pinMap").classList.remove("need");
+  setPinStatus("✓ Location pinned. Drag the pin if it isn't exactly right.", true);
+  rememberDetails();
+  if(fromUser) suggestAddress(pin);
+}
+let geoTimer;
+function suggestAddress(p){   // fill the address box only if the customer hasn't typed one
+  clearTimeout(geoTimer);
+  if($("#ad").value.trim()) return;
+  geoTimer = setTimeout(async () => {
+    try{
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${p.lat}&lon=${p.lng}`, {headers: {"Accept-Language": "en"}});
+      const j = await r.json();
+      if(j && j.display_name && !$("#ad").value.trim()){
+        $("#ad").value = j.display_name.split(", ").filter(x => !/^\d{4}$/.test(x) && x !== "Philippines").join(", ") + ", ";
+        rememberDetails();
+      }
+    }catch(e){ /* address suggestion is optional */ }
+  }, 700);
+}
+function initPinMap(){
+  if(!window.L || $("#pinWrap").style.display === "none" || !$("#drawer").classList.contains("open")) return;
+  if(pinMap){ pinMap.invalidateSize(); return; }
+  pinMap = L.map("pinMap", {scrollWheelZoom: false, tap: true}).setView(pin ? [pin.lat, pin.lng] : [MAP_HOME.lat, MAP_HOME.lng], pin ? 17 : MAP_HOME.zoom);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(pinMap);
+  pinMap.on("click", e => setPin(e.latlng.lat, e.latlng.lng, true));
+  if(pin) setPin(pin.lat, pin.lng, false);
+}
+$("#locateMe").onclick = () => {
+  if(!navigator.geolocation){ setPinStatus("Your browser can't share location — tap the map instead."); return; }
+  const btn = $("#locateMe"); btn.disabled = true; btn.textContent = "Finding you…";
+  navigator.geolocation.getCurrentPosition(pos => {
+    btn.disabled = false; btn.textContent = "📍 Use my current location";
+    initPinMap(); if(!pinMap) return;
+    setPin(pos.coords.latitude, pos.coords.longitude, true);
+    pinMap.setView([pin.lat, pin.lng], 18);
+  }, () => {
+    btn.disabled = false; btn.textContent = "📍 Use my current location";
+    setPinStatus("We couldn't get your location. Allow location access, or tap the map to drop a pin.");
+  }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 60000});
+};
 function syncMode(){
   const mode = $("input[name=mode]:checked").value;
   const payment = $("#pay").value;
   $("#addrWrap").style.display = mode==="Delivery" ? "" : "none";
+  $("#pinWrap").style.display = mode==="Delivery" && window.L ? "" : "none";
+  if(mode==="Delivery") setTimeout(initPinMap, 0);
   $("#pay").innerHTML = STORE.payments[mode].map(p => `<option>${esc(p)}</option>`).join("");
   if(STORE.payments[mode].includes(payment)) $("#pay").value = payment;
 }
@@ -954,7 +1027,7 @@ function syncTimeSlots(){
 syncTimeSlots();
 window.setInterval(syncTimeSlots, 60 * 1000);
 $("#orderDate").addEventListener("change", syncTimeSlots);
-$("#form").addEventListener("input", ()=> store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, ad:$("#ad").value}));
+$("#form").addEventListener("input", rememberDetails);
 
 /* order reference — one per cart, so resending the same cart doesn't duplicate it */
 function newRef(){
@@ -975,6 +1048,10 @@ function validateOrder(){
   if(!name || !phone){ err.textContent = "Please add your name and mobile number."; return false; }
   if(!/^[0-9+() -]{7,20}$/.test(phone)){ err.textContent = "Please check your mobile number (numbers only)."; return false; }
   if(mode==="Delivery" && !addr){ err.textContent = "Please add your delivery address."; return false; }
+  if(mode==="Delivery" && window.L && !pin){
+    err.textContent = "Please pin your delivery location on the map.";
+    $("#pinMap").classList.add("need"); $("#pinWrap").scrollIntoView({behavior:"smooth", block:"center"}); return false;
+  }
   return true;
 }
 /* Create an order before sending GCash customers to the payment page. */
@@ -984,6 +1061,7 @@ async function saveOrder(channel){
   const payload = { ref: orderRef, mode, branch: $("#branch").value,
     name: $("#nm").value.trim(), phone: $("#ph").value.trim(),
     address: mode==="Delivery" ? $("#ad").value.trim() : "",
+    lat: mode==="Delivery" && pin ? pin.lat : null, lng: mode==="Delivery" && pin ? pin.lng : null,
     order_date: $("#orderDate").value,
     time: $("#tm").value.trim() || "ASAP", payment: $("#pay").value, notes: $("#nt").value.trim(),
     channel, items: cart.map(l=>({name: l.name, opts: l.opts, qty: l.qty, unit: l.unit})) };
