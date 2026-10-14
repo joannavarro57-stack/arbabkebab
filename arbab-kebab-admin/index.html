@@ -560,6 +560,7 @@ function renderDetail(){
         <a class="btn sm" href="sms:${esc(phone)}">💬 Text</a>
         ${maps ? `<a class="btn sm" href="${maps}" target="_blank" rel="noopener">📍 ${hasPin ? "Open pin" : "Map"}</a>` : ""}
         ${hasPin ? `<a class="btn sm" href="https://www.google.com/maps/dir/?api=1&destination=${pinQuery}" target="_blank" rel="noopener">🧭 Directions</a>` : ""}
+        ${o.mode === "Delivery" ? `<button class="btn sm" id="copyDriver" type="button" title="Copy a delivery message for the driver">🛵 Copy for driver</button>` : ""}
       </div>
       ${o.notes ? `<div class="note-box" style="margin-top:10px"><b>Customer note:</b> ${esc(o.notes)}</div>` : ""}
     </div>
@@ -634,6 +635,37 @@ function renderDetail(){
   };
   if($("#copyPayLink")) $("#copyPayLink").onclick = async () => {
     try{ await navigator.clipboard.writeText(payLink(o)); toast("Payment link copied"); }catch(e){ prompt("Payment link:", payLink(o)); }
+  };
+  if($("#copyDriver")) $("#copyDriver").onclick = async () => {
+    // Only what the driver needs: where, who, when, what's in the bag, and what to collect.
+    const fee = Number(o.delivery_fee) || 0;
+    let collect;
+    if(isGcash(o)){
+      collect = o.payment_status === "paid"
+        ? (fee ? `${peso(fee)} cash — delivery fee only (food already paid via GCash)` : `Nothing — already paid via GCash`)
+        : `⚠️ GCash payment NOT confirmed yet — check with the shop before handing over${fee ? ` · delivery fee ${peso(fee)} cash` : ""}`;
+    } else {
+      collect = `${peso(o.total)} cash${fee ? ` (food ${peso(o.subtotal)} + delivery ${peso(fee)})` : ` (food only — delivery fee not set, check with the shop)`}`;
+    }
+    const itemCount = o.items.reduce((n, i) => n + Number(i.qty || 0), 0);
+    const lines = [
+      `🛵 DELIVERY — Order #${o.order_no} (${o.ref})`,
+      `📅 ${fmtOrderDate(o.order_date)} · ${o.preferred_time || "ASAP"}`,
+      ``,
+      `👤 ${o.customer_name}`,
+      `📞 ${o.customer_phone}`,
+      `🏠 ${o.address || "—"}`,
+      hasPin ? `📍 ${maps}` : `📍 No map pin — use the address above`,
+      ``,
+      `📦 Items (${itemCount}):`,
+      ...o.items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`),
+      ``,
+      `💵 Collect: ${collect}`,
+      ...(o.notes ? [`📝 Customer note: ${o.notes}`] : [])
+    ];
+    const text = lines.join("\n");
+    try{ await navigator.clipboard.writeText(text); toast("Driver message copied — paste it to the driver"); }
+    catch(e){ prompt("Copy this for the driver:", text); }
   };
   $("#copyConfirm").onclick = async () => {
     const first = (o.customer_name || "").split(" ")[0];
