@@ -8,4 +8,4 @@
 
 Editing a file in one folder only redeploys that site.
 
-Run `supabase-setup.sql` in the Supabase SQL Editor to create or update the database schema and payment RPCs. The script is designed to be rerun after deployment changes.
+Run `supabase-setup.sql` in the Supabase SQL Editor to create or update the database schema, payment RPCs, and private GCash confirmation screenshot bucket. The script is designed to be rerun after deployment changes.

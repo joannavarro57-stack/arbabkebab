@@ -4,8 +4,8 @@
 --  Safe to rerun after edits; payment columns and RPCs are maintained below.
 --
 --  Security model
---   • Customers (public "anon" key) can ONLY call place_order().
---     They cannot read, list, edit or delete any order.
+--   • Customers (public "anon" key) can place orders and submit GCash payment
+--     proof through restricted RPCs. They cannot read, list, edit or delete orders.
 --   • Staff log in to the admin site. Only emails listed in the
 --     public.staff table can read orders and update status / fee / notes.
 --   • Unpaid GCash orders are hidden in the admin UI until a payment reference
@@ -49,6 +49,7 @@ create table if not exists public.orders (
   payment_ref_last4 text,
   payer_name     text,
   payment_submitted_at timestamptz,
+  payment_screenshot_path text,
   paid_at        timestamptz
 );
 
@@ -58,6 +59,7 @@ alter table public.orders add column if not exists payment_ref text;
 alter table public.orders add column if not exists payment_ref_last4 text;
 alter table public.orders add column if not exists payer_name text;
 alter table public.orders add column if not exists payment_submitted_at timestamptz;
+alter table public.orders add column if not exists payment_screenshot_path text;
 alter table public.orders add column if not exists paid_at timestamptz;
 update public.orders
    set payment_status = case
@@ -127,9 +129,44 @@ revoke all on public.orders from anon, authenticated;
 revoke all on public.staff  from anon, authenticated;
 grant select on public.orders to authenticated;
 grant update (status, delivery_fee, staff_notes, payment_status, payment_ref,
-              payment_ref_last4, payer_name, payment_submitted_at, paid_at)
+              payment_ref_last4, payer_name, payment_submitted_at, payment_screenshot_path, paid_at)
   on public.orders to authenticated;
 grant select on public.staff to authenticated;
+
+-- Private GCash proof uploads: customers can upload only for an unpaid GCash order.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('gcash-confirmations', 'gcash-confirmations', false, 5242880,
+        array['image/jpeg','image/png','image/webp'])
+on conflict (id) do update
+  set public = false, file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+create or replace function public.can_upload_gcash_confirmation(p_ref text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.orders o
+    where o.ref = p_ref
+      and o.payment ilike '%gcash%'
+      and o.payment_status in ('unpaid','submitted')
+      and o.status <> 'cancelled'
+      and o.created_at > now() - interval '14 days'
+  );
+$$;
+revoke all on function public.can_upload_gcash_confirmation(text) from public;
+grant execute on function public.can_upload_gcash_confirmation(text) to anon, authenticated;
+
+drop policy if exists "customers upload GCash confirmations" on storage.objects;
+drop policy if exists "staff read GCash confirmations" on storage.objects;
+create policy "customers upload GCash confirmations" on storage.objects
+  for insert to anon, authenticated
+  with check (
+    bucket_id = 'gcash-confirmations'
+    and name ~ '^AK-[A-Z0-9]{6}/[0-9a-f-]{36}\.(jpg|png|webp)$'
+    and public.can_upload_gcash_confirmation((storage.foldername(name))[1])
+  );
+create policy "staff read GCash confirmations" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'gcash-confirmations' and public.is_staff());
 
 -- ---------- the only way customers can create an order ----------
 create or replace function public.place_order(p jsonb) returns jsonb
@@ -229,22 +266,31 @@ language sql security definer set search_path = public as $$
     and o.created_at > now() - interval '14 days';
 $$;
 
-create or replace function public.submit_payment(p_ref text, p_gcash_ref text, p_name text default '')
+drop function if exists public.submit_payment(text, text, text);
+create or replace function public.submit_payment(p_ref text, p_gcash_ref text, p_screenshot_path text, p_name text default '')
 returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
   v_ref text := upper(trim(p_ref));
   v_gcash_ref text := regexp_replace(coalesce(p_gcash_ref, ''), '\D', '', 'g');
+  v_screenshot_path text := trim(coalesce(p_screenshot_path, ''));
   v_order public.orders%rowtype;
 begin
-  if v_gcash_ref !~ '^[0-9]{10,20}$' then raise exception 'invalid GCash reference number'; end if;
+  if v_ref !~ '^AK-[A-Z0-9]{6}$' then raise exception 'invalid order reference'; end if;
+  if v_gcash_ref <> '' and v_gcash_ref !~ '^[0-9]{10,20}$' then raise exception 'invalid GCash reference number'; end if;
+  if v_screenshot_path !~ ('^' || v_ref || '/[0-9a-f-]{36}\.(jpg|png|webp)$')
+     or not exists (select 1 from storage.objects
+                    where bucket_id = 'gcash-confirmations' and name = v_screenshot_path) then
+    raise exception 'valid payment screenshot required';
+  end if;
 
   update public.orders
      set payment_status = 'submitted',
-         payment_ref = v_gcash_ref,
-         payment_ref_last4 = right(v_gcash_ref, 4),
+         payment_ref = nullif(v_gcash_ref, ''),
+         payment_ref_last4 = nullif(right(v_gcash_ref, 4), ''),
          payer_name = nullif(left(trim(coalesce(p_name, '')), 80), ''),
-         payment_submitted_at = now()
+         payment_submitted_at = now(),
+         payment_screenshot_path = v_screenshot_path
    where ref = v_ref
      and payment ilike '%gcash%'
      and status <> 'cancelled'
@@ -260,8 +306,8 @@ end $$;
 
 revoke all on function public.get_payment(text) from public;
 grant execute on function public.get_payment(text) to anon, authenticated;
-revoke all on function public.submit_payment(text, text, text) from public;
-grant execute on function public.submit_payment(text, text, text) to anon, authenticated;
+revoke all on function public.submit_payment(text, text, text, text) from public;
+grant execute on function public.submit_payment(text, text, text, text) to anon, authenticated;
 
 revoke all on function public.is_staff() from public;
 grant execute on function public.is_staff() to authenticated;

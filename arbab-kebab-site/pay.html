@@ -49,6 +49,7 @@ td.p{text-align:right;white-space:nowrap}
 label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
 input{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:17px}
 input:focus{outline:none;border-color:var(--ember)}
+input[type=file]{font-size:14px}
 .err{color:#B3261E;font-size:14px;min-height:1.2em;margin:8px 0}
 .state{text-align:center;padding:28px 18px}
 .state .icon{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;font-size:30px;font-weight:800;border:3px solid var(--char)}
@@ -117,7 +118,7 @@ function renderPay(o){
     <h1>Pay with GCash</h1>
     <p class="sub" style="margin-bottom:14px">Pay the food subtotal by GCash. For delivery orders, the delivery fee is settled separately.</p>
     ${summary(o)}
-    ${resubmit ? `<div class="card" style="background:var(--saffron-soft)"><b>We already received reference no. ending ${esc(o.payment_ref_last4)}.</b> We're checking it now — only submit again if you made a mistake.</div>` : ""}
+    ${resubmit ? `<div class="card" style="background:var(--saffron-soft)"><b>${o.payment_ref_last4 ? `We already received reference no. ending ${esc(o.payment_ref_last4)}.` : "We already received your payment screenshot."}</b> We're checking it now — only submit again if you need to update your payment proof.</div>` : ""}
     <div class="card">
       <div class="step"><b>1</b><h2>Send ${peso(o.subtotal)} via GCash</h2></div>
       ${G.qrImage ? `<div class="center" id="qrWrap">
@@ -133,10 +134,13 @@ function renderPay(o){
       <div class="step"><b>2</b><h2>Enter your GCash reference no.</h2></div>
       <p class="hint" style="margin-top:0">It's on your GCash receipt after paying (“Ref No.”, 13 digits).</p>
       <form id="f" novalidate>
-        <label for="gref">Reference number</label>
-        <input id="gref" inputmode="numeric" autocomplete="off" placeholder="e.g. 5012 345 678901" required>
+        <label for="gref">Reference number <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <input id="gref" inputmode="numeric" autocomplete="off" placeholder="e.g. 5012 345 678901">
         <label for="gname">Name on your GCash account <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
         <input id="gname" autocomplete="name" placeholder="e.g. Juan D.">
+        <label for="proof">GCash payment screenshot</label>
+        <input id="proof" type="file" accept="image/jpeg,image/png,image/webp" required>
+        <p class="hint">Upload a screenshot of your successful payment (JPG, PNG, or WebP; up to 5 MB).</p>
         <div class="err" id="err" role="alert"></div>
         <button class="btn dark" id="sub" type="submit">I've paid — submit reference</button>
       </form>
@@ -146,11 +150,28 @@ function renderPay(o){
   $("#f").onsubmit = async e => {
     e.preventDefault();
     const g = $("#gref").value.replace(/\D/g, "");
-    if(g.length < 10 || g.length > 20){ $("#err").textContent = "Please enter the reference number from your GCash receipt (numbers only)."; return; }
+    if(g && (g.length < 10 || g.length > 20)){ $("#err").textContent = "Please enter the reference number from your GCash receipt (numbers only)."; return; }
+    const file = $("#proof").files[0];
+    const extensions = {"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
+    if(!file){ $("#err").textContent = "Please upload your GCash payment screenshot."; return; }
+    if(!extensions[file.type] || file.size > 5 * 1024 * 1024){
+      $("#err").textContent = "Choose a JPG, PNG, or WebP screenshot no larger than 5 MB.";
+      return;
+    }
     $("#sub").disabled = true; $("#sub").textContent = "Submitting…"; $("#err").textContent = "";
     try{
-      await rpc("submit_payment", {p_ref: o.ref, p_gcash_ref: g, p_name: $("#gname").value.trim()});
-      state("✓", "ok", "Payment submitted!", `Salamat! We'll check reference no. ending <b>${esc(g.slice(-4))}</b> and confirm your order <span class="ref">${esc(o.ref)}</span> shortly.`);
+      const path = `${o.ref}/${crypto.randomUUID()}.${extensions[file.type]}`;
+      const headers = {"apikey":C.supabaseKey};
+      if(C.supabaseKey && !C.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + C.supabaseKey;
+      const upload = await fetch(`${C.supabaseUrl.replace(/\/$/,"")}/storage/v1/object/gcash-confirmations/${path}`, {
+        method:"POST", headers:{...headers,"Content-Type":file.type,"x-upsert":"false"}, body:file
+      });
+      if(!upload.ok){
+        const details = await upload.json().catch(() => null);
+        throw new Error((details && (details.message || details.error)) || "Couldn't upload your screenshot. Please try again.");
+      }
+      await rpc("submit_payment", {p_ref: o.ref, p_gcash_ref: g, p_name: $("#gname").value.trim(), p_screenshot_path:path});
+      state("✓", "ok", "Payment submitted!", `Salamat! ${g ? "Your screenshot and reference number have" : "Your screenshot has"} been sent. We'll verify payment for order <span class="ref">${esc(o.ref)}</span> shortly.`);
     }catch(err){
       $("#err").textContent = err.message; $("#sub").disabled = false; $("#sub").textContent = "I've paid — submit reference";
     }

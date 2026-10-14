@@ -88,6 +88,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 .paybox{border-radius:12px;padding:10px 12px;margin-top:8px;background:var(--bg)}
 .paybox.submitted{background:#FFF3D6;border:1.5px solid var(--amber)}
 .paybox .big{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:800;letter-spacing:.04em}
+.pay-proof img{display:block;width:min(100%,420px);max-height:480px;object-fit:contain;margin-top:8px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);background:var(--card);border:1.5px dashed var(--line);border-radius:14px}
 
 /* detail */
@@ -416,6 +417,7 @@ function renderDetail(){
   const step = nextStep(o);
   const phone = (o.customer_phone||"").replace(/[^\d+]/g,"");
   const maps = o.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}` : "";
+  const hasPaymentEvidence = o.payment_ref || o.payment_screenshot_path;
   el.innerHTML = `
     <div class="d-h">
       <div>
@@ -454,11 +456,12 @@ function renderDetail(){
     <div class="sec">
       <h3>Payment · ${esc(o.payment || "—")}</h3>
       <div>${payBadge(o)}${o.paid_at ? ` <span style="font-size:13px;color:var(--muted)">on ${esc(fmtDate.format(new Date(o.paid_at)))} · ${esc(fmtTime.format(new Date(o.paid_at)))}</span>` : ""}</div>
-      ${o.payment_ref ? `<div class="paybox ${o.payment_status==="submitted"?"submitted":""}">
+      ${hasPaymentEvidence ? `<div class="paybox ${o.payment_status==="submitted"?"submitted":""}">
           <div style="font-size:12px;color:var(--muted);font-weight:600">GCash reference no.</div>
-          <div class="big">${esc(o.payment_ref)}</div>
+          <div class="big">${o.payment_ref ? esc(o.payment_ref) : "Not provided — see screenshot"}</div>
           <div style="font-size:13px">${o.payer_name ? `From: <b>${esc(o.payer_name)}</b> · ` : ""}${o.payment_submitted_at ? `submitted ${esc(fmtTime.format(new Date(o.payment_submitted_at)))}` : ""}</div>
           ${o.payment_status==="submitted" ? `<div style="font-size:13px;margin-top:6px">Open GCash → <b>Transactions</b>, find this Ref No. and check the amount is <b>${peso(isGcash(o) ? o.subtotal : o.total)}</b>.</div>` : ""}
+          ${o.payment_screenshot_path ? `<div class="pay-proof" id="paymentScreenshot">Loading payment screenshot…</div>` : ""}
         </div>` : ""}
       <div class="row-btns no-print">
         ${o.payment_status==="submitted" ? `<button class="btn sm" id="payOk" style="border-color:var(--green);color:var(--green)">✓ Verified — mark paid</button><button class="btn sm danger" id="payBad">✗ Not found</button>`
@@ -483,6 +486,7 @@ function renderDetail(){
       </div>
     </div>`;
   if(window.innerWidth <= 1000) el.classList.add("open");
+  if(o.payment_screenshot_path) loadPaymentScreenshot(o.id, o.payment_screenshot_path);
 
   const fee = $("#fee");
   fee.oninput = () => $("#grand").textContent = peso(Number(o.subtotal) + Number(fee.value || 0));
@@ -523,6 +527,33 @@ function renderDetail(){
     catch(e){ prompt("Copy this reply:", lines.join("\n")); }
   };
   const close = $("#dClose"); if(close) close.onclick = () => { selId = null; el.classList.remove("open"); render(); };
+}
+
+async function loadPaymentScreenshot(orderId, path){
+  if(!$("#paymentScreenshot")) return;
+  try{
+    const {data, error} = await sb.storage.from("gcash-confirmations").createSignedUrl(path, 300);
+    if(selId !== orderId || !$("#paymentScreenshot")) return;
+    if(error || !data || !data.signedUrl){
+      $("#paymentScreenshot").textContent = "Couldn't load the payment screenshot: " + (error ? error.message : "signed link unavailable");
+      return;
+    }
+    const current = $("#paymentScreenshot");
+    current.textContent = "";
+    const link = document.createElement("a");
+    link.href = data.signedUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "Open full-size screenshot";
+    const image = document.createElement("img");
+    image.src = data.signedUrl;
+    image.alt = "Customer GCash payment confirmation";
+    image.onerror = () => { current.textContent = "Couldn't display the payment screenshot."; };
+    current.append(link, image);
+  }catch(error){
+    if(selId === orderId && $("#paymentScreenshot"))
+      $("#paymentScreenshot").textContent = "Couldn't load the payment screenshot: " + error.message;
+  }
 }
 
 /* ================= EVENTS ================= */
