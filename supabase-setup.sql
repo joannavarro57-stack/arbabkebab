@@ -168,6 +168,28 @@ create policy "staff read GCash confirmations" on storage.objects
   for select to authenticated
   using (bucket_id = 'gcash-confirmations' and public.is_staff());
 
+create or replace function public.can_view_paid_gcash_confirmation(p_ref text, p_path text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.orders o
+    where o.ref = p_ref
+      and o.payment ilike '%gcash%'
+      and o.payment_status = 'paid'
+      and o.payment_screenshot_path = p_path
+      and o.created_at > now() - interval '14 days'
+  );
+$$;
+revoke all on function public.can_view_paid_gcash_confirmation(text, text) from public;
+grant execute on function public.can_view_paid_gcash_confirmation(text, text) to anon, authenticated;
+
+drop policy if exists "customer reads own paid GCash confirmation" on storage.objects;
+create policy "customer reads own paid GCash confirmation" on storage.objects
+  for select to anon, authenticated
+  using (
+    bucket_id = 'gcash-confirmations'
+    and public.can_view_paid_gcash_confirmation((storage.foldername(name))[1], name)
+  );
+
 -- ---------- the only way customers can create an order ----------
 create or replace function public.place_order(p jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
@@ -258,7 +280,8 @@ language sql security definer set search_path = public as $$
     'items', o.items,
     'status', o.status,
     'payment_status', o.payment_status,
-    'payment_ref_last4', o.payment_ref_last4
+    'payment_ref_last4', o.payment_ref_last4,
+    'payment_screenshot_path', case when o.payment_status = 'paid' then o.payment_screenshot_path end
   )
   from public.orders o
   where o.ref = upper(trim(p_ref))

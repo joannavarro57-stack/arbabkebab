@@ -58,6 +58,7 @@ input[type=file]{font-size:14px}
 .state .icon.bad{background:#F3D6D2}
 .state h2{font-family:Fraunces,serif;font-size:24px;margin:0 0 6px}
 .state p{color:var(--char-2);margin:0 0 6px}
+.proof-image{display:block;width:min(100%,420px);max-height:70vh;object-fit:contain;margin:12px auto 0;border:1px solid var(--line);border-radius:12px;background:#fff}
 .links{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--char);color:#fff;padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;transition:.2s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
@@ -186,9 +187,42 @@ async function start(){
   catch(e){ return state("!", "bad", "Couldn't load your order", "Please check your internet connection and refresh this page."); }
   if(!o) return state("?", "bad", "Order not found", `We couldn't find order <span class="ref">${esc(ref)}</span>. Payment links work for 14 days — message us if you need help.`);
   if(o.status === "cancelled") return state("✕", "bad", "Order cancelled", `Order <span class="ref">${esc(o.ref)}</span> was cancelled, so no payment is needed.`);
-  if(o.payment_status === "paid" || o.payment_status === "refunded")
-    return state("✓", "ok", o.payment_status === "paid" ? "Paid — salamat!" : "Payment refunded", `Order <span class="ref">${esc(o.ref)}</span> · ${peso(o.subtotal)}`);
+  if(o.payment_status === "paid"){
+    state("✓", "ok", "Already paid", `Payment received for order <span class="ref">${esc(o.ref)}</span> · ${peso(o.subtotal)}`,
+      `<div id="paidProof" class="hint">Loading your uploaded payment confirmation…</div>`);
+    loadPaidScreenshot(o.payment_screenshot_path);
+    return;
+  }
+  if(o.payment_status === "refunded")
+    return state("✓", "ok", "Payment refunded", `Order <span class="ref">${esc(o.ref)}</span> · ${peso(o.subtotal)}`);
   renderPay(o);
+}
+
+async function loadPaidScreenshot(path){
+  const proof = $("#paidProof");
+  if(!proof) return;
+  if(!path){
+    proof.textContent = "No payment screenshot was uploaded for this order.";
+    return;
+  }
+  try{
+    const headers = {"apikey":C.supabaseKey};
+    if(C.supabaseKey && !C.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + C.supabaseKey;
+    const response = await fetch(`${C.supabaseUrl.replace(/\/$/,"")}/storage/v1/object/gcash-confirmations/${path}`, {headers});
+    if(!response.ok){
+      const details = await response.json().catch(() => null);
+      throw new Error((details && (details.message || details.error)) || `HTTP ${response.status}`);
+    }
+    const imageUrl = URL.createObjectURL(await response.blob());
+    const image = document.createElement("img");
+    image.className = "proof-image";
+    image.src = imageUrl;
+    image.alt = "Your GCash payment confirmation";
+    proof.textContent = "";
+    proof.append(image);
+  }catch(error){
+    proof.textContent = "Payment is confirmed, but we couldn't load the uploaded screenshot. Please refresh or contact us.";
+  }
 }
 start();
 </script>
