@@ -591,6 +591,7 @@ function renderDetail(){
           : o.payment_status==="paid" ? `<button class="btn sm" id="payUndo">Undo paid</button>`
           : `<button class="btn sm" id="payOk">Mark paid${isGcash(o) ? "" : " (cash)"}</button>`}
         ${isGcash(o) && o.payment_status!=="paid" && o.status!=="cancelled" ? `<button class="btn sm" id="copyPayLink">🔗 Copy payment link</button>` : ""}
+        ${isGcash(o) ? `<a class="btn sm" href="${esc(payLink(o))}" target="_blank" rel="noopener">🧾 Order details</a>` : ""}
       </div>
     </div>
     ${o.mode === "Delivery" ? `<div class="sec no-print">
