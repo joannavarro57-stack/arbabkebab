@@ -740,7 +740,7 @@ const STORE = {
   phoneDisplay: "+63 970 091 0888",
   email: "arabiya.official@gmail.com",
   facebook: "https://www.facebook.com/ArbabKebabOfficial",
-  branches: ["Malolos"],
+  branches: [{name: "Malolos", lat: 14.8433, lng: 120.8114}],   // real list lives in config.js
   payments: {
     Delivery: ["Cash on Delivery", "GCash"],
     "Pick-Up": ["Cash", "GCash"]
@@ -823,8 +823,14 @@ $("#callHero").href = "tel:" + STORE.phone;
 $("#phoneLink").href = "tel:" + STORE.phone; $("#phoneLink").textContent = STORE.phoneDisplay;
 $("#mailLink").href = "mailto:" + STORE.email; $("#mailLink").textContent = STORE.email;
 $("#fbLink").href = STORE.facebook;
-$("#branchList").innerHTML = STORE.branches.map(b => `<li>${esc(b)} branch</li>`).join("") + `<li class="note" style="color:#c9bba6">Message us for today's hours.</li>`;
-$("#branch").innerHTML = STORE.branches.map(b => `<option>${esc(b)}</option>`).join("");
+/* branches come from config.js — each is {name, lat, lng, address, hours} (a plain name also works) */
+const BRANCHES = (STORE.branches || []).map(b => typeof b === "string" ? {name: b} : b).filter(b => b && b.name);
+if(!BRANCHES.length) BRANCHES.push({name: "Malolos", lat: 14.8433, lng: 120.8114});
+$("#branchList").innerHTML = BRANCHES.map(b => `<li>${esc(b.name)} branch`
+    + (b.address ? `<br><span class="note" style="color:#c9bba6">${esc(b.address)}</span>` : "")
+    + (b.hours ? `<br><span class="note" style="color:#c9bba6">${esc(b.hours)}</span>` : "") + `</li>`).join("")
+  + (BRANCHES.some(b => b.hours) ? "" : `<li class="note" style="color:#c9bba6">Message us for today's hours.</li>`);
+$("#branch").innerHTML = BRANCHES.map(b => `<option>${esc(b.name)}</option>`).join("");
 
 /* render menu */
 function renderMenu(q=""){
@@ -981,7 +987,13 @@ const saved = store.get("ak_details") || {};
    same pin, search and address helpers through a small adapter:
      setView(lat,lng,zoom) · getCenter() · setMarker(lat,lng) · resize()
      reverse(lat,lng) -> address text · search(query, center) -> [{title, sub, lat?, lng?, resolve?}] */
-const MAP_HOME = {lat: 14.8433, lng: 120.8114, zoom: 14};   // Malolos branch area
+// where the delivery map starts: the chosen branch (from config.js), else the first branch with a location
+function mapHome(){
+  const has = b => b && isFinite(b.lat) && isFinite(b.lng) && b.lat !== "" && b.lng !== "";
+  const sel = $("#branch") && BRANCHES.find(b => b.name === $("#branch").value);
+  const b = has(sel) ? sel : BRANCHES.find(has);
+  return b ? {lat: +b.lat, lng: +b.lng, zoom: 14} : {lat: 14.8433, lng: 120.8114, zoom: 14};
+}
 // "?gmkey=KEY" in the address tries a key on this visit only (for testing before editing config.js)
 const GMAPS_KEY = String(new URLSearchParams(location.search).get("gmkey") || STORE.googleMapsKey || "").trim();
 let pinMap = null, mapProvider = GMAPS_KEY ? "google" : "osm", mapStarting = null;
@@ -1017,7 +1029,7 @@ function suggestAddress(p){   // fill the address box only if the customer hasn'
 /* ---- free map: Leaflet + OpenStreetMap streets / Esri satellite ---- */
 function osmAdapter(){
   const m = L.map("pinMap", {scrollWheelZoom: false, tap: true})
-    .setView(pin ? [pin.lat, pin.lng] : [MAP_HOME.lat, MAP_HOME.lng], pin ? 17 : MAP_HOME.zoom);
+    .setView(pin ? [pin.lat, pin.lng] : [mapHome().lat, mapHome().lng], pin ? 17 : mapHome().zoom);
   const esri = "https://server.arcgisonline.com/ArcGIS/rest/services/";
   const streets = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'});
@@ -1080,9 +1092,9 @@ async function googleAdapter(){
   const g = await loadGoogleMaps();
   const [{Map}, {Marker}, {Geocoder}, places] = await Promise.all([
     g.importLibrary("maps"), g.importLibrary("marker"), g.importLibrary("geocoding"), g.importLibrary("places")]);
-  const start = pin || MAP_HOME;
+  const home = mapHome(), start = pin || home;
   const m = new Map($("#pinMap"), {
-    center: {lat: start.lat, lng: start.lng}, zoom: pin ? 17 : MAP_HOME.zoom,
+    center: {lat: start.lat, lng: start.lng}, zoom: pin ? 17 : home.zoom,
     mapTypeId: getMapView() === "Street map" ? "roadmap" : "hybrid",
     mapTypeControl: true,
     mapTypeControlOptions: {style: g.MapTypeControlStyle.HORIZONTAL_BAR, position: g.ControlPosition.TOP_RIGHT, mapTypeIds: ["hybrid", "roadmap"]},
@@ -1203,6 +1215,9 @@ async function searchPlace(){
   }
 }
 $("#pinSearchBtn").onclick = searchPlace;
+$("#branch").addEventListener("change", () => {   // no pin yet: move the map to the chosen branch
+  if(pinMap && !pin){ const h = mapHome(); pinMap.setView(h.lat, h.lng, h.zoom); }
+});
 $("#pinSearch").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); searchPlace(); } else if(e.key === "Escape"){ e.stopPropagation(); hideResults(); } });
 $("#pinSearch").addEventListener("input", () => { if(!$("#pinSearch").value.trim()) hideResults(); });
 document.addEventListener("click", e => { if(!e.target.closest(".pin-search")) hideResults(); });
@@ -1373,7 +1388,7 @@ function chatMessage(d){
     `Hi Arbab Kebab! 👋 I just placed an order.`,
     ``,
     `🧾 Order ${d.ref}${d.orderNo ? ` (#${d.orderNo})` : ""}`,
-    `${delivery ? "🛵 Delivery" : `🏪 Pick-Up at ${d.branch || "Malolos"} branch`}${when ? ` · ${when}` : ""}${d.time ? ` · ${d.time}` : ""}`,
+    `${delivery ? "🛵 Delivery" : `🏪 Pick-Up at ${d.branch || BRANCHES[0].name} branch`}${when ? ` · ${when}` : ""}${d.time ? ` · ${d.time}` : ""}`,
     ``,
     `👤 ${d.name}${d.phone ? ` · ${d.phone}` : ""}`,
     ...(delivery && d.address ? [`🏠 ${d.address}`] : []),

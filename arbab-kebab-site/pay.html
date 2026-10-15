@@ -97,6 +97,7 @@ const C = window.SITE_CONFIG || {};
 const G = C.gcash || {};
 const MESSENGER = C.messenger || "https://m.me/ArbabKebabOfficial";
 const IG = (C.instagram || "").replace(/^@/, "").trim();
+const FIRST_BRANCH = ((C.branches || []).map(b => typeof b === "string" ? b : b && b.name).filter(Boolean))[0] || "our";
 const chatLinks = () => `<a class="btn sm" href="${MESSENGER}${ref ? `?text=${encodeURIComponent(`Hi Arbab Kebab! 👋 About my order ${ref}:`)}` : ""}" target="_blank" rel="noopener">💬 Messenger</a>`
   + (IG ? `<a class="btn sm" href="https://ig.me/m/${encodeURIComponent(IG)}" target="_blank" rel="noopener">📸 Instagram</a>` : "");
 const $ = s => document.querySelector(s);
@@ -138,7 +139,7 @@ function orderMessage(o){
     `Hi Arbab Kebab! 👋 I just placed an order and paid with GCash.`,
     ``,
     `🧾 Order ${o.ref} (#${o.order_no})`,
-    `${delivery ? "🛵 Delivery" : `🏪 Pick-Up at ${o.branch || d.branch || "Malolos"} branch`}${when ? ` · ${when}` : ""}${d.time ? ` · ${d.time}` : ""}`,
+    `${delivery ? "🛵 Delivery" : `🏪 Pick-Up at ${o.branch || d.branch || FIRST_BRANCH} branch`}${when ? ` · ${when}` : ""}${d.time ? ` · ${d.time}` : ""}`,
     ...(d.name ? [``, `👤 ${d.name}${d.phone ? ` · ${d.phone}` : ""}`] : []),
     ...(delivery && d.address ? [`🏠 ${d.address}`] : []),
     ...(delivery && d.pin ? [`📍 Pinned location: https://www.google.com/maps/search/?api=1&query=${d.pin.lat},${d.pin.lng}`] : []),

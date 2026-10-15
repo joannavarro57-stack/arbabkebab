@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://arbabkebab.vercel.app/config.js"></script>  <!-- website settings: shared branch list -->
 <style>
 :root{
   --saffron:#F5B21B; --saffron-soft:#FCE7AE; --ember:#E0701C; --ember-dark:#B9530C;
@@ -310,10 +311,14 @@ const CONFIG = {
   supabaseKey: "sb_publishable_vNys_OaZ_iVP1bfJj64Qhw_QQvyEaQp",      // the anon / publishable key (same one as the order site)
   orderSiteUrl: "https://arbabkebab.vercel.app",    // customer site address — used for GCash payment links
   businessName: "Arbab Kebab",
-  branches: ["San Mateo", "Malolos"],
+  branches: ["San Mateo", "Malolos"],   // admin-only extras; the main list is the website's config.js
   timeZone: "Asia/Manila",
   currency: "₱"
 };
+// Branches added in the website's config.js (loaded in <head>) show up here automatically.
+const SITE_BRANCHES = ((window.SITE_CONFIG && window.SITE_CONFIG.branches) || [])
+  .map(b => typeof b === "string" ? b : b && b.name).filter(Boolean);
+CONFIG.branches = [...new Set([...SITE_BRANCHES, ...CONFIG.branches])];
 const ADMIN_PRODUCTS = [
   {id:"MS1",name:"Shawaya Set 1",price:375},{id:"MS2",name:"Shawaya Set 2",price:475},
   {id:"MS3",name:"Shawaya Set 3",price:595},{id:"MS4",name:"Shawaya Set 4",price:695},

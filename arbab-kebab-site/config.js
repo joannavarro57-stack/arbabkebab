@@ -13,6 +13,17 @@ window.SITE_CONFIG = {
      Leave "" to use the free OpenStreetMap map instead. */
   googleMapsKey: "AIzaSyAC6CIUp7DUj8WBz72VGzreqXADzfUti_s",
 
+  /* BRANCHES — to add a branch, copy one { ... } line, paste it below, and change the details.
+     name     shown to customers and saved with every order (don't rename a branch once it has orders)
+     lat, lng where the delivery map starts for that branch — in Google Maps, right-click the shop
+              and click the two numbers to copy them (first number = lat, second = lng)
+     address, hours   optional, shown under "Branches" on the website
+     The admin site reads this list too, so new branches appear there automatically. */
+  branches: [
+    { name: "Malolos", lat: 14.8433, lng: 120.8114, address: "", hours: "" },
+    // example: { name: "New Branch", lat: 14.0000, lng: 121.0000, address: "Street, Barangay, City", hours: "10 AM – 9 PM" },
+  ],
+
   /* Chat buttons shown after an order is placed (index.html and pay.html).
      instagram: the account's username without @, e.g. "arbabkebab". Leave "" to hide the button. */
   messenger: "https://m.me/ArbabKebabOfficial",
