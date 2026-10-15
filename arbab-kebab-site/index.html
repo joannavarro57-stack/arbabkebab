@@ -1340,16 +1340,19 @@ async function placeOrder(){
     const placedItems = cart.map(l => ({name: l.name, opts: l.opts || [], qty: l.qty, unit: l.unit})), placedSubtotal = subtotal();
     cart = []; store.set("ak_cart", cart); renderCart();
     orderRef = newRef(); store.set("ak_ref", orderRef);
-    if(/gcash/i.test(payment)){
-      window.location.href = `pay.html?ref=${encodeURIComponent(placedRef)}`;
-      return;
-    }
     const placedMode = $("input[name=mode]:checked").value;
-    setupChat({ref: placedRef, orderNo: res.order_no, mode: placedMode, branch: $("#branch").value,
+    const chatData = {ref: placedRef, orderNo: res.order_no, mode: placedMode, branch: $("#branch").value,
       date: $("#orderDate").value, time: $("#tm").value, name: $("#nm").value.trim(), phone: $("#ph").value.trim(),
       address: placedMode === "Delivery" ? $("#ad").value.trim() : "", notes: $("#nt").value.trim(),
       pin: placedMode === "Delivery" && pin ? {lat: pin.lat, lng: pin.lng} : null,
-      items: placedItems, subtotal: placedSubtotal, payment});
+      items: placedItems, subtotal: placedSubtotal, payment};
+    if(/gcash/i.test(payment)){
+      // keep the order details on this phone so the payment page can show the same order message
+      store.set("ak_order_" + placedRef, chatData);
+      window.location.href = `pay.html?ref=${encodeURIComponent(placedRef)}`;
+      return;
+    }
+    setupChat(chatData);
     $("#doneRef").textContent = res.order_no ? "#" + res.order_no : placedRef;
     $("#doneHow").textContent = `Cash will be collected on ${placedMode === "Delivery" ? "delivery" : "pickup"}.`;
     document.querySelector(".d-body").hidden = true;

@@ -64,6 +64,21 @@ input[type=file]{font-size:14px}
 .state p{color:var(--char-2);margin:0 0 6px}
 .proof-image{display:block;width:min(100%,420px);max-height:70vh;object-fit:contain;margin:12px auto 0;border:1px solid var(--line);border-radius:12px;background:#fff}
 .links{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.done-ref{margin:0 0 6px;font-size:16px}
+.done-ref b{font-family:ui-monospace,Menlo,monospace;letter-spacing:.04em;background:var(--saffron-soft);padding:2px 8px;border-radius:6px}
+.chat-box{margin:16px 0 0;padding:14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;text-align:center}
+.card > .chat-box{margin:0;border:0;padding:0;background:none}
+.chat-title{margin:0 0 10px;font-weight:700;color:var(--char)}
+.chat-title span{font-weight:500;color:var(--muted)}
+.chat-sub{margin:-6px 0 8px;font-size:13.5px;color:var(--char-2)}
+.chat-msg{margin:0;padding:10px 12px;text-align:left;background:var(--saffron-soft);border:1.5px dashed var(--saffron);border-radius:10px;font:13px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;color:var(--char);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto}
+.chat-copy{width:100%;margin:10px 0 8px;padding:12px;border:2px solid var(--char);border-radius:12px;background:#fff;color:var(--char);font:inherit;font-weight:700;cursor:pointer}
+.chat-copy.done{background:var(--char);color:#fff}
+.chat-btns{display:flex;gap:8px}
+.chat-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:12px;font-weight:700;text-decoration:none;color:#fff}
+.chat-btn.messenger{background:#0866FF}
+.chat-btn.instagram{background:linear-gradient(45deg,#F58529,#DD2A7B 55%,#8134AF)}
+.chat-logo{width:30px;height:30px;border-radius:50%;background:#fff;object-fit:cover;flex:none}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--char);color:#fff;padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;transition:.2s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
 .skeleton{height:120px;border-radius:18px;background:linear-gradient(90deg,#f3ead7,#fbf4e4,#f3ead7);background-size:200% 100%;animation:sh 1.2s infinite}
@@ -108,6 +123,75 @@ function state(icon, cls, title, text, extra="", buttons=""){
     <div class="links">${buttons}${chatLinks()}<a class="btn sm" href="./">Back to menu</a></div></div>`;
 }
 const detailsBtn = r => `<a class="btn sm" href="pay.html?ref=${encodeURIComponent(r)}">🧾 Order details</a>`;
+const newOrderBtn = `<a class="btn" href="./">🛒 Start new order</a>`;
+
+/* Order message for Messenger — same as the Order Summary for cash orders. Name, phone and address
+   were saved on this phone when the order was placed; the database never sends them to this page. */
+const savedOrder = (() => { try{ return JSON.parse(localStorage.getItem("ak_order_" + ref)); }catch(e){ return null; } })();
+function orderMessage(o){
+  const d = savedOrder || {};
+  const delivery = (o.mode || d.mode) === "Delivery";
+  const date = o.order_date || d.date;
+  const when = date ? new Date(date + "T00:00").toLocaleDateString("en-PH", {weekday:"short", month:"short", day:"numeric"}) : "";
+  const items = (o.items && o.items.length ? o.items : d.items) || [];
+  return [
+    `Hi Arbab Kebab! 👋 I just placed an order and paid with GCash.`,
+    ``,
+    `🧾 Order ${o.ref} (#${o.order_no})`,
+    `${delivery ? "🛵 Delivery" : `🏪 Pick-Up at ${o.branch || d.branch || "Malolos"} branch`}${when ? ` · ${when}` : ""}${d.time ? ` · ${d.time}` : ""}`,
+    ...(d.name ? [``, `👤 ${d.name}${d.phone ? ` · ${d.phone}` : ""}`] : []),
+    ...(delivery && d.address ? [`🏠 ${d.address}`] : []),
+    ...(delivery && d.pin ? [`📍 Pinned location: https://www.google.com/maps/search/?api=1&query=${d.pin.lat},${d.pin.lng}`] : []),
+    ``,
+    `📦 Items:`,
+    ...items.map(i => `• ${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""} — ${peso(i.qty * i.unit)}`),
+    ``,
+    `🍽️ Food total: ${peso(o.subtotal)}`,
+    ...(delivery ? [`🛵 Delivery fee: to be confirmed`] : []),
+    `💵 Payment: GCash — payment proof submitted`,
+    ...(d.notes ? [``, `📝 Note: ${d.notes}`] : [])
+  ].join("\n");
+}
+const chatBoxHtml = () => `<div class="chat-box">
+    <p class="chat-title">Want to message us too? <span>(optional)</span></p>
+    <p class="chat-sub">Copy your order, then paste it in our Messenger chat.</p>
+    <pre class="chat-msg" id="chatMsg"></pre>
+    <button type="button" class="chat-copy" id="chatCopy">📋 Copy order summary</button>
+    <div class="chat-btns">
+      <a class="chat-btn messenger" id="chatMessenger" href="${MESSENGER}" target="_blank" rel="noopener" aria-label="Send to Arbab Kebab on Messenger">Send to <img class="chat-logo" src="hero-logo.png" alt="Arbab Kebab"></a>
+      ${IG ? `<a class="chat-btn instagram" id="chatInstagram" href="https://ig.me/m/${encodeURIComponent(IG)}" target="_blank" rel="noopener">📸 Instagram</a>` : ""}
+    </div>
+  </div>`;
+function wireChat(o){
+  const text = orderMessage(o);
+  $("#chatMsg").textContent = text;
+  const quiet = async () => { try{ await navigator.clipboard.writeText(text); }catch(e){} };
+  const btn = $("#chatCopy");
+  btn.onclick = async () => {
+    try{ await navigator.clipboard.writeText(text); }
+    catch(e){   // older browsers: select the text so the customer can copy it
+      const r = document.createRange(); r.selectNodeContents($("#chatMsg"));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      try{ document.execCommand("copy"); }catch(err){}
+    }
+    btn.textContent = "✓ Copied! Now tap Send and paste"; btn.classList.add("done");
+  };
+  $("#chatMessenger").onclick = quiet;
+  if($("#chatInstagram")) $("#chatInstagram").onclick = quiet;
+}
+
+/* Shown right after the GCash proof is sent — mirrors the Order Summary for cash orders. */
+function submittedScreen(o, withRef){
+  $("#main").innerHTML = `<div class="card state">
+    <div class="icon ok" aria-hidden="true">✓</div>
+    <h2>Payment submitted!</h2>
+    <p class="done-ref">Order no. <b>#${esc(o.order_no)}</b></p>
+    <p>Salamat! ${withRef ? "Your screenshot and reference number have" : "Your screenshot has"} been sent. We'll verify your payment shortly.${o.mode === "Delivery" ? " The delivery fee is settled separately." : ""}</p>
+    ${chatBoxHtml()}
+    <div class="links">${detailsBtn(o.ref)}${newOrderBtn}</div>
+  </div>`;
+  wireChat(o);
+}
 function summary(o){
   return `<div class="card">
     <p class="sub"><span class="order-number">Order #${esc(o.order_no)}</span> · ${o.mode === "Delivery" ? "Delivery" : "Pick-Up"} · ${esc(o.branch)}</p>
@@ -130,7 +214,8 @@ function renderPay(o){
     <p class="sub" style="margin-bottom:14px">${resubmit ? "We're checking your GCash payment. No need to pay again." : "Pay the food subtotal by GCash. For delivery orders, the delivery fee is settled separately."}</p>
     ${summary(o)}
     ${resubmit ? `<div class="card" style="background:var(--saffron-soft)"><b>${o.payment_ref_last4 ? `We already received reference no. ending ${esc(o.payment_ref_last4)}.` : "We already received your payment screenshot."}</b> We're checking it now — only submit again if you need to update your payment proof.
-      <div id="paidProof" class="hint" style="margin-top:8px">Loading your uploaded payment screenshot…</div></div>` : ""}
+      <div id="paidProof" class="hint" style="margin-top:8px">Loading your uploaded payment screenshot…</div></div>
+      <div class="card">${chatBoxHtml()}</div>` : ""}
     ${resubmit ? `<details class="resend"><summary>Need to update your payment proof? Tap here</summary>` : ""}
     <div class="card">
       <div class="step"><b>1</b><h2>Send ${peso(o.subtotal)} via GCash</h2></div>
@@ -158,7 +243,8 @@ function renderPay(o){
         <button class="btn dark" id="sub" type="submit">Send Order to Store</button>
       </form>
     </div>
-    ${resubmit ? `</details>` : ""}`;
+    ${resubmit ? `</details><div class="links" style="margin-top:16px">${newOrderBtn}</div>` : ""}`;
+  if(resubmit) wireChat(o);
   const img = $("#qr"); if(img) img.onerror = () => $("#qrWrap").remove();   // no QR uploaded yet → hide that part
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copy(b.dataset.copy, b.dataset.label));
   $("#f").onsubmit = async e => {
@@ -185,7 +271,7 @@ function renderPay(o){
         throw new Error((details && (details.message || details.error)) || "Couldn't upload your screenshot. Please try again.");
       }
       await rpc("submit_payment", {p_ref: o.ref, p_gcash_ref: g, p_name: $("#gname").value.trim(), p_screenshot_path:path});
-      state("✓", "ok", "Payment submitted!", `Salamat! ${g ? "Your screenshot and reference number have" : "Your screenshot has"} been sent. We'll verify payment for order <span class="order-number">#${esc(o.order_no)}</span> shortly.`, "", detailsBtn(o.ref));
+      submittedScreen(o, Boolean(g));
     }catch(err){
       $("#err").textContent = err.message; $("#sub").disabled = false; $("#sub").textContent = "Send Order to Store";
     }
