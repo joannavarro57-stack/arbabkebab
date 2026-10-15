@@ -8,6 +8,11 @@ window.SITE_CONFIG = {
   supabaseUrl: "https://addfbbpqhxsinedvnnme.supabase.co",          // e.g. "https://abcdefghijkl.supabase.co"
   supabaseKey: "sb_publishable_vNys_OaZ_iVP1bfJj64Qhw_QQvyEaQp",          // e.g. "sb_publishable_..."
 
+  /* Google Maps browser key for the delivery pin map (Maps JavaScript, Places API (New),
+     Geocoding). Restrict it to https://arbabkebab.vercel.app/* in Google Cloud.
+     Leave "" to use the free OpenStreetMap map instead. */
+  googleMapsKey: "",
+
   /* Chat buttons shown after an order is placed (index.html and pay.html).
      instagram: the account's username without @, e.g. "arbabkebab". Leave "" to hide the button. */
   messenger: "https://m.me/ArbabKebabOfficial",

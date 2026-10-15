@@ -550,6 +550,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .pin-results button{display:block;width:100%;text-align:left;padding:9px 10px;border:0;border-radius:8px;background:none;font-size:13px;line-height:1.35;cursor:pointer;color:var(--char-2)}
 .pin-results button:hover,.pin-results button:focus{background:#f6efe4;outline:none}
 .pin-results b{display:block;font-size:13.5px}
+.pin-results .powered{padding:4px 10px 6px;font-size:11px;color:var(--muted);text-align:right}
 .pin-results .empty{padding:9px 10px;font-size:13px;color:var(--muted)}
 </style>
 </head>
@@ -978,17 +979,27 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeCart(); clo
 /* form: remember details, toggle address */
 const saved = store.get("ak_details") || {};
 ["nm","ph","em","ad"].forEach(id=>{ if(saved[id]) $("#"+id).value = saved[id]; });
-/* delivery pin: Leaflet + OpenStreetMap (no API key needed) */
+/* ================= DELIVERY PIN MAP =================
+   Google Maps when googleMapsKey is set in config.js; otherwise (or if Google fails
+   to load) the free Leaflet + OpenStreetMap / Esri satellite map. Both share the
+   same pin, search and address helpers through a small adapter:
+     setView(lat,lng,zoom) · getCenter() · setMarker(lat,lng) · resize()
+     reverse(lat,lng) -> address text · search(query, center) -> [{title, sub, lat?, lng?, resolve?}] */
 const MAP_HOME = {lat: 14.8433, lng: 120.8114, zoom: 14};   // Malolos branch area
-let pinMap = null, pinMarker = null, pin = saved.pin && isFinite(saved.pin.lat) && isFinite(saved.pin.lng) ? saved.pin : null;
+const GMAPS_KEY = String(STORE.googleMapsKey || "").trim();
+let pinMap = null, mapProvider = GMAPS_KEY ? "google" : "osm", mapStarting = null;
+let pin = saved.pin && isFinite(saved.pin.lat) && isFinite(saved.pin.lng) ? saved.pin : null;
+const mapAvailable = () => !!(GMAPS_KEY || window.L);
 function rememberDetails(){ store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, em:$("#em").value, ad:$("#ad").value, pin}); }
 function setPinStatus(text, ok){ const el = $("#pinStatus"); el.textContent = text; el.className = "note" + (ok ? " ok" : ""); }
+const cleanAddress = t => String(t || "").split(", ")
+  .map(x => x.replace(/^\d{4}\s+/, "")).filter(x => x && !/^\d{4}$/.test(x) && x !== "Philippines").join(", ");
+function getMapView(){ try{ return localStorage.getItem("ak_map_view") === "Street map" ? "Street map" : "Satellite"; }catch(e){ return "Satellite"; } }
+function saveMapView(v){ try{ localStorage.setItem("ak_map_view", v); }catch(e){} }
+
 function setPin(lat, lng, fromUser){
   pin = {lat: +lat.toFixed(6), lng: +lng.toFixed(6)};
-  if(!pinMarker){
-    pinMarker = L.marker([pin.lat, pin.lng], {draggable: true, autoPan: true, title: "Delivery location"}).addTo(pinMap);
-    pinMarker.on("dragend", () => { const p = pinMarker.getLatLng(); setPin(p.lat, p.lng, true); });
-  } else pinMarker.setLatLng([pin.lat, pin.lng]);
+  if(pinMap) pinMap.setMarker(pin.lat, pin.lng);
   $("#pinMap").classList.remove("need");
   setPinStatus("✓ Location pinned. Drag the pin if it isn't exactly right.", true);
   rememberDetails();
@@ -997,22 +1008,19 @@ function setPin(lat, lng, fromUser){
 let geoTimer;
 function suggestAddress(p){   // fill the address box only if the customer hasn't typed one
   clearTimeout(geoTimer);
-  if($("#ad").value.trim()) return;
+  if($("#ad").value.trim() || !pinMap) return;
   geoTimer = setTimeout(async () => {
     try{
-      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${p.lat}&lon=${p.lng}`, {headers: {"Accept-Language": "en"}});
-      const j = await r.json();
-      if(j && j.display_name && !$("#ad").value.trim()){
-        $("#ad").value = j.display_name.split(", ").filter(x => !/^\d{4}$/.test(x) && x !== "Philippines").join(", ") + ", ";
-        rememberDetails();
-      }
+      const text = await pinMap.reverse(p.lat, p.lng);
+      if(text && !$("#ad").value.trim()){ $("#ad").value = cleanAddress(text) + ", "; rememberDetails(); }
     }catch(e){ /* address suggestion is optional */ }
   }, 700);
 }
-function initPinMap(){
-  if(!window.L || $("#pinWrap").style.display === "none" || !$("#drawer").classList.contains("open")) return;
-  if(pinMap){ pinMap.invalidateSize(); return; }
-  pinMap = L.map("pinMap", {scrollWheelZoom: false, tap: true}).setView(pin ? [pin.lat, pin.lng] : [MAP_HOME.lat, MAP_HOME.lng], pin ? 17 : MAP_HOME.zoom);
+
+/* ---- free map: Leaflet + OpenStreetMap streets / Esri satellite ---- */
+function osmAdapter(){
+  const m = L.map("pinMap", {scrollWheelZoom: false, tap: true})
+    .setView(pin ? [pin.lat, pin.lng] : [MAP_HOME.lat, MAP_HOME.lng], pin ? 17 : MAP_HOME.zoom);
   const esri = "https://server.arcgisonline.com/ArcGIS/rest/services/";
   const streets = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'});
@@ -1023,14 +1031,136 @@ function initPinMap(){
     L.tileLayer(esri + "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {maxZoom: 19})
   ]);
   const layers = {"Satellite": satellite, "Street map": streets};
-  let view = "Satellite"; try{ if(localStorage.getItem("ak_map_view") === "Street map") view = "Street map"; }catch(e){}
-  layers[view].addTo(pinMap);
-  L.control.layers(layers, null, {position: "topright", collapsed: false}).addTo(pinMap);
-  pinMap.on("baselayerchange", e => { try{ localStorage.setItem("ak_map_view", e.name); }catch(err){} });
-  pinMap.on("click", e => setPin(e.latlng.lat, e.latlng.lng, true));
-  if(pin) setPin(pin.lat, pin.lng, false);
+  layers[getMapView()].addTo(m);
+  L.control.layers(layers, null, {position: "topright", collapsed: false}).addTo(m);
+  m.on("baselayerchange", e => saveMapView(e.name));
+  m.on("click", e => setPin(e.latlng.lat, e.latlng.lng, true));
+  let marker = null;
+  return {
+    provider: "osm",
+    setView: (lat, lng, z) => m.setView([lat, lng], z),
+    getCenter: () => m.getCenter(),
+    setMarker: (lat, lng) => {
+      if(!marker){
+        marker = L.marker([lat, lng], {draggable: true, autoPan: true, title: "Delivery location"}).addTo(m);
+        marker.on("dragend", () => { const p = marker.getLatLng(); setPin(p.lat, p.lng, true); });
+      } else marker.setLatLng([lat, lng]);
+    },
+    resize: () => m.invalidateSize(),
+    reverse: async (lat, lng) => {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${lat}&lon=${lng}`, {headers: {"Accept-Language": "en"}});
+      const j = await r.json(); return j && j.display_name;
+    },
+    search: async (q, c) => {
+      const box = [c.lng - 0.35, c.lat + 0.35, c.lng + 0.35, c.lat - 0.35].map(n => n.toFixed(4)).join(",");
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=ph&limit=6&addressdetails=0&viewbox=${box}&q=${encodeURIComponent(q)}`, {headers: {"Accept-Language": "en"}});
+      return (await r.json()).map(x => {
+        const parts = cleanAddress(x.display_name).split(", ");
+        return {title: parts[0], sub: parts.slice(1).join(", "), lat: +x.lat, lng: +x.lon};
+      });
+    }
+  };
 }
-/* location search (OpenStreetMap Nominatim, Philippines only, nearer Malolos first) */
+
+/* ---- Google Maps (key in config.js) ---- */
+let gmapsLoading = null;
+function loadGoogleMaps(){
+  if(gmapsLoading) return gmapsLoading;
+  gmapsLoading = new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("Google Maps timed out")), 10000);
+    window.__akGmapsReady = () => { clearTimeout(t); resolve(window.google.maps); };
+    window.gm_authFailure = () => useFreeMap("Google Maps key was rejected");   // bad / restricted key
+    const sc = document.createElement("script");
+    sc.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(GMAPS_KEY)
+      + "&v=weekly&loading=async&region=PH&language=en&callback=__akGmapsReady";
+    sc.async = true;
+    sc.onerror = () => { clearTimeout(t); reject(new Error("Google Maps failed to load")); };
+    document.head.appendChild(sc);
+  });
+  return gmapsLoading;
+}
+async function googleAdapter(){
+  const g = await loadGoogleMaps();
+  const [{Map}, {Marker}, {Geocoder}, places] = await Promise.all([
+    g.importLibrary("maps"), g.importLibrary("marker"), g.importLibrary("geocoding"), g.importLibrary("places")]);
+  const start = pin || MAP_HOME;
+  const m = new Map($("#pinMap"), {
+    center: {lat: start.lat, lng: start.lng}, zoom: pin ? 17 : MAP_HOME.zoom,
+    mapTypeId: getMapView() === "Street map" ? "roadmap" : "hybrid",
+    mapTypeControl: true,
+    mapTypeControlOptions: {style: g.MapTypeControlStyle.HORIZONTAL_BAR, position: g.ControlPosition.TOP_RIGHT, mapTypeIds: ["hybrid", "roadmap"]},
+    streetViewControl: false, fullscreenControl: false, rotateControl: false,
+    gestureHandling: "cooperative", clickableIcons: false
+  });
+  m.addListener("maptypeid_changed", () => saveMapView(m.getMapTypeId() === "roadmap" ? "Street map" : "Satellite"));
+  m.addListener("click", e => setPin(e.latLng.lat(), e.latLng.lng(), true));
+  const geocoder = new Geocoder();
+  let marker = null;
+  return {
+    provider: "google",
+    setView: (lat, lng, z) => { m.setCenter({lat, lng}); m.setZoom(z); },
+    getCenter: () => { const c = m.getCenter(); return {lat: c.lat(), lng: c.lng()}; },
+    setMarker: (lat, lng) => {
+      if(!marker){
+        marker = new Marker({map: m, position: {lat, lng}, draggable: true, title: "Delivery location"});
+        marker.addListener("dragend", e => setPin(e.latLng.lat(), e.latLng.lng(), true));
+      } else marker.setPosition({lat, lng});
+    },
+    resize: () => {},
+    reverse: async (lat, lng) => {
+      const {results} = await geocoder.geocode({location: {lat, lng}});
+      const best = (results || []).find(r => !(r.types || []).includes("plus_code"));
+      return best && best.formatted_address;
+    },
+    search: async (q, c) => {   // one Autocomplete request per search; location fetched only for the chosen place
+      const sessionToken = new places.AutocompleteSessionToken();
+      const {suggestions} = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input: q, sessionToken, includedRegionCodes: ["ph"], language: "en",
+        locationBias: {center: c, radius: 30000}
+      });
+      return (suggestions || []).filter(x => x.placePrediction).slice(0, 6).map(x => {
+        const pp = x.placePrediction;
+        return {
+          title: (pp.mainText && pp.mainText.text) || pp.text.text,
+          sub: cleanAddress((pp.secondaryText && pp.secondaryText.text) || ""),
+          resolve: async () => {
+            const place = pp.toPlace();
+            await place.fetchFields({fields: ["location"]});
+            return {lat: place.location.lat(), lng: place.location.lng()};
+          }
+        };
+      });
+    }
+  };
+}
+function useFreeMap(reason){   // switch to the free map for this visit
+  if(mapProvider === "osm") return;
+  console.warn("Using the free map:", reason);
+  mapProvider = "osm";
+  if(pinMap && pinMap.provider === "google"){
+    const el = $("#pinMap"), fresh = el.cloneNode(false); el.replaceWith(fresh);   // clear Google's map
+    pinMap = null;
+    initPinMap();
+  }
+}
+
+async function initPinMap(){
+  if(!mapAvailable() || $("#pinWrap").style.display === "none" || !$("#drawer").classList.contains("open")) return pinMap;
+  if(pinMap){ pinMap.resize(); return pinMap; }
+  if(mapStarting) return mapStarting;
+  mapStarting = (async () => {
+    if(mapProvider === "google"){
+      try{ pinMap = await googleAdapter(); }
+      catch(e){ useFreeMap(e.message); }
+    }
+    if(!pinMap && window.L) pinMap = osmAdapter();
+    if(pinMap && pin) pinMap.setMarker(pin.lat, pin.lng);
+    return pinMap;
+  })();
+  try{ return await mapStarting; } finally { mapStarting = null; }
+}
+
+/* location search (Philippines only, nearer the map's centre first) */
 let searchSeq = 0;
 function hideResults(){ $("#pinResults").hidden = true; }
 async function searchPlace(){
@@ -1038,25 +1168,26 @@ async function searchPlace(){
   if(q.length < 3){ list.innerHTML = `<li class="empty">Type at least 3 characters.</li>`; list.hidden = false; return; }
   const seq = ++searchSeq;
   btn.disabled = true; btn.textContent = "Searching…";
-  const c = pinMap ? pinMap.getCenter() : {lat: MAP_HOME.lat, lng: MAP_HOME.lng};
-  const box = [c.lng - 0.35, c.lat + 0.35, c.lng + 0.35, c.lat - 0.35].map(n => n.toFixed(4)).join(",");
   try{
-    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=ph&limit=6&addressdetails=0&viewbox=${box}&q=${encodeURIComponent(q)}`, {headers: {"Accept-Language": "en"}});
-    const rows = await r.json();
+    const m = await initPinMap();
+    if(!m) throw new Error("map unavailable");
+    const rows = await m.search(q, m.getCenter());
     if(seq !== searchSeq) return;
-    list.innerHTML = rows.length ? rows.map((x, i) => {
-      const parts = x.display_name.split(", ").filter(p => p !== "Philippines" && !/^\d{4}$/.test(p));
-      return `<li><button type="button" data-i="${i}"><b>${esc(parts[0])}</b>${esc(parts.slice(1).join(", "))}</button></li>`;
-    }).join("") : `<li class="empty">No matches. Try a nearby landmark or barangay, or tap the map.</li>`;
+    list.innerHTML = rows.length ? rows.map((x, i) =>
+      `<li><button type="button" data-i="${i}"><b>${esc(x.title)}</b>${esc(x.sub)}</button></li>`).join("")
+      + (m.provider === "google" ? `<li class="powered">powered by Google</li>` : "")
+      : `<li class="empty">No matches. Try a nearby landmark or barangay, or tap the map.</li>`;
     list.hidden = false;
-    list.querySelectorAll("button").forEach(b => b.onclick = () => {
+    list.querySelectorAll("button").forEach(b => b.onclick = async () => {
       const x = rows[+b.dataset.i];
-      initPinMap(); if(!pinMap) return;
       hideResults();
-      $("#pinSearch").value = b.querySelector("b").textContent;
-      pinMap.setView([+x.lat, +x.lon], 18);
-      setPin(+x.lat, +x.lon, true);
-      setPinStatus("✓ Pin placed near your search. Drag it to your exact gate or door.", true);
+      $("#pinSearch").value = x.title;
+      try{
+        const pos = x.resolve ? await x.resolve() : {lat: x.lat, lng: x.lng};
+        m.setView(pos.lat, pos.lng, 18);
+        setPin(pos.lat, pos.lng, true);
+        setPinStatus("✓ Pin placed near your search. Drag it to your exact gate or door.", true);
+      }catch(e){ setPinStatus("We couldn't open that place — try another result or tap the map."); }
     });
   }catch(e){
     if(seq === searchSeq){ list.innerHTML = `<li class="empty">Search isn't available right now — tap the map instead.</li>`; list.hidden = false; }
@@ -1071,11 +1202,11 @@ document.addEventListener("click", e => { if(!e.target.closest(".pin-search")) h
 $("#locateMe").onclick = () => {
   if(!navigator.geolocation){ setPinStatus("Your browser can't share location — tap the map instead."); return; }
   const btn = $("#locateMe"); btn.disabled = true; btn.textContent = "Finding you…";
-  navigator.geolocation.getCurrentPosition(pos => {
+  navigator.geolocation.getCurrentPosition(async pos => {
     btn.disabled = false; btn.textContent = "📍 Use my current location";
-    initPinMap(); if(!pinMap) return;
+    const m = await initPinMap(); if(!m) return;
     setPin(pos.coords.latitude, pos.coords.longitude, true);
-    pinMap.setView([pin.lat, pin.lng], 18);
+    m.setView(pin.lat, pin.lng, 18);
   }, () => {
     btn.disabled = false; btn.textContent = "📍 Use my current location";
     setPinStatus("We couldn't get your location. Allow location access, or tap the map to drop a pin.");
@@ -1085,7 +1216,7 @@ function syncMode(){
   const mode = $("input[name=mode]:checked").value;
   const payment = $("#pay").value;
   $("#addrWrap").style.display = mode==="Delivery" ? "" : "none";
-  $("#pinWrap").style.display = mode==="Delivery" && window.L ? "" : "none";
+  $("#pinWrap").style.display = mode==="Delivery" && mapAvailable() ? "" : "none";
   if(mode==="Delivery") setTimeout(initPinMap, 0);
   $("#pay").innerHTML = STORE.payments[mode].map(p => `<option>${esc(p)}</option>`).join("");
   if(STORE.payments[mode].includes(payment)) $("#pay").value = payment;
@@ -1162,7 +1293,7 @@ function validateOrder(){
   const email = $("#em").value.trim();
   if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ err.textContent = "Please check your email address, or leave it blank."; return false; }
   if(mode==="Delivery" && !addr){ err.textContent = "Please add your delivery address."; return false; }
-  if(mode==="Delivery" && window.L && !pin){
+  if(mode==="Delivery" && mapAvailable() && !pin){
     err.textContent = "Please pin your delivery location on the map.";
     $("#pinMap").classList.add("need"); $("#pinWrap").scrollIntoView({behavior:"smooth", block:"center"}); return false;
   }
