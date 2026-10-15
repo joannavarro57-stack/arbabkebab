@@ -532,6 +532,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .order-note .ic{font-size:20px;line-height:1.1;flex:none}
 .order-note b{display:block;font-size:14.5px}
 .order-note span.sub{display:block;font-size:13px;color:var(--char-2);margin-top:2px}
+.order-note .delivery-fee-note{color:var(--ember-dark);font-size:14.5px}
 .pin-map{height:230px;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;isolation:isolate;background:#efe9df}
 .pin-map.need{border-color:var(--ember)}
 .pin-map .leaflet-control-layers{border-radius:10px;font-size:12px;line-height:1.3;padding:2px 2px}
@@ -688,21 +689,21 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
   </div>
   <div class="done" id="done" hidden>
     <div class="done-icon" aria-hidden="true">✓</div>
-    <h3>Order placed!</h3>
+    <h3>Order Summary</h3>
     <p class="done-ref">Order ref <b id="doneRef"></b></p>
     <p class="done-status" id="doneStatus"></p>
     <p id="doneHow"></p>
     <div class="chat-box" id="doneChat">
-      <p class="chat-title">✅ We got your order!</p>
-      <p class="chat-sub">Only if you want — 📩 send your order to us on Messenger:</p>
+      <p class="chat-title">📩 Send this order to Arbab Kebab</p>
+      <p class="chat-sub">Tap <b>Send Order to Arbab Kebab</b> to open Messenger, then paste and send your order. You can also copy the message below and send it manually.</p>
       <ol class="chat-steps">
-        <li>Tap <b>Copy order details</b>.</li>
-        <li>Tap <b>Open Messenger</b>, then <b>paste</b> in our chat and send.</li>
+        <li>In Messenger, paste the copied order message and send it.</li>
+        <li>Or copy the order summary below and send it manually.</li>
       </ol>
       <pre class="chat-msg" id="chatMsg"></pre>
-      <button type="button" class="chat-copy" id="chatCopy">📋 Copy order details</button>
+      <button type="button" class="chat-copy" id="chatCopy">📋 Copy order summary</button>
       <div class="chat-btns">
-        <a class="chat-btn messenger" id="chatMessenger" href="#" target="_blank" rel="noopener">💬 Open Messenger</a>
+        <a class="chat-btn messenger" id="chatMessenger" href="#" target="_blank" rel="noopener">💬 Send Order to Arbab Kebab</a>
         <a class="chat-btn instagram" id="chatInstagram" href="#" target="_blank" rel="noopener" hidden>📸 Instagram</a>
       </div>
     </div>
@@ -713,7 +714,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
   <div class="d-foot" id="dFoot">
     <div class="order-note" id="orderNote" aria-live="polite"></div>
     <div class="err" id="err" role="alert"></div>
-    <button class="send primary" id="placeOrder">Place Order</button>
+    <button class="send primary" id="placeOrder">See Order Summary</button>
   </div>
 </aside>
 
@@ -1236,12 +1237,14 @@ function syncMode(){
 function syncOrderNote(){
   const gcash = /gcash/i.test($("#pay").value);
   const delivery = $("input[name=mode]:checked").value === "Delivery";
-  $("#orderNote").innerHTML = `<span class="ic" aria-hidden="true">${gcash ? "📲" : "✅"}</span><span>`
-    + (gcash ? `<b>Pay with GCash to confirm your order.</b>` : `<b>We'll confirm your order shortly.</b>`)
-    + (delivery ? `<span class="sub">🛵 Delivery fee is arranged separately.</span>` : "")
-    + `</span>`;
+  $("#orderNote").innerHTML = gcash || delivery
+    ? `<span class="ic" aria-hidden="true">${gcash ? "📲" : "🛵"}</span><span>`
+      + (gcash ? `<b>Pay with GCash to confirm your order.</b>` : "")
+      + (delivery ? `<b class="delivery-fee-note">Delivery fee is arranged separately.</b>` : "")
+      + `</span>`
+    : "";
   const btn = $("#placeOrder");
-  if(!btn.disabled) btn.textContent = gcash ? "Proceed to Payment (GCash)" : "Place Order";
+  if(!btn.disabled) btn.textContent = gcash ? "Proceed to Payment (GCash)" : "See Order Summary";
 }
 document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("change", ()=>{ syncMode(); syncOrderNote(); }));
 $("#pay").addEventListener("change", syncOrderNote);
@@ -1358,7 +1361,7 @@ async function placeOrder(){
     $("#doneRef").textContent = placedRef;
     $("#doneStatus").className = "done-status ok";
     $("#doneStatus").textContent = "Your order has been received.";
-    $("#doneHow").textContent = "We'll confirm your order shortly. Cash will be collected on delivery or pickup.";
+    $("#doneHow").textContent = "Cash will be collected on delivery or pickup.";
     document.querySelector(".d-body").hidden = true;
     $("#dFoot").hidden = true;
     $("#done").hidden = false;
@@ -1396,7 +1399,7 @@ function setupChat(d){
   const text = chatMessage(d);
   $("#chatMsg").textContent = text;
   const btn = $("#chatCopy");
-  btn.textContent = "📋 Copy order details"; btn.classList.remove("done");
+  btn.textContent = "📋 Copy order summary"; btn.classList.remove("done");
   btn.onclick = async () => {
     try{ await navigator.clipboard.writeText(text); }
     catch(e){   // older browsers: select the text so the customer can copy it
@@ -1404,7 +1407,7 @@ function setupChat(d){
       const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
       try{ document.execCommand("copy"); }catch(err){}
     }
-    btn.textContent = "✓ Copied! Now open Messenger and paste"; btn.classList.add("done");
+    btn.textContent = "✓ Copied! Send it to Arbab Kebab"; btn.classList.add("done");
   };
   const copy = async () => { try{ await navigator.clipboard.writeText(text); }catch(e){} };
   const m = $("#chatMessenger"), ig = $("#chatInstagram");
