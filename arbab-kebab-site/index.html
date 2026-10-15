@@ -986,7 +986,8 @@ const saved = store.get("ak_details") || {};
      setView(lat,lng,zoom) · getCenter() · setMarker(lat,lng) · resize()
      reverse(lat,lng) -> address text · search(query, center) -> [{title, sub, lat?, lng?, resolve?}] */
 const MAP_HOME = {lat: 14.8433, lng: 120.8114, zoom: 14};   // Malolos branch area
-const GMAPS_KEY = String(STORE.googleMapsKey || "").trim();
+// "?gmkey=KEY" in the address tries a key on this visit only (for testing before editing config.js)
+const GMAPS_KEY = String(new URLSearchParams(location.search).get("gmkey") || STORE.googleMapsKey || "").trim();
 let pinMap = null, mapProvider = GMAPS_KEY ? "google" : "osm", mapStarting = null;
 let pin = saved.pin && isFinite(saved.pin.lat) && isFinite(saved.pin.lng) ? saved.pin : null;
 const mapAvailable = () => !!(GMAPS_KEY || window.L);
@@ -1094,6 +1095,10 @@ async function googleAdapter(){
   });
   m.addListener("maptypeid_changed", () => saveMapView(m.getMapTypeId() === "roadmap" ? "Street map" : "Satellite"));
   m.addListener("click", e => setPin(e.latLng.lat(), e.latLng.lng(), true));
+  // If Google never draws the map (rejected key, usage limit reached, network), use the free map.
+  let drawn = false;
+  g.event.addListenerOnce(m, "tilesloaded", () => { drawn = true; });
+  setTimeout(() => { if(!drawn && pinMap && pinMap.provider === "google") useFreeMap("Google map did not load"); }, 8000);
   const geocoder = new Geocoder();
   let marker = null;
   return {
