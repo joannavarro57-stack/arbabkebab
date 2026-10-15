@@ -1230,15 +1230,12 @@ function syncMode(){
 }
 /* short, payment-specific instructions under the form */
 function syncOrderNote(){
-  const gcash = /gcash/i.test($("#pay").value);
   const delivery = $("input[name=mode]:checked").value === "Delivery";
-  $("#orderNote").innerHTML = gcash || delivery
-    ? `<span class="ic" aria-hidden="true">${gcash ? "📲" : "🛵"}</span><span>`
-      + (gcash ? `<b>Pay with GCash to confirm your order.</b>` : "")
-      + (delivery ? `<b class="delivery-fee-note">Delivery fee is arranged separately.</b>` : "")
-      + `</span>`
+  $("#orderNote").innerHTML = delivery
+    ? `<span class="ic" aria-hidden="true">🛵</span><span><b class="delivery-fee-note">Delivery fee is arranged separately.</b></span>`
     : "";
   const btn = $("#placeOrder");
+  const gcash = /gcash/i.test($("#pay").value);
   if(!btn.disabled) btn.textContent = gcash ? "Proceed to Payment (GCash)" : "See Order Summary";
 }
 document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("change", ()=>{ syncMode(); syncOrderNote(); }));
