@@ -11,16 +11,16 @@
 //
 // Optional secrets:
 //   EMAIL_FROM       e.g. "Arbab Kebab <orders@arbabkebab.com>"
-//                    (default: Arbab Kebab <arabiya.official@gmail.com>)
-//   EMAIL_REPLY_TO   default arabiya.official@gmail.com
+//                    (default: Arbab Kebab <arbabkebab.admin@gmail.com>)
+//   EMAIL_REPLY_TO   default arbabkebab.admin@gmail.com
 //   SITE_URL         default https://arbabkebab.vercel.app
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const BREVO_KEY = Deno.env.get("BREVO_API_KEY") || "";
-const FROM = Deno.env.get("EMAIL_FROM") || "Arbab Kebab <arabiya.official@gmail.com>";
-const REPLY_TO = Deno.env.get("EMAIL_REPLY_TO") || "arabiya.official@gmail.com";
+const FROM = Deno.env.get("EMAIL_FROM") || "Arbab Kebab <arbabkebab.admin@gmail.com>";
+const REPLY_TO = Deno.env.get("EMAIL_REPLY_TO") || "arbabkebab.admin@gmail.com";
 const SITE_URL = (Deno.env.get("SITE_URL") || "https://arbabkebab.vercel.app").replace(/\/$/, "");
 const MESSENGER = "https://m.me/ArbabKebabOfficial";
 
