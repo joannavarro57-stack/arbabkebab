@@ -485,8 +485,8 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .chat-btn.messenger{background:#0866FF}
 .chat-btn.instagram{background:linear-gradient(45deg,#F58529,#DD2A7B 55%,#8134AF)}
 .chat-sub{margin:-6px 0 8px;font-size:13.5px;color:var(--char-2)}
-.chat-steps{margin:0 0 10px;padding-left:20px;text-align:left;font-size:13.5px;color:var(--char-2)}
-.chat-steps li{margin:2px 0}
+.chat-title span{font-weight:500;color:var(--muted)}
+.chat-logo{width:30px;height:30px;border-radius:50%;background:#fff;object-fit:cover;flex:none}
 .chat-msg{margin:0;padding:10px 12px;text-align:left;background:var(--saffron-soft);border:1.5px dashed var(--saffron);border-radius:10px;font:13px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;color:var(--char);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto}
 .chat-copy{width:100%;margin:10px 0 8px;padding:12px;border:2px solid var(--char);border-radius:12px;background:#fff;color:var(--char);font:inherit;font-weight:700;cursor:pointer}
 .chat-copy.done{background:var(--char);color:#fff}
@@ -691,19 +691,14 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
     <div class="done-icon" aria-hidden="true">✓</div>
     <h3>Order Summary</h3>
     <p class="done-ref">Order ref <b id="doneRef"></b></p>
-    <p class="done-status" id="doneStatus"></p>
     <p id="doneHow"></p>
     <div class="chat-box" id="doneChat">
-      <p class="chat-title">📩 Send this order to Arbab Kebab</p>
-      <p class="chat-sub">Tap <b>Send Order to Arbab Kebab</b> to open Messenger, then paste and send your order. You can also copy the message below and send it manually.</p>
-      <ol class="chat-steps">
-        <li>In Messenger, paste the copied order message and send it.</li>
-        <li>Or copy the order summary below and send it manually.</li>
-      </ol>
+      <p class="chat-title">Want to message us too? <span>(optional)</span></p>
+      <p class="chat-sub">Copy your order, then paste it in our Messenger chat.</p>
       <pre class="chat-msg" id="chatMsg"></pre>
       <button type="button" class="chat-copy" id="chatCopy">📋 Copy order summary</button>
       <div class="chat-btns">
-        <a class="chat-btn messenger" id="chatMessenger" href="#" target="_blank" rel="noopener">💬 Send Order to Arbab Kebab</a>
+        <a class="chat-btn messenger" id="chatMessenger" href="#" target="_blank" rel="noopener" aria-label="Send to Arbab Kebab on Messenger">Send to <img class="chat-logo" src="hero-logo.png" alt="Arbab Kebab"></a>
         <a class="chat-btn instagram" id="chatInstagram" href="#" target="_blank" rel="noopener" hidden>📸 Instagram</a>
       </div>
     </div>
@@ -1407,7 +1402,7 @@ function setupChat(d){
       const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
       try{ document.execCommand("copy"); }catch(err){}
     }
-    btn.textContent = "✓ Copied! Send it to Arbab Kebab"; btn.classList.add("done");
+    btn.textContent = "✓ Copied! Now open Messenger and paste"; btn.classList.add("done");
   };
   const copy = async () => { try{ await navigator.clipboard.writeText(text); }catch(e){} };
   const m = $("#chatMessenger"), ig = $("#chatInstagram");
