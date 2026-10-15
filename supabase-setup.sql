@@ -35,6 +35,7 @@ create table if not exists public.orders (
   branch         text not null,
   customer_name  text not null,
   customer_phone text not null,
+  customer_email text,                                      -- optional, for order emails
   address        text,
   delivery_lat   numeric(9,6),                              -- pinned delivery location (map)
   delivery_lng   numeric(9,6),
@@ -74,6 +75,9 @@ alter table public.orders add column if not exists deleted_by text;
 alter table public.orders add column if not exists delete_reason text;
 alter table public.orders add column if not exists delivery_lat numeric(9,6);
 alter table public.orders add column if not exists delivery_lng numeric(9,6);
+alter table public.orders add column if not exists customer_email text;
+alter table public.orders add column if not exists email_placed_sent_at timestamptz;
+alter table public.orders add column if not exists email_completed_sent_at timestamptz;
 alter table public.orders drop constraint if exists orders_mode_check;
 update public.orders set mode = 'Pick-Up' where mode = 'Takeout';
 alter table public.orders add constraint orders_mode_check check (mode in ('Delivery','Pick-Up'));
@@ -184,6 +188,7 @@ declare
   v_branch text := trim(coalesce(p_order ->> 'branch', ''));
   v_name text := trim(coalesce(p_order ->> 'name', ''));
   v_phone text := trim(coalesce(p_order ->> 'phone', ''));
+  v_email text := nullif(lower(trim(coalesce(p_order ->> 'email', ''))), '');
   v_address text := nullif(trim(coalesce(p_order ->> 'address', '')), '');
   v_date date;
   v_time text := nullif(left(trim(coalesce(p_order ->> 'time', '')), 60), '');
@@ -207,6 +212,9 @@ begin
   if length(v_branch) not between 1 and 60 then raise exception 'invalid branch'; end if;
   if length(v_name) not between 1 and 80 then raise exception 'invalid customer name'; end if;
   if v_phone !~ v_phone_pattern then raise exception 'invalid phone'; end if;
+  if v_email is not null and (length(v_email) > 120 or v_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]{2,}$') then
+    raise exception 'invalid email';
+  end if;
   if v_mode = 'Delivery' and (v_address is null or length(v_address) > 300) then
     raise exception 'delivery address is required';
   end if;
@@ -262,18 +270,18 @@ begin
   if p_order_id is null then
     if v_ref !~ '^AK-[A-Z0-9]{6}$' then raise exception 'invalid order reference'; end if;
     insert into public.orders
-      (ref, mode, branch, customer_name, customer_phone, address, order_date,
+      (ref, mode, branch, customer_name, customer_phone, customer_email, address, order_date,
        preferred_time, payment, notes, items, subtotal, delivery_fee, status,
        staff_notes, channel)
     values
-      (v_ref, v_mode, v_branch, v_name, v_phone,
+      (v_ref, v_mode, v_branch, v_name, v_phone, v_email,
        case when v_mode = 'Delivery' then v_address end, v_date, v_time, v_payment,
        v_notes, v_items, v_subtotal, v_delivery_fee, v_status, v_staff_notes, 'admin')
     returning * into v_order;
   else
     update public.orders
        set mode = v_mode, branch = v_branch, customer_name = v_name,
-           customer_phone = v_phone,
+           customer_phone = v_phone, customer_email = v_email,
            address = case when v_mode = 'Delivery' then v_address end,
            delivery_lat = case when v_mode = 'Delivery' then delivery_lat end,
            delivery_lng = case when v_mode = 'Delivery' then delivery_lng end,
@@ -356,6 +364,7 @@ declare
   v_branch  text := trim(coalesce(p ->> 'branch', ''));
   v_name    text := trim(coalesce(p ->> 'name', ''));
   v_phone   text := trim(coalesce(p ->> 'phone', ''));
+  v_email   text := nullif(lower(trim(coalesce(p ->> 'email', ''))), '');
   v_addr    text := nullif(trim(coalesce(p ->> 'address', '')), '');
   v_order_date date;
   v_time    text := nullif(left(trim(coalesce(p ->> 'time', '')), 60), '');
@@ -377,6 +386,9 @@ begin
   if length(v_branch) not between 1 and 60 then raise exception 'invalid branch'; end if;
   if length(v_name)   not between 1 and 80 then raise exception 'invalid name'; end if;
   if v_phone !~ '^[0-9+() -]{7,20}$' then raise exception 'invalid phone'; end if;
+  if v_email is not null and (length(v_email) > 120 or v_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]{2,}$') then
+    raise exception 'invalid email';
+  end if;
   if v_mode = 'Delivery' and (v_addr is null or length(v_addr) > 300) then raise exception 'invalid address'; end if;
   if jsonb_typeof(p -> 'items') <> 'array'
      or jsonb_array_length(p -> 'items') not between 1 and 50 then raise exception 'invalid items'; end if;
@@ -418,14 +430,15 @@ begin
     raise exception 'too many orders, please wait a few minutes';
   end if;
 
-  insert into public.orders as o (ref, mode, branch, customer_name, customer_phone, address,
+  insert into public.orders as o (ref, mode, branch, customer_name, customer_phone, customer_email, address,
                                   delivery_lat, delivery_lng, order_date,
                                   preferred_time, payment, notes, items, subtotal, channel)
-  values (v_ref, v_mode, v_branch, v_name, v_phone, case when v_mode = 'Delivery' then v_addr end,
+  values (v_ref, v_mode, v_branch, v_name, v_phone, v_email, case when v_mode = 'Delivery' then v_addr end,
           v_lat, v_lng, v_order_date, v_time, v_pay, v_notes, v_items, v_sub, v_channel)
   on conflict (ref) do update               -- allow retrying an unsubmitted checkout
      set mode = excluded.mode, branch = excluded.branch, customer_name = excluded.customer_name,
-         customer_phone = excluded.customer_phone, address = excluded.address,
+         customer_phone = excluded.customer_phone, customer_email = excluded.customer_email,
+         address = excluded.address,
          delivery_lat = excluded.delivery_lat, delivery_lng = excluded.delivery_lng,
          order_date = excluded.order_date, preferred_time = excluded.preferred_time,
          payment = excluded.payment, notes = excluded.notes,
@@ -512,6 +525,32 @@ grant execute on function public.submit_payment(text, text, text, text) to anon,
 
 revoke all on function public.is_staff() from public;
 grant execute on function public.is_staff() to authenticated;
+
+-- ---------- automatic customer emails ----------
+-- When an order with an email is placed, or later marked completed, ask the
+-- "order-emails" Edge Function to send the email. The function checks the order
+-- itself and records email_*_sent_at, so each email is sent at most once.
+create extension if not exists pg_net with schema extensions;
+
+create or replace function public.notify_order_email() returns trigger
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if new.customer_email is null then return new; end if;
+  if tg_op = 'INSERT' or (new.status = 'completed' and old.status is distinct from 'completed') then
+    perform net.http_post(
+      url := 'https://addfbbpqhxsinedvnnme.supabase.co/functions/v1/order-emails',
+      body := jsonb_build_object('order_id', new.id),
+      headers := '{"Content-Type":"application/json"}'::jsonb
+    );
+  end if;
+  return new;
+end $$;
+revoke all on function public.notify_order_email() from public, anon, authenticated;
+
+create or replace trigger orders_email_placed after insert on public.orders
+for each row execute function public.notify_order_email();
+create or replace trigger orders_email_completed after update of status on public.orders
+for each row execute function public.notify_order_email();
 
 -- ---------- live updates for the admin site ----------
 do $$

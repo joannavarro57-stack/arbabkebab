@@ -469,7 +469,7 @@ function filtered(){
 }
 function matchesOrderFilters(o, b, q){
   return (!b || o.branch === b) &&
-    (!q || [o.ref, o.order_no, o.customer_name, o.customer_phone, o.address].join(" ").toLowerCase().includes(q));
+    (!q || [o.ref, o.order_no, o.customer_name, o.customer_phone, o.customer_email, o.address].join(" ").toLowerCase().includes(q));
 }
 function isPendingGcash(o){ return isGcash(o) && (o.payment_status || "unpaid") === "unpaid" && o.status !== "cancelled"; }
 function render(){
@@ -525,6 +525,7 @@ function renderDetail(){
       <div class="sec"><h3>Order</h3><dl class="kv">
         <dt>Customer</dt><dd>${esc(o.customer_name)}</dd>
         <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
+        ${o.customer_email ? `<dt>Email</dt><dd><a href="mailto:${esc(o.customer_email)}">${esc(o.customer_email)}</a>${o.email_placed_sent_at || o.email_completed_sent_at ? ` <span style="font-weight:500;color:var(--muted);font-size:12px">· ${o.email_completed_sent_at ? "delivered email sent" : "order email sent"}</span>` : ""}</dd>` : ""}
         <dt>Status</dt><dd>${esc(STATUS[o.status]?.label || o.status)}</dd>
         <dt>Total</dt><dd>${peso(o.total)}</dd>
       </dl></div>
@@ -554,6 +555,7 @@ function renderDetail(){
       <dl class="kv">
         <dt>Name</dt><dd>${esc(o.customer_name)}</dd>
         <dt>Mobile</dt><dd>${esc(o.customer_phone)}</dd>
+        ${o.customer_email ? `<dt>Email</dt><dd><a href="mailto:${esc(o.customer_email)}">${esc(o.customer_email)}</a>${o.email_placed_sent_at || o.email_completed_sent_at ? ` <span style="font-weight:500;color:var(--muted);font-size:12px">· ${o.email_completed_sent_at ? "delivered email sent" : "order email sent"}</span>` : ""}</dd>` : ""}
         <dt>Order type</dt><dd>${orderModeLabel(o.mode)} · ${esc(o.branch)} branch</dd>
         ${o.address ? `<dt>Address</dt><dd>${esc(o.address)}</dd>` : ""}
         ${hasPin ? `<dt>Pinned</dt><dd><a href="${maps}" target="_blank" rel="noopener">📍 ${esc(pinQuery)}</a></dd>` : (o.mode === "Delivery" ? `<dt>Pinned</dt><dd style="color:var(--muted)">No map pin</dd>` : "")}
@@ -778,7 +780,7 @@ function openOrderEditor(order=null){
   ).join("");
   const mode = order?.mode || "Delivery";
   const values = {
-    name: order?.customer_name || "", phone: order?.customer_phone || "",
+    name: order?.customer_name || "", phone: order?.customer_phone || "", email: order?.customer_email || "",
     address: order?.address || "", date: order?.order_date || ymdLocal(new Date()),
     time: order?.preferred_time || "", fee: order ? Number(order.delivery_fee) : 0,
     notes: order?.notes || "", staffNotes: order?.staff_notes || ""
@@ -786,6 +788,7 @@ function openOrderEditor(order=null){
   $("#orderEditFields").innerHTML = `
     ${orderField("Customer name","editName",values.name,"text",false,"maxlength=\"80\" required autocomplete=\"name\"")}
     ${orderField("Mobile number","editPhone",values.phone,"tel",false,"maxlength=\"20\" required autocomplete=\"tel\"")}
+    ${orderField("Email (optional)","editEmail",values.email,"email",false,"maxlength=\"120\" autocomplete=\"email\"")}
     <label class="edit-field" for="editMode">Order type<select id="editMode"><option value="Delivery"${mode==="Delivery"?" selected":""}>Delivery</option><option value="Pick-Up"${mode==="Pick-Up"?" selected":""}>Pick-Up</option></select></label>
     <label class="edit-field" for="editBranch">Branch<select id="editBranch" required>${branchOptions}</select></label>
     <label class="edit-field wide" for="editAddress">Delivery address<textarea id="editAddress" rows="2" maxlength="300">${esc(values.address)}</textarea></label>
@@ -860,7 +863,7 @@ $("#orderEditForm").addEventListener("submit", async event => {
   const payload = {
     ref:editingOrderId ? orders.find(item=>item.id===editingOrderId)?.ref : newOrderReference(),
     mode:$("#editMode").value, branch:$("#editBranch").value,
-    name:$("#editName").value.trim(), phone:$("#editPhone").value.trim(),
+    name:$("#editName").value.trim(), phone:$("#editPhone").value.trim(), email:$("#editEmail").value.trim(),
     address:$("#editAddress").value.trim(), order_date:$("#editDate").value,
     time:$("#editTime").value.trim(), payment:$("#editPayment").value,
     status:$("#editStatus").value, delivery_fee:$("#editDeliveryFee").value,
@@ -977,10 +980,10 @@ setInterval(() => { if(!$("#appView").hidden && !document.activeElement?.closest
 $("#csv").onclick = () => {
   const rows = filtered();
   if(!rows.length) return toast("Nothing to export");
-  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","address","pin_lat","pin_lng","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
+  const head = ["order_no","ref","date_time","status","mode","branch","order_date","preferred_time","customer_name","customer_phone","customer_email","address","pin_lat","pin_lng","items","subtotal","delivery_fee","total","payment","payment_status","gcash_ref","paid_at","channel","customer_notes","staff_notes"];
   const q = v => { let s = String(v ?? ""); if(/^[=@\t\r]/.test(s)) s = "'" + s;   // stop Excel treating text as a formula
     return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
-  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, orderModeLabel(o.mode), o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.address, o.delivery_lat, o.delivery_lng,
+  const lines = rows.map(o => [o.order_no, o.ref, fmtFull.format(new Date(o.created_at)).replace(",", ""), STATUS[o.status]?.label || o.status, orderModeLabel(o.mode), o.branch, o.order_date, o.preferred_time, o.customer_name, o.customer_phone, o.customer_email, o.address, o.delivery_lat, o.delivery_lng,
     o.items.map(i => `${i.qty}x ${i.name}${i.opts && i.opts.length ? ` (${i.opts.join(", ")})` : ""}`).join("; "),
     o.subtotal, o.delivery_fee, o.total, o.payment, PAY[o.payment_status] || o.payment_status, o.payment_ref,
     o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes].map(q).join(","));

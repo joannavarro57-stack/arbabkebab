@@ -663,6 +663,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
         <legend>Your details</legend>
         <div class="f"><label for="nm">Name</label><input id="nm" name="name" autocomplete="name" required></div>
         <div class="f"><label for="ph">Mobile number</label><input id="ph" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09XX XXX XXXX" required></div>
+        <div class="f"><label for="em">Email <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input id="em" name="email" type="email" inputmode="email" autocomplete="email" maxlength="120" placeholder="you@example.com"><p class="note">We'll email your order details and let you know when it's delivered.</p></div>
         <div class="f" id="addrWrap"><label for="ad">Delivery address</label><textarea id="ad" name="address" rows="2" autocomplete="street-address" placeholder="House no., street, barangay, city, landmark"></textarea></div>
         <div class="f" id="pinWrap">
           <label for="pinMap">Pin your delivery location</label>
@@ -976,11 +977,11 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeCart(); clo
 
 /* form: remember details, toggle address */
 const saved = store.get("ak_details") || {};
-["nm","ph","ad"].forEach(id=>{ if(saved[id]) $("#"+id).value = saved[id]; });
+["nm","ph","em","ad"].forEach(id=>{ if(saved[id]) $("#"+id).value = saved[id]; });
 /* delivery pin: Leaflet + OpenStreetMap (no API key needed) */
 const MAP_HOME = {lat: 14.8433, lng: 120.8114, zoom: 14};   // Malolos branch area
 let pinMap = null, pinMarker = null, pin = saved.pin && isFinite(saved.pin.lat) && isFinite(saved.pin.lng) ? saved.pin : null;
-function rememberDetails(){ store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, ad:$("#ad").value, pin}); }
+function rememberDetails(){ store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, em:$("#em").value, ad:$("#ad").value, pin}); }
 function setPinStatus(text, ok){ const el = $("#pinStatus"); el.textContent = text; el.className = "note" + (ok ? " ok" : ""); }
 function setPin(lat, lng, fromUser){
   pin = {lat: +lat.toFixed(6), lng: +lng.toFixed(6)};
@@ -1158,6 +1159,8 @@ function validateOrder(){
   const name = $("#nm").value.trim(), phone = $("#ph").value.trim(), addr = $("#ad").value.trim();
   if(!name || !phone){ err.textContent = "Please add your name and mobile number."; return false; }
   if(!/^[0-9+() -]{7,20}$/.test(phone)){ err.textContent = "Please check your mobile number (numbers only)."; return false; }
+  const email = $("#em").value.trim();
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ err.textContent = "Please check your email address, or leave it blank."; return false; }
   if(mode==="Delivery" && !addr){ err.textContent = "Please add your delivery address."; return false; }
   if(mode==="Delivery" && window.L && !pin){
     err.textContent = "Please pin your delivery location on the map.";
@@ -1170,7 +1173,7 @@ async function saveOrder(channel){
   if(!STORE.supabaseUrl || !STORE.supabaseKey) return {error:"Online ordering is not available right now. Please try again later."};
   const mode = $("input[name=mode]:checked").value;
   const payload = { ref: orderRef, mode, branch: $("#branch").value,
-    name: $("#nm").value.trim(), phone: $("#ph").value.trim(),
+    name: $("#nm").value.trim(), phone: $("#ph").value.trim(), email: $("#em").value.trim(),
     address: mode==="Delivery" ? $("#ad").value.trim() : "",
     lat: mode==="Delivery" && pin ? pin.lat : null, lng: mode==="Delivery" && pin ? pin.lng : null,
     order_date: $("#orderDate").value,
