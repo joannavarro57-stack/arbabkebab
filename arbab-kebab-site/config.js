@@ -11,7 +11,7 @@ window.SITE_CONFIG = {
   /* Google Maps browser key for the delivery pin map (Maps JavaScript, Places API (New),
      Geocoding). Restrict it to https://arbabkebab.vercel.app/* in Google Cloud.
      Leave "" to use the free OpenStreetMap map instead. */
-  googleMapsKey: "",
+  googleMapsKey: "AIzaSyAC6CIUp7DUj8WBz72VGzreqXADzfUti_s",
 
   /* Chat buttons shown after an order is placed (index.html and pay.html).
      instagram: the account's username without @, e.g. "arbabkebab". Leave "" to hide the button. */
