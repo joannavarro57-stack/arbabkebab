@@ -90,6 +90,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 .wrap{max-width:1400px;margin:0 auto;padding:14px 16px 40px}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
 .toolbar .search{flex:1 1 200px;min-width:160px}
+.date-range{position:relative}
+.date-range-trigger{min-width:230px;text-align:left}
+.calendar-popover{position:absolute;top:calc(100% + 6px);left:0;z-index:15;width:300px;padding:12px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(30,26,22,.18)}
+.calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.calendar-head strong{font-size:14px}
+.calendar-nav{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:18px}
+.calendar-weekdays,.calendar-days{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.calendar-weekdays{margin-bottom:4px;color:var(--muted);font-size:11px;font-weight:700}
+.calendar-day,.calendar-empty{display:grid;place-items:center;min-width:0;height:34px}
+.calendar-day{border:0;border-radius:8px;background:transparent;font-size:13px}
+.calendar-day:hover{background:var(--saffron-soft)}
+.calendar-day.selected{background:var(--ember);color:#fff;font-weight:800}
+.calendar-day.in-range{background:var(--saffron-soft);border-radius:0}
+.calendar-day.range-start{border-radius:8px 0 0 8px}
+.calendar-day.range-end{border-radius:0 8px 8px 0}
+.calendar-instruction{margin:9px 0 0;color:var(--muted);font-size:12px}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
 .kpi .l{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
@@ -222,12 +238,21 @@ textarea{width:100%;resize:vertical}
 
   <div class="wrap">
     <div class="toolbar">
-      <select id="range" aria-label="Date range">
-        <option value="today">Today</option>
-        <option value="yesterday">Yesterday</option>
-        <option value="7">Last 7 days</option>
-        <option value="30">Last 30 days</option>
-      </select>
+      <div class="date-range">
+        <button class="btn date-range-trigger" id="dateRangeBtn" type="button" aria-haspopup="dialog" aria-expanded="false"></button>
+        <section class="calendar-popover" id="dateRangeCalendar" role="dialog" aria-label="Choose order date range" hidden>
+          <div class="calendar-head">
+            <button class="calendar-nav" id="calendarPrev" type="button" aria-label="Previous month">‹</button>
+            <strong id="calendarMonth"></strong>
+            <button class="calendar-nav" id="calendarNext" type="button" aria-label="Next month">›</button>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+          <div class="calendar-days" id="calendarDays" role="grid" aria-label="Calendar dates"></div>
+          <p class="calendar-instruction" id="calendarInstruction" aria-live="polite"></p>
+        </section>
+      </div>
+      <input id="rangeFrom" type="hidden">
+      <input id="rangeTo" type="hidden">
       <select id="branchF" aria-label="Branch"></select>
       <input class="search" id="q" type="search" placeholder="Search name, phone, ref…" aria-label="Search orders">
       <button class="btn" id="refresh" title="Reload">↻ Refresh</button>
@@ -409,20 +434,29 @@ async function enterApp(session){
 
 /* ================= DATA ================= */
 function rangeBounds(){
-  const v = $("#range").value;
-  if(v==="today") return [startOfLocalDay(0), null];
-  if(v==="yesterday") return [startOfLocalDay(1), startOfLocalDay(0)];
-  return [startOfLocalDay(+v - 1), null];
+  const fromValue = $("#rangeFrom").value, toValue = $("#rangeTo").value;
+  if(!fromValue || !toValue || fromValue > toValue) return null;
+  const from = new Date(fromValue + "T00:00:00+08:00");
+  const to = new Date(toValue + "T00:00:00+08:00");
+  to.setUTCDate(to.getUTCDate() + 1);
+  return [from, to];
 }
 async function load(){
-  const [from, to] = rangeBounds();
+  const bounds = rangeBounds();
+  if(!bounds){ orders = []; render(); toast("Choose a valid start and end date."); return false; }
+  const [from, to] = bounds;
   let q = sb.from("orders").select("*").gte("created_at", from.toISOString()).order("created_at", {ascending:false}).limit(1000);
-  if(to) q = q.lt("created_at", to.toISOString());
+  q = q.lt("created_at", to.toISOString());
   const { data, error } = await q;
-  if(error){ toast("Couldn't load orders: " + error.message); return; }
-  orders = data; render();
+  if(error){ toast("Couldn't load orders: " + error.message); return false; }
+  orders = data; render(); return true;
 }
-function inRange(o){ const [from,to] = rangeBounds(); const t = new Date(o.created_at); return t >= from && (!to || t < to); }
+function inRange(o){
+  const bounds = rangeBounds();
+  if(!bounds) return false;
+  const [from,to] = bounds, t = new Date(o.created_at);
+  return t >= from && t < to;
+}
 function subscribe(){
   if(channel) sb.removeChannel(channel);
   channel = sb.channel("orders-live")
@@ -465,7 +499,7 @@ async function updateOrder(id, patch, msg){
 let flashId = null;
 function filtered(){
   const b = $("#branchF").value, q = $("#q").value.trim().toLowerCase();
-  return orders.filter(o => !o.deleted_at && !isPendingGcash(o) && matchesOrderFilters(o, b, q));
+  return orders.filter(o => inRange(o) && !o.deleted_at && !isPendingGcash(o) && matchesOrderFilters(o, b, q));
 }
 function matchesOrderFilters(o, b, q){
   return (!b || o.branch === b) &&
@@ -879,7 +913,7 @@ $("#orderEditForm").addEventListener("submit", async event => {
     const index = orders.findIndex(item => item.id === data.id);
     if(index >= 0) orders[index] = data;
     else orders.unshift(data);
-    if(!isUpdate) $("#range").value = "today";
+    if(!isUpdate) setDateRangeToToday();
     selId = data.id;
     tab = "all";
     $("#orderEditDialog").close();
@@ -971,8 +1005,94 @@ $("#tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); 
 $("#list").addEventListener("click", e => { const b = e.target.closest(".order"); if(b){ selId = b.dataset.id; render(); } });
 $("#q").addEventListener("input", render);
 $("#branchF").addEventListener("change", e => { ls.set("ak_branch", e.target.value); render(); });
-$("#range").addEventListener("change", load);
-$("#refresh").onclick = () => load().then(() => toast("Up to date"));
+function setDateRangeToToday(){
+  const today = ymdLocal(new Date());
+  $("#rangeFrom").value = today;
+  $("#rangeTo").value = today;
+  const date = new Date(today + "T00:00:00Z");
+  calendarYear = date.getUTCFullYear();
+  calendarMonth = date.getUTCMonth();
+  updateDateRangeButton();
+  renderCalendar();
+}
+let calendarYear, calendarMonth, pendingRangeStart = null;
+function formatCalendarDate(value){
+  return new Intl.DateTimeFormat("en-PH", {timeZone:"UTC", month:"short", day:"numeric", year:"numeric"})
+    .format(new Date(value + "T00:00:00Z"));
+}
+function updateDateRangeButton(){
+  $("#dateRangeBtn").textContent = `${formatCalendarDate($("#rangeFrom").value)} – ${formatCalendarDate($("#rangeTo").value)} ▾`;
+}
+function renderCalendar(){
+  if(!Number.isInteger(calendarYear) || !Number.isInteger(calendarMonth)) return;
+  const monthDate = new Date(Date.UTC(calendarYear, calendarMonth, 1));
+  $("#calendarMonth").textContent = new Intl.DateTimeFormat("en-PH", {timeZone:"UTC", month:"long", year:"numeric"}).format(monthDate);
+  const firstWeekday = monthDate.getUTCDay();
+  const daysInMonth = new Date(Date.UTC(calendarYear, calendarMonth + 1, 0)).getUTCDate();
+  const start = pendingRangeStart || $("#rangeFrom").value;
+  const end = pendingRangeStart ? pendingRangeStart : $("#rangeTo").value;
+  const days = [];
+  for(let i = 0; i < 42; i++){
+    const day = i - firstWeekday + 1;
+    if(day < 1 || day > daysInMonth){ days.push('<span class="calendar-empty" aria-hidden="true"></span>'); continue; }
+    const value = `${calendarYear}-${String(calendarMonth + 1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const selected = value === start || value === end;
+    const inRange = value > start && value < end;
+    const classes = ["calendar-day", selected ? "selected" : "", inRange ? "in-range" : "",
+      value === start && value !== end ? "range-start" : "", value === end && value !== start ? "range-end" : ""].filter(Boolean).join(" ");
+    days.push(`<button class="${classes}" type="button" role="gridcell" data-date="${value}" aria-label="${formatCalendarDate(value)}"${selected ? ' aria-pressed="true"' : ""}>${day}</button>`);
+  }
+  $("#calendarDays").innerHTML = days.join("");
+  $("#calendarInstruction").textContent = pendingRangeStart ? `Start: ${formatCalendarDate(pendingRangeStart)}. Choose an end date.` : "Choose a start date, then an end date.";
+}
+function chooseCalendarDate(value){
+  if(!pendingRangeStart){
+    pendingRangeStart = value;
+    renderCalendar();
+    return;
+  }
+  const from = value < pendingRangeStart ? value : pendingRangeStart;
+  const to = value < pendingRangeStart ? pendingRangeStart : value;
+  $("#rangeFrom").value = from;
+  $("#rangeTo").value = to;
+  pendingRangeStart = null;
+  updateDateRangeButton();
+  renderCalendar();
+  $("#dateRangeCalendar").hidden = true;
+  $("#dateRangeBtn").setAttribute("aria-expanded", "false");
+  load();
+}
+$("#dateRangeBtn").addEventListener("click", () => {
+  const calendar = $("#dateRangeCalendar");
+  calendar.hidden = !calendar.hidden;
+  $("#dateRangeBtn").setAttribute("aria-expanded", String(!calendar.hidden));
+});
+$("#calendarPrev").addEventListener("click", () => {
+  const date = new Date(Date.UTC(calendarYear, calendarMonth - 1, 1));
+  calendarYear = date.getUTCFullYear(); calendarMonth = date.getUTCMonth(); renderCalendar();
+});
+$("#calendarNext").addEventListener("click", () => {
+  const date = new Date(Date.UTC(calendarYear, calendarMonth + 1, 1));
+  calendarYear = date.getUTCFullYear(); calendarMonth = date.getUTCMonth(); renderCalendar();
+});
+$("#calendarDays").addEventListener("click", event => {
+  const day = event.target.closest(".calendar-day");
+  if(day) chooseCalendarDate(day.dataset.date);
+});
+document.addEventListener("click", event => {
+  if(!event.target.closest(".date-range")){
+    $("#dateRangeCalendar").hidden = true;
+    $("#dateRangeBtn").setAttribute("aria-expanded", "false");
+  }
+});
+$("#dateRangeBtn").addEventListener("keydown", event => {
+  if(event.key === "Escape"){
+    $("#dateRangeCalendar").hidden = true;
+    $("#dateRangeBtn").setAttribute("aria-expanded", "false");
+  }
+});
+setDateRangeToToday();
+$("#refresh").onclick = async () => { if(await load()) toast("Up to date"); };
 document.addEventListener("keydown", e => { if(e.key === "Escape" && $("#detail").classList.contains("open")){ selId = null; render(); } });
 setInterval(() => { if(!$("#appView").hidden && !document.activeElement?.closest?.(".detail")) render(); }, 30000); // refresh "x min ago"
 
@@ -989,7 +1109,7 @@ $("#csv").onclick = () => {
     o.paid_at ? fmtFull.format(new Date(o.paid_at)).replace(",", "") : "", o.channel, o.notes, o.staff_notes].map(q).join(","));
   const blob = new Blob(["﻿" + [head.join(","), ...lines].join("\r\n")], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = `arbab-kebab-orders-${$("#range").value}-${ymdLocal(new Date())}.csv`; a.click();
+  a.download = `arbab-kebab-orders-${$("#rangeFrom").value}-to-${$("#rangeTo").value}.csv`; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 
