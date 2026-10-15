@@ -1354,9 +1354,7 @@ async function placeOrder(){
       pin: placedMode === "Delivery" && pin ? {lat: pin.lat, lng: pin.lng} : null,
       items: placedItems, subtotal: placedSubtotal, payment});
     $("#doneRef").textContent = placedRef;
-    $("#doneStatus").className = "done-status ok";
-    $("#doneStatus").textContent = "Your order has been received.";
-    $("#doneHow").textContent = "Cash will be collected on delivery or pickup.";
+    $("#doneHow").textContent = `Cash will be collected on ${placedMode === "Delivery" ? "delivery" : "pickup"}.`;
     document.querySelector(".d-body").hidden = true;
     $("#dFoot").hidden = true;
     $("#done").hidden = false;
@@ -1402,7 +1400,7 @@ function setupChat(d){
       const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
       try{ document.execCommand("copy"); }catch(err){}
     }
-    btn.textContent = "✓ Copied! Now open Messenger and paste"; btn.classList.add("done");
+    btn.textContent = "✓ Copied! Now tap Send and paste"; btn.classList.add("done");
   };
   const copy = async () => { try{ await navigator.clipboard.writeText(text); }catch(e){} };
   const m = $("#chatMessenger"), ig = $("#chatInstagram");
