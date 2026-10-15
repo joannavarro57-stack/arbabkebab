@@ -690,7 +690,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
   <div class="done" id="done" hidden>
     <div class="done-icon" aria-hidden="true">✓</div>
     <h3>Order Summary</h3>
-    <p class="done-ref">Order ref <b id="doneRef"></b></p>
+    <p class="done-ref">Order no. <b id="doneRef"></b></p>
     <p id="doneHow"></p>
     <div class="chat-box" id="doneChat">
       <p class="chat-title">Send this message to Arbab Kebab <span></span></p>
@@ -1353,7 +1353,7 @@ async function placeOrder(){
       address: placedMode === "Delivery" ? $("#ad").value.trim() : "", notes: $("#nt").value.trim(),
       pin: placedMode === "Delivery" && pin ? {lat: pin.lat, lng: pin.lng} : null,
       items: placedItems, subtotal: placedSubtotal, payment});
-    $("#doneRef").textContent = placedRef;
+    $("#doneRef").textContent = res.order_no ? "#" + res.order_no : placedRef;
     $("#doneHow").textContent = `Cash will be collected on ${placedMode === "Delivery" ? "delivery" : "pickup"}.`;
     document.querySelector(".d-body").hidden = true;
     $("#dFoot").hidden = true;
