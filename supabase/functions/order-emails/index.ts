@@ -4,10 +4,15 @@
 // with {"order_id": "..."} when an order with an email is placed, and again when
 // it is marked completed. The function reads the order itself, decides which
 // email is due, records email_*_sent_at so each email goes out at most once,
-// and sends it through whichever provider has a key set:
+// and sends it through whichever provider is configured (first match wins):
 //
-//   RESEND_API_KEY   Resend (needs your own domain)   https://resend.com
-//   BREVO_API_KEY    Brevo (can send from a Gmail)    https://www.brevo.com
+//   RESEND_API_KEY      Resend (needs your own domain)   https://resend.com
+//   BREVO_API_KEY       Brevo                            https://www.brevo.com
+//   GMAIL_APP_PASSWORD  Gmail SMTP from GMAIL_USER (default arbabkebab.admin@gmail.com),
+//                       using a Google "app password" (needs 2-Step Verification on)
+//
+// POST {"test": true} sends a sample email to the shop's own inbox only (GMAIL_USER /
+// EMAIL_REPLY_TO), to check the setup without placing an order.
 //
 // Optional secrets:
 //   EMAIL_FROM       e.g. "Arbab Kebab <orders@arbabkebab.com>"
@@ -19,6 +24,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const BREVO_KEY = Deno.env.get("BREVO_API_KEY") || "";
+const GMAIL_USER = Deno.env.get("GMAIL_USER") || "arbabkebab.admin@gmail.com";
+const GMAIL_PASS = (Deno.env.get("GMAIL_APP_PASSWORD") || "").replace(/\s+/g, "");
 const FROM = Deno.env.get("EMAIL_FROM") || "Arbab Kebab <arbabkebab.admin@gmail.com>";
 const REPLY_TO = Deno.env.get("EMAIL_REPLY_TO") || "arbabkebab.admin@gmail.com";
 const SITE_URL = (Deno.env.get("SITE_URL") || "https://arbabkebab.vercel.app").replace(/\/$/, "");
@@ -170,7 +177,28 @@ function parseFrom(from: string) {
   return m ? { name: m[1] || "Arbab Kebab", email: m[2] } : { name: "Arbab Kebab", email: from.trim() };
 }
 
+let gmailTransport: any = null;
+let lastTestAt = 0;
+async function sendGmail(to: string, toName: string, msg: { subject: string; text: string; html: string }) {
+  if (!gmailTransport) {
+    const nodemailer = (await import("npm:nodemailer@6.9.16")).default;
+    // Port 465 (implicit TLS): Supabase Edge Functions block outbound 25 and 587.
+    gmailTransport = nodemailer.createTransport({
+      host: "smtp.gmail.com", port: 465, secure: true,
+      auth: { user: GMAIL_USER, pass: GMAIL_PASS },
+    });
+  }
+  const sender = parseFrom(FROM);
+  await gmailTransport.sendMail({
+    from: { name: sender.name, address: GMAIL_USER },   // Gmail only sends as the signed-in account
+    to: { name: toName, address: to }, replyTo: REPLY_TO,
+    subject: msg.subject, text: msg.text, html: msg.html,
+  });
+  return "gmail";
+}
+
 async function send(to: string, toName: string, msg: { subject: string; text: string; html: string }) {
+  if (!RESEND_KEY && !BREVO_KEY && GMAIL_PASS) return await sendGmail(to, toName, msg);
   if (RESEND_KEY) {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -195,9 +223,36 @@ async function send(to: string, toName: string, msg: { subject: string; text: st
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-  const { order_id } = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => ({}));
+  const configured = Boolean(RESEND_KEY || BREVO_KEY || GMAIL_PASS);
+
+  // Setup check: sample email to the shop's own inbox only (never to a customer).
+  if (body && body.test === true) {
+    if (!configured) return json({ error: "no email provider configured" }, 400);
+    if (Date.now() - lastTestAt < 60_000) return json({ error: "test already sent, try again in a minute" }, 429);
+    lastTestAt = Date.now();
+    const inbox = GMAIL_PASS && !RESEND_KEY && !BREVO_KEY ? GMAIL_USER : REPLY_TO;
+    const sample = {
+      id: "test", ref: "AK-TEST01", order_no: 0, status: "new", mode: "Delivery", branch: "Malolos",
+      customer_name: "Arbab Kebab Test", customer_phone: "09170000000", customer_email: inbox,
+      address: "Sample address, Malolos", delivery_lat: 14.8433, delivery_lng: 120.8114,
+      order_date: new Date().toISOString().slice(0, 10), preferred_time: "6:00 PM", payment: "Cash on Delivery",
+      notes: "This is a test email from the order system.", items: [{ name: "Chicken Shawarma Wrap", opts: ["Spicy"], qty: 2, unit: 129 }],
+      subtotal: 258, delivery_fee: 0, total: 258, payment_status: "unpaid", deleted_at: null,
+      email_placed_sent_at: null, email_completed_sent_at: null,
+    } as Order;
+    try {
+      const provider = await send(inbox, "Arbab Kebab", buildEmail(sample, "placed"));
+      return json({ ok: true, test: true, provider, sent_to: inbox });
+    } catch (e) {
+      console.error(e);
+      return json({ error: String(e) }, 502);
+    }
+  }
+
+  const { order_id } = body || {};
   if (typeof order_id !== "string" || !/^[0-9a-f-]{36}$/i.test(order_id)) return json({ error: "invalid order_id" }, 400);
-  if (!RESEND_KEY && !BREVO_KEY) return json({ skipped: "no email provider configured" });
+  if (!configured) return json({ skipped: "no email provider configured" });
 
   try {
     const o = await getOrder(order_id);
