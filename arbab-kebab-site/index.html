@@ -1006,11 +1006,36 @@ const cleanAddress = t => String(t || "").split(", ")
 function getMapView(){ try{ return localStorage.getItem("ak_map_view") === "Street map" ? "Street map" : "Satellite"; }catch(e){ return "Satellite"; } }
 function saveMapView(v){ try{ localStorage.setItem("ak_map_view", v); }catch(e){} }
 
+/* nearest branch to a point (straight-line distance), using the branch locations in config.js */
+function kmBetween(a, b){
+  const R = 6371, rad = x => x * Math.PI / 180;
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function nearestBranch(p){
+  let best = null;
+  BRANCHES.forEach(b => {
+    if(!isFinite(b.lat) || !isFinite(b.lng) || b.lat === "" || b.lng === "") return;
+    const km = kmBetween(p, {lat: +b.lat, lng: +b.lng});
+    if(!best || km < best.km) best = {name: b.name, km};
+  });
+  return best;
+}
+let branchNote = "";
+function pickNearestBranch(p){   // set the Branch dropdown to the closest branch (without moving the map)
+  const best = nearestBranch(p);
+  if(!best) return (branchNote = "");
+  if($("#branch").value !== best.name) $("#branch").value = best.name;
+  return (branchNote = ` Nearest branch: ${best.name} (${best.km < 10 ? best.km.toFixed(1) : Math.round(best.km)} km).`);
+}
+
 function setPin(lat, lng, fromUser){
   pin = {lat: +lat.toFixed(6), lng: +lng.toFixed(6)};
   if(pinMap) pinMap.setMarker(pin.lat, pin.lng);
   $("#pinMap").classList.remove("need");
-  setPinStatus("✓ Location pinned. Drag the pin if it isn't exactly right.", true);
+  if(fromUser) pickNearestBranch(pin);
+  setPinStatus("✓ Location pinned." + (fromUser ? branchNote : "") + " Drag the pin if it isn't exactly right.", true);
   rememberDetails();
   if(fromUser) suggestAddress(pin);
 }
@@ -1205,7 +1230,7 @@ async function searchPlace(){
         const pos = x.resolve ? await x.resolve() : {lat: x.lat, lng: x.lng};
         m.setView(pos.lat, pos.lng, 18);
         setPin(pos.lat, pos.lng, true);
-        setPinStatus("✓ Pin placed near your search. Drag it to your exact gate or door.", true);
+        setPinStatus("✓ Pin placed near your search." + branchNote + " Drag it to your exact gate or door.", true);
       }catch(e){ setPinStatus("We couldn't open that place — try another result or tap the map."); }
     });
   }catch(e){
