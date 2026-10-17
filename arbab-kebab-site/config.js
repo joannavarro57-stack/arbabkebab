@@ -21,8 +21,14 @@ window.SITE_CONFIG = {
      The admin site reads this list too, so new branches appear there automatically. */
   branches: [
     { name: "Malolos", lat: 14.8433, lng: 120.8114, address: "", hours: "" },
+    { name: "C6 Banaba", lat: 14.67685030707215, lng: 121.11544909999999, address: "", hours: "" },
+    { name: "Makati", lat: 14.563169874749514, lng: 121.0130246153436, address: "", hours: "" },
+    { name: "Fairview", lat: 14.71143651904663, lng: 121.06178288412517, address: "", hours: "" },
+    { name: "Pasig", lat: 14.554163592535158, lng: 121.09678732454763, address: "", hours: "" },
+    { name: "Diliman", lat: 14.631154670911398, lng: 121.03891623619046, address: "", hours: "" }, 
+    { name: "Marikina", lat: 14.638209287629184, lng: 121.10864875741734, address: "", hours: "" },
     // example: { name: "New Branch", lat: 14.0000, lng: 121.0000, address: "Street, Barangay, City", hours: "10 AM – 9 PM" },
-  ],
+  ],//14.638209287629184, 121.10864875741734
 
   /* Chat buttons shown after an order is placed (index.html and pay.html).
      instagram: the account's username without @, e.g. "arbabkebab". Leave "" to hide the button. */
