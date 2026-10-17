@@ -182,12 +182,12 @@ function wireChat(o){
 }
 
 /* Shown right after the GCash proof is sent — mirrors the Order Summary for cash orders. */
-function submittedScreen(o, withRef){
+function submittedScreen(o){
   $("#main").innerHTML = `<div class="card state">
     <div class="icon ok" aria-hidden="true">✓</div>
     <h2>Payment submitted!</h2>
     <p class="done-ref">Order no. <b>#${esc(o.order_no)}</b></p>
-    <p>Salamat! ${withRef ? "Your screenshot and reference number have" : "Your screenshot has"} been sent. We'll verify your payment shortly.${o.mode === "Delivery" ? " The delivery fee is settled separately." : ""}</p>
+    <p>Salamat! Your screenshot has been sent. We'll verify your payment shortly.${o.mode === "Delivery" ? " The delivery fee is settled separately." : ""}</p>
     ${chatBoxHtml()}
     <div class="links">${detailsBtn(o.ref)}${newOrderBtn}</div>
   </div>`;
@@ -208,7 +208,6 @@ function summary(o){
 
 function renderPay(o){
   setTimeout(() => { if(o.payment_status === "submitted") loadPaidScreenshot(o.payment_screenshot_path); }, 0);
-  const amount = String(Number(o.subtotal));
   const resubmit = o.payment_status === "submitted";
   $("#main").innerHTML = `
     <h1>${resubmit ? "Payment submitted ✓" : "Pay with GCash"}</h1>
@@ -226,17 +225,10 @@ function renderPay(o){
           <p class="hint">On this phone? Save the QR, then in GCash tap <b>Scan QR → Upload QR</b> and pick the saved image.</p>
         </div>` : ""}
       ${G.number ? `<div class="row"><div><div class="k">Or Send Money to</div><div class="val">${esc(G.number)}</div>${G.accountName ? `<div class="k">${esc(G.accountName)}</div>` : ""}</div><button class="btn sm" data-copy="${esc(G.number.replace(/\s/g,""))}" data-label="Number">Copy</button></div>` : ""}
-      <div class="row"><div><div class="k">Exact food subtotal</div><div class="val">${peso(o.subtotal)}</div></div><button class="btn sm" data-copy="${esc(amount)}" data-label="Amount">Copy</button></div>
-      <div class="row"><div><div class="k">Add this in the message / note</div><div class="val">Order #${esc(o.order_no)}</div></div><button class="btn sm" data-copy="Order #${esc(o.order_no)}" data-label="Order number">Copy</button></div>
     </div>
     <div class="card">
-      <div class="step"><b>2</b><h2>Enter your GCash reference no.</h2></div>
-      <p class="hint" style="margin-top:0">It's on your GCash receipt after paying (“Ref No.”, 13 digits).</p>
+      <div class="step"><b>2</b><h2>Upload your GCash receipt</h2></div>
       <form id="f" novalidate>
-        <label for="gref">Reference number <span style="font-weight:400;color:var(--muted)"></span></label>
-        <input id="gref" inputmode="numeric" autocomplete="off" placeholder="e.g. 5012 345 678901">
-        <label for="gname">Name on your GCash account <span style="font-weight:400;color:var(--muted)"></span></label>
-        <input id="gname" autocomplete="name" placeholder="e.g. Juan D.">
         <label for="proof">GCash payment screenshot<span style="font-weight:400;color:var(--muted)"> *required </span></label>
         <input id="proof" type="file" accept="image/jpeg,image/png,image/webp" required>
         <p class="hint">Upload a screenshot of your successful payment (JPG, PNG, or WebP; up to 5 MB).</p>
@@ -250,8 +242,6 @@ function renderPay(o){
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copy(b.dataset.copy, b.dataset.label));
   $("#f").onsubmit = async e => {
     e.preventDefault();
-    const g = $("#gref").value.replace(/\D/g, "");
-    if(g && (g.length < 10 || g.length > 20)){ $("#err").textContent = "Please enter the reference number from your GCash receipt (numbers only)."; return; }
     const file = $("#proof").files[0];
     const extensions = {"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
     if(!file){ $("#err").textContent = "Please upload your GCash payment screenshot."; return; }
@@ -271,8 +261,8 @@ function renderPay(o){
         const details = await upload.json().catch(() => null);
         throw new Error((details && (details.message || details.error)) || "Couldn't upload your screenshot. Please try again.");
       }
-      await rpc("submit_payment", {p_ref: o.ref, p_gcash_ref: g, p_name: $("#gname").value.trim(), p_screenshot_path:path});
-      submittedScreen(o, Boolean(g));
+      await rpc("submit_payment", {p_ref: o.ref, p_gcash_ref: "", p_name: "", p_screenshot_path:path});
+      submittedScreen(o);
     }catch(err){
       $("#err").textContent = err.message; $("#sub").disabled = false; $("#sub").textContent = "Send Order to Store";
     }
