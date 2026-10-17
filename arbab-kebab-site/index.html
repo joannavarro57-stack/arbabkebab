@@ -980,6 +980,7 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeCart(); clo
 /* form: remember details, toggle address */
 const saved = store.get("ak_details") || {};
 ["nm","ph","ad"].forEach(id=>{ if(saved[id]) $("#"+id).value = saved[id]; });
+if(saved.br && BRANCHES.some(b => b.name === saved.br)) $("#branch").value = saved.br;   // last branch used
 /* ================= DELIVERY PIN MAP =================
    Google Maps when googleMapsKey is set in config.js; otherwise (or if Google fails
    to load) the free Leaflet + OpenStreetMap / Esri satellite map. Both share the
@@ -998,7 +999,7 @@ const GMAPS_KEY = String(new URLSearchParams(location.search).get("gmkey") || ST
 let pinMap = null, mapProvider = GMAPS_KEY ? "google" : "osm", mapStarting = null;
 let pin = saved.pin && isFinite(saved.pin.lat) && isFinite(saved.pin.lng) ? saved.pin : null;
 const mapAvailable = () => !!(GMAPS_KEY || window.L);
-function rememberDetails(){ store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, ad:$("#ad").value, pin}); }
+function rememberDetails(){ store.set("ak_details",{nm:$("#nm").value, ph:$("#ph").value, ad:$("#ad").value, br:$("#branch").value, pin}); }
 function setPinStatus(text, ok){ const el = $("#pinStatus"); el.textContent = text; el.className = "note" + (ok ? " ok" : ""); }
 const cleanAddress = t => String(t || "").split(", ")
   .map(x => x.replace(/^\d{4}\s+/, "")).filter(x => x && !/^\d{4}$/.test(x) && x !== "Philippines").join(", ");
@@ -1214,8 +1215,9 @@ async function searchPlace(){
   }
 }
 $("#pinSearchBtn").onclick = searchPlace;
-$("#branch").addEventListener("change", () => {   // no pin yet: move the map to the chosen branch
-  if(pinMap && !pin){ const h = mapHome(); pinMap.setView(h.lat, h.lng, h.zoom); }
+$("#branch").addEventListener("change", () => {   // show the area around the chosen branch
+  rememberDetails();
+  if(pinMap){ const h = mapHome(); pinMap.setView(h.lat, h.lng, h.zoom); }
 });
 $("#pinSearch").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); searchPlace(); } else if(e.key === "Escape"){ e.stopPropagation(); hideResults(); } });
 $("#pinSearch").addEventListener("input", () => { if(!$("#pinSearch").value.trim()) hideResults(); });
