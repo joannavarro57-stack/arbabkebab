@@ -76,6 +76,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 .login .btn{width:100%;margin-top:18px;padding:12px}
 .login .msg{min-height:1.2em;font-size:13px;margin-top:10px;color:var(--red)}
 .login .msg.ok{color:var(--green)}
+.login .back{display:block;text-align:center;margin-top:14px;padding:0}
 .login .link{background:none;border:0;color:var(--ember-dark);font-weight:600;padding:8px 0 0;text-decoration:underline}
 
 /* app shell */
@@ -220,6 +221,7 @@ textarea{width:100%;resize:vertical}
       <button class="btn dark" type="button" id="setPw">Save new password</button>
     </div>
     <div class="msg" id="loginMsg" role="alert"></div>
+    <a class="link back" href="https://arbabkebab.vercel.app/">← Back to catalog</a>
   </form>
 </section>
 
@@ -232,7 +234,7 @@ textarea{width:100%;resize:vertical}
       <span class="live" id="live" title="Live updates"><i></i><span id="liveTxt">connecting</span></span>
       <span class="sp"></span>
       <span class="who" id="who"></span>
-      <a class="btn sm" href="https://arbabkebab.vercel.app/" target="_blank" rel="noopener" title="Open the customer order site">🌐 Site</a>
+      <a class="btn sm" href="https://arbabkebab.vercel.app/" title="Go back to the customer catalog site">← Catalog</a>
       <button class="btn sm" id="soundBtn" aria-pressed="true">🔔 Sound on</button>
       <button class="btn sm" id="logout">Log out</button>
     </div>
