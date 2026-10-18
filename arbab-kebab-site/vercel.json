@@ -1,0 +1,5 @@
+{
+  "redirects": [
+    { "source": "/admin", "destination": "https://admin-arbabkebab.vercel.app/", "permanent": false }
+  ]
+}
