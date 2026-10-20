@@ -604,8 +604,9 @@ drop policy if exists "staff add menu"    on public.menu_items;
 drop policy if exists "staff edit menu"   on public.menu_items;
 create policy "everyone reads visible menu" on public.menu_items for select to anon, authenticated using (not hidden and not archived);
 create policy "staff read menu" on public.menu_items for select to authenticated using (public.is_staff());
-create policy "staff add menu"  on public.menu_items for insert to authenticated with check (public.is_staff());
-create policy "staff edit menu" on public.menu_items for update to authenticated using (public.is_staff()) with check (public.is_staff());
+-- only owners (staff.is_admin) add or edit the menu
+create policy "staff add menu"  on public.menu_items for insert to authenticated with check (public.is_staff_admin());
+create policy "staff edit menu" on public.menu_items for update to authenticated using (public.is_staff_admin()) with check (public.is_staff_admin());
 grant select on public.menu_items to anon, authenticated;
 grant insert, update on public.menu_items to authenticated;
 
@@ -655,9 +656,9 @@ on conflict (id) do update
 drop policy if exists "staff upload menu images" on storage.objects;
 drop policy if exists "staff update menu images" on storage.objects;
 create policy "staff upload menu images" on storage.objects for insert to authenticated
-  with check (bucket_id = 'menu-images' and public.is_staff());
+  with check (bucket_id = 'menu-images' and public.is_staff_admin());
 create policy "staff update menu images" on storage.objects for update to authenticated
-  using (bucket_id = 'menu-images' and public.is_staff());
+  using (bucket_id = 'menu-images' and public.is_staff_admin());
 
 -- ---------- live updates for the admin site ----------
 do $$

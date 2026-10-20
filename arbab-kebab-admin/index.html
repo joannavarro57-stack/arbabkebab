@@ -275,12 +275,13 @@ textarea{width:100%;resize:vertical}
   <header class="top">
     <div class="in">
       <span class="mark">AK</span>
-      <nav class="views" aria-label="Admin sections"><button type="button" class="on" data-view="orders" aria-pressed="true">Orders</button><button type="button" data-view="menu" aria-pressed="false">Menu</button></nav>
+      <nav class="views" aria-label="Admin sections"><button type="button" class="on" data-view="orders" aria-pressed="true">Orders</button><button type="button" data-view="menu" aria-pressed="false" id="menuTab">Menu</button></nav>
       <span class="live" id="live" title="Live updates"><i></i><span id="liveTxt">connecting</span></span>
       <span class="sp"></span>
       <span class="who" id="who"></span>
       <a class="btn sm" href="https://arbabkebab.vercel.app/" title="Go back to the customer catalog site">← Catalog</a>
       <button class="btn sm" id="soundBtn" aria-pressed="true">🔔 Sound on</button>
+      <button class="btn sm" id="usersLink" type="button" title="See everyone who can log in to this admin site">👥 Users</button>
       <button class="btn sm" id="logout">Log out</button>
     </div>
   </header>
@@ -307,7 +308,6 @@ textarea{width:100%;resize:vertical}
       <button class="btn" id="refresh" title="Reload">↻ Refresh</button>
       <button class="btn ember" id="addOrder">＋ Add order</button>
       <button class="btn" id="csv">⬇ Export CSV</button>
-      <button class="btn" id="usersLink" type="button" title="See and manage everyone who can log in to this admin site">👥 Users</button>
     </div>
 
     <div class="kpis" id="kpis"></div>
@@ -339,7 +339,7 @@ textarea{width:100%;resize:vertical}
       <button class="btn" id="usersRefresh" title="Reload">↻ Refresh</button>
       <button class="btn ember" id="addUser" hidden>＋ Add user</button>
     </div>
-    <p class="hint" id="usersHint" style="margin:0 0 12px">Everyone here can log in to this admin site, see orders and edit the menu. Owners can also add, remove and reset passwords for users.</p>
+    <p class="hint" id="usersHint" style="margin:0 0 12px">Everyone here can log in to this admin site and see orders. Owners can also edit the menu and add, remove and reset passwords for users.</p>
     <div class="users-list" id="usersList"><div class="empty">Loading users…</div></div>
   </div>
 </div>
@@ -514,7 +514,7 @@ const payLink = o => CONFIG.orderSiteUrl.replace(/\/$/, "") + "/pay.html?ref=" +
 const pill = s => `<span class="pill" style="background:${STATUS[s]?.color||"#777"}">${esc(STATUS[s]?.label||s)}</span>`;
 
 /* ================= STATE ================= */
-let sb = null, orders = [], selId = null, tab = "open", channel = null, pollTimer = null, staffEmail = "", editingOrderId = null;
+let isOwner = false, sb = null, orders = [], selId = null, tab = "open", channel = null, pollTimer = null, staffEmail = "", editingOrderId = null;
 let soundOn = ls.get("ak_sound") !== "off", audioCtx = null;
 
 /* ================= AUTH ================= */
@@ -559,14 +559,17 @@ $("#logout").onclick = async () => { await sb.auth.signOut(); if(channel) sb.rem
 async function enterApp(session){
   const email = session.user.email;
   staffEmail = email;
-  const { data: me, error } = await sb.from("staff").select("email,name").ilike("email", email).maybeSingle();
+  const { data: me, error } = await sb.from("staff").select("email,name,is_admin").ilike("email", email).maybeSingle();
   if(error || !me){ await sb.auth.signOut(); return showLogin("This account isn't on the staff list. Ask the owner to add your email."); }
   $("#who").textContent = me.name ? `${me.name} · ${email}` : email;
   $("#loginView").hidden = true; $("#appView").hidden = false;
   $("#branchF").innerHTML = `<option value="">All branches</option>` + CONFIG.branches.map(b=>`<option>${esc(b)}</option>`).join("");
   const sb_ = ls.get("ak_branch"); if(sb_ !== null) $("#branchF").value = sb_;
   setSoundBtn();
-  showView(["menu","users"].includes(ls.get("ak_view")) ? ls.get("ak_view") : "orders");
+  // only owners edit the menu (the database enforces this too)
+  isOwner = !!me.is_admin; $("#menuTab").hidden = !isOwner;
+  const v = ls.get("ak_view");
+  showView(v === "users" || (v === "menu" && isOwner) ? v : "orders");
   loadMenu();
   await load();
   subscribe();
@@ -1489,8 +1492,8 @@ async function loadUsers(){
 function renderUsers(){
   $("#addUser").hidden = !usersIsAdmin;
   $("#usersHint").textContent = usersIsAdmin
-    ? "Everyone here can log in to this admin site, see orders and edit the menu. As an owner you can add users, reset passwords and remove access."
-    : "Everyone here can log in to this admin site. Only owners can add or remove users.";
+    ? "Everyone here can log in to this admin site and see orders. Owners can also edit the menu. As an owner you can add users, reset passwords and remove access."
+    : "Everyone here can log in to this admin site. Only owners can edit the menu or add and remove users.";
   const rows = [...siteUsers].sort((a,b) => (a.disabled - b.disabled) || (b.is_admin - a.is_admin) || a.email.localeCompare(b.email));
   $("#usersList").innerHTML = rows.length ? rows.map(u => {
     const me = u.email.toLowerCase() === usersMe;
