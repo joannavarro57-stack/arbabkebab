@@ -84,16 +84,16 @@ input[type=file]{font-size:14px}
 .skeleton{height:120px;border-radius:18px;background:linear-gradient(90deg,#f3ead7,#fbf4e4,#f3ead7);background-size:200% 100%;animation:sh 1.2s infinite}
 @keyframes sh{to{background-position:-200% 0}}
 .credit-foot{text-align:center;padding:0 16px 28px}
-.credit{display:inline-block;margin-top:14px;padding:5px 9px;border-radius:8px;opacity:.45;transition:opacity .2s;line-height:0}
+.credit{display:inline-flex;align-items:center;gap:8px;margin-top:14px;opacity:.5;transition:opacity .2s;text-decoration:none;color:var(--muted);font-size:11px;letter-spacing:.04em}
 .credit:hover,.credit:focus-visible{opacity:.9}
-.credit img{height:30px;width:auto;display:block}
+.credit img{height:30px;width:auto;display:block;box-sizing:content-box;}
 </style>
 </head>
 <body>
 <header class="top"><div class="in"><span class="mark" aria-hidden="true">AK</span><a href="./">Arbab Kebab</a></div></header>
 
 <main id="main"><div class="skeleton" aria-label="Loading"></div></main>
-<footer class="credit-foot"><a class="credit" href="https://breadywebstudio.vercel.app/" target="_blank" rel="noopener" title="Website by Bready Web Studios"><img src="images/bready-logo.png" alt="Website by Bready Web Studios" width="25" height="30"></a></footer>
+<footer class="credit-foot"><a class="credit" href="https://breadywebstudio.vercel.app/" target="_blank" rel="noopener" title="Website by Bready Web Studios"><span>Powered by</span><img src="images/bready-logo.png" alt="Bready Web Studios" width="25" height="30"></a></footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="config.js"></script>
