@@ -19,6 +19,10 @@ create table if not exists public.staff (
   name       text,
   created_at timestamptz not null default now()
 );
+-- is_admin: can add/remove users and reset passwords (admin site → Orders → 👥 Users,
+-- through the edge function staff-users). disabled: "Removed" — login blocked, row kept.
+alter table public.staff add column if not exists is_admin boolean not null default false;
+alter table public.staff add column if not exists disabled boolean not null default false;
 
 -- ---------- orders ----------
 create sequence if not exists public.order_no_seq start 1001;
@@ -128,7 +132,15 @@ create or replace function public.is_staff() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from public.staff
-    where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and not disabled
+  );
+$$;
+
+create or replace function public.is_staff_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.staff
+    where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')) and not disabled and is_admin
   );
 $$;
 
@@ -525,6 +537,8 @@ grant execute on function public.submit_payment(text, text, text, text) to anon,
 
 revoke all on function public.is_staff() from public;
 grant execute on function public.is_staff() to authenticated;
+revoke all on function public.is_staff_admin() from public;
+grant execute on function public.is_staff_admin() to authenticated;
 
 -- ---------- automatic customer emails ----------
 -- When an order with an email is placed, or later marked completed, ask the
@@ -656,6 +670,8 @@ end $$;
 
 -- ---------- add your staff (edit the emails, then run) ----------
 -- Each person also needs a login: Authentication → Users → Add user (same email).
-insert into public.staff (email, name) values
-  ('owner@example.com', 'Owner')
+-- After the first admin exists, add everyone else from the admin site (Orders → 👥 Users).
+-- That page needs the edge function supabase/functions/staff-users deployed with JWT verification off.
+insert into public.staff (email, name, is_admin) values
+  ('owner@example.com', 'Owner', true)
 on conflict (email) do nothing;
