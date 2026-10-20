@@ -623,7 +623,12 @@ insert into public.menu_items (id, cat, name, description, price, tag, img, opti
   ('Hms', 'AddOns', 'Hummus', '', 150, null, 'images/Hms.png', '[]', 240),
   ('Kbs_Rice', 'AddOns', 'Kabsa Rice', '', 170, null, 'images/Kabsa_Rice.png', '[]', 250),
   ('Wtr', 'Drinks', 'Water', '', 35, null, null, '[]', 260),
-  ('Sfd', 'Drinks', 'Soda', '', 50, null, null, '[]', 270)
+  ('Sfd', 'Drinks', 'Soda', '', 50, null, null, '[]', 270),
+  ('S1', 'Sauces', 'Pickles', '', 30, null, 'images/pickles.png', '[]', 280),
+  ('S2', 'Sauces', 'BBQ Sauce', '', 30, null, 'images/bbq.png', '[]', 290),
+  ('S3', 'Sauces', 'Raita', 'yogurt salad', 30, null, 'images/raita.png', '[]', 300),
+  ('S4', 'Sauces', 'Garlic Paste', '', 80, null, 'images/gpaste.png', '[]', 310),
+  ('S5', 'Sauces', 'Tomato Chutney', '', 30, null, 'images/chutney.png', '[]', 320)
 on conflict (id) do nothing;
 
 -- Public bucket for menu photos uploaded from the admin site (staff only can upload).
