@@ -8,6 +8,7 @@
 //   remove   {email}                       admins only: blocks the login, keeps all data
 //   restore  {email}                       admins only
 //   set_admin {email, is_admin}            admins only
+//   update   {email, new_email, name}      admins only: change name and/or login email
 //
 // Uses the service role key that Supabase provides to every edge function;
 // it never leaves the server. Deploy with JWT verification off (the function
@@ -127,6 +128,28 @@ Deno.serve(async (req) => {
       const { error } = await admin.from("staff").update({ disabled: off }).eq("email", row.email);
       if (error) throw error;
       return reply({ ok: true });
+    }
+    if (action === "update") {
+      const newEmail = String(body.new_email || email).trim().toLowerCase();
+      const name = String(body.name || "").trim().slice(0, 80) || null;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) return fail("Enter a valid email.");
+      if (newEmail !== row.email.toLowerCase()) {
+        const { data: taken } = await admin.from("staff").select("email").ilike("email", like(newEmail)).maybeSingle();
+        if (taken || (await findUser(newEmail))) return fail("Another user already has that email.");
+        if (user) {
+          const { error } = await admin.auth.admin.updateUserById(user.id, { email: newEmail, email_confirm: true });
+          if (error) throw error;
+        }
+        const { error } = await admin.from("staff").update({ email: newEmail, name }).eq("email", row.email);
+        if (error) {
+          if (user) await admin.auth.admin.updateUserById(user.id, { email: user.email, email_confirm: true });
+          throw error;
+        }
+      } else {
+        const { error } = await admin.from("staff").update({ name }).eq("email", row.email);
+        if (error) throw error;
+      }
+      return reply({ ok: true, email: newEmail });
     }
     if (action === "set_admin") {
       const { error } = await admin.from("staff").update({ is_admin: !!body.is_admin }).eq("email", row.email);
