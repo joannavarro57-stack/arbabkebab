@@ -757,7 +757,6 @@ Object.assign(STORE, window.SITE_CONFIG || {});   // values from config.js win
    The list below is only the fallback if the database can't be reached.
    Each item: id, cat, name, desc, price, optional tag, optional img URL,
    optional options: [{label, choices:[{name, add}] }]  (add = extra peso cost)        */
-/*const SPICE = {label:"Spice level", choices:[{name:"Mild",add:0},{name:"Spicy",add:0},{name:"Extra spicy",add:0}]};*/
 const EXTRA_KABSA_RICE = {label:"Extra Kabsa Rice", choices:[{name:"No extra rice",add:0},{name:"Add Kabsa Rice",add:170}]};
 /* categories can also be set in config.js (menuCategories) — the admin Menu tab uses the same list */
 const MENU_CATS = STORE.menuCategories || [
@@ -775,12 +774,12 @@ const MENU_CATS = STORE.menuCategories || [
 //REMOVE SPICE LEVEL
 const MENU = [
   //Meal Sets
-  {id:"MS1", cat:"MealSets", name:"Shawaya Set 1", desc:"Whole chicken served with tomato chutney and garlic paste", price:375, tag:"Bestseller", options:[SPICE,EXTRA_KABSA_RICE], img:"images/Shawaya_1.png"},
-  {id:"MS2", cat:"MealSets", name:"Shawaya Set 2", desc:"Whole chicken with 2 cups of rice, served with tomato chutney and garlic paste", price:475, options:[SPICE,EXTRA_KABSA_RICE], img:"images/Shawaya_2.png"},
+  {id:"MS1", cat:"MealSets", name:"Shawaya Set 1", desc:"Whole chicken served with tomato chutney and garlic paste", price:375, tag:"Bestseller", options:[EXTRA_KABSA_RICE], img:"images/Shawaya_1.png"},
+  {id:"MS2", cat:"MealSets", name:"Shawaya Set 2", desc:"Whole chicken with 2 cups of rice, served with tomato chutney and garlic paste", price:475, options:[EXTRA_KABSA_RICE], img:"images/Shawaya_2.png"},
   {id:"MS3", cat:"MealSets", name:"Shawaya Set 3", desc:"Whole chicken with 4 pcs Arabic bread and fries platter, served with tomato chutney and garlic paste", price:595, tag:"Must try", options:[EXTRA_KABSA_RICE], img:"images/Shawaya_3.png"},
-  {id:"MS4", cat:"MealSets", name:"Shawaya Set 4", desc:"Whole chicken with 4 cups of rice and your choice of salad, served with tomato chutney and garlic paste.", price:695, options:[SPICE,EXTRA_KABSA_RICE,{label:"Salad",choices:[{name:"Fattoush",add:0},{name:"Tabbouleh",add:0}]}], img:"images/Shawaya_4.png"},
+  {id:"MS4", cat:"MealSets", name:"Shawaya Set 4", desc:"Whole chicken with 4 cups of rice and your choice of salad, served with tomato chutney and garlic paste.", price:695, options:[EXTRA_KABSA_RICE,{label:"Salad",choices:[{name:"Fattoush",add:0},{name:"Tabbouleh",add:0}]}], img:"images/Shawaya_4.png"},
   //Potluck
-  {id:"PL1", cat:"Potluck", name:"Potluck", desc:"Good for 4-6 pax.", price:995, options:[SPICE,EXTRA_KABSA_RICE], img:"images/Potluck.png"},
+  {id:"PL1", cat:"Potluck", name:"Potluck", desc:"Good for 4-6 pax.", price:995, options:[EXTRA_KABSA_RICE], img:"images/Potluck.png"},
   {id:"PL2", cat:"Potluck", name:"Shawaya Potluck", desc:"	Good for 4–6 pax", price:1299, options:[{label:"Skewers",choices:[{name:"2 skewers",add:0},{name:"3 skewers",add:70}]},EXTRA_KABSA_RICE], img:"images/S_Potluck.png"},
   //Salads
   {id:"SLD1", cat:"Salads", name:"Fattoush", desc:"Fresh greens with bread crisps", price:179, img:"images/Fattoush.png"},
@@ -789,7 +788,7 @@ const MENU = [
   {id:"sloKC", cat:"Solo", name:"Kabsa Chicken", desc:"Charcoal-grilled quarter chicken, served with tomato chutney", price:260, img:"images/Kabsa_Chk.png"},
   {id:"sloKB", cat:"Solo", name:"Kabsa Beef", desc:"Tender beef chunks, served with tomato chutney", price:350,  img:"images/Kabsa_Bf.png"},
   {id:"sloCB", cat:"Solo", name:"Chicken Biryani", desc:"Served with yogurt salad (raita)", price:290, img:"images/Chk_Biryani.png"},
-  {id:"sloGHC", cat:"Solo", name:"Grilled Half Chicken", desc:"Charcoal-grilled half chicken with Arabic bread and fries platter, served with garlic paste and BBQ sauce", price:375,   options:[SPICE], tag:"Fan favorite",img:"images/GrilledChk_hf.png"},
+  {id:"sloGHC", cat:"Solo", name:"Grilled Half Chicken", desc:"Charcoal-grilled half chicken with Arabic bread and fries platter, served with garlic paste and BBQ sauce", price:375, tag:"Fan favorite",img:"images/GrilledChk_hf.png"},
   {id:"sloBKR", cat:"Solo", name:"Beef Kebab with Rice", desc:"Choose between 1 or 2 piece kebabs", price:195, options:[{label:"Kebab count",choices:[{name:"1 piece",add:0},{name:"2 pieces",add:95}]}], img:"images/Bf_Kebab.png"},
   {id:"sloCKR", cat:"Solo", name:"Chicken Kebab with Rice", desc:"Choose between 1 or 2 piece kebabs", price:170, options:[{label:"Kebab count",choices:[{name:"1 piece",add:0},{name:"2 pieces",add:70}]}], img:"images/Chk_Kebab.png"},
   //Fried
@@ -797,10 +796,10 @@ const MENU = [
   {id:"Falafel", cat:"Fried", name:"Fried Falafel", desc:"6 pcs, served with tzatziki sauce", price:150, img:"images/Falafel.png"},
   {id:"FFries", cat:"Fried", name:"Fries Platter", desc:"Served with BBQ sauce", price:150, img:"images/Fries_Pltr.png"},
   //Wraps
-  {id:"BKS", cat:"Wraps", name:"Beef Kebab Shawarma", desc:"", price:150, options:[SPICE], img:"images/Bf_Kbb_Shwrma.png"},
-  {id:"CSma", cat:"Wraps", name:"Chicken Shawarma", desc:"", price:135, options:[SPICE], img:"images/Chk_Shwrma.png"},
-  {id:"CKS", cat:"Wraps", name:"Chicken Kebab Shawarma", desc:"", price:130, options:[SPICE], img:"images/Chk_Kbb_Shwrma.png"},
-  {id:"FLW", cat:"Wraps", name:"Falafel Wrap", desc:"", price:130,  options:[SPICE], img:"images/Falafel_Shwrma.png"},
+  {id:"BKS", cat:"Wraps", name:"Beef Kebab Shawarma", desc:"", price:150, img:"images/Bf_Kbb_Shwrma.png"},
+  {id:"CSma", cat:"Wraps", name:"Chicken Shawarma", desc:"", price:135, img:"images/Chk_Shwrma.png"},
+  {id:"CKS", cat:"Wraps", name:"Chicken Kebab Shawarma", desc:"", price:130, img:"images/Chk_Kbb_Shwrma.png"},
+  {id:"FLW", cat:"Wraps", name:"Falafel Wrap", desc:"", price:130, img:"images/Falafel_Shwrma.png"},
   //AddOns
   {id:"BTR_Chk", cat:"AddOns", name:"Buttered Chicken", desc:"", price:195, img:"images/BTTR_Chk.png"},
   {id:"CHN_Msla", cat:"AddOns", name:"Chana Masala", desc:"Served with 1 pc Arabic bread", price:150, img:"images/CHNA_MSLA.png"},
