@@ -757,7 +757,7 @@ Object.assign(STORE, window.SITE_CONFIG || {});   // values from config.js win
    The list below is only the fallback if the database can't be reached.
    Each item: id, cat, name, desc, price, optional tag, optional img URL,
    optional options: [{label, choices:[{name, add}] }]  (add = extra peso cost)        */
-const SPICE = {label:"Spice level", choices:[{name:"Mild",add:0},{name:"Spicy",add:0},{name:"Extra spicy",add:0}]};
+/*const SPICE = {label:"Spice level", choices:[{name:"Mild",add:0},{name:"Spicy",add:0},{name:"Extra spicy",add:0}]};*/
 const EXTRA_KABSA_RICE = {label:"Extra Kabsa Rice", choices:[{name:"No extra rice",add:0},{name:"Add Kabsa Rice",add:170}]};
 /* categories can also be set in config.js (menuCategories) — the admin Menu tab uses the same list */
 const MENU_CATS = STORE.menuCategories || [
@@ -812,8 +812,13 @@ const MENU = [
  {id:"CL", cat:"Drinks", name:"Cucumber Lemon", desc:"", price:95, img:"images/CL.png"},
  {id:"Chai", cat:"Drinks", name:"Karak Chai", desc:"", price:75, img:"images/chai.png"},
  {id:"Ali", cat:"Drinks", name:"Ali Cafe", desc:"", price:50, img:"images/alicafe.png"},
-
  //Sauces
+  {id:"S1", cat:"Sauces", name:"Pickles", desc:"", price:30, img:"images/pickles.png"},
+  {id:"S2", cat:"Sauces", name:"BBQ Sauce", desc:"", price:30, img:"images/bbq.png"},
+  {id:"S3", cat:"Sauces", name:"Raita", desc:"yogurt salad", price:30, img:"images/raita.png"},
+  {id:"S4", cat:"Sauces", name:"Garlic Paste", desc:"", price:80, img:"images/gpaste.png"},
+  {id:"S5", cat:"Sauces", name:"Tomato Chutney", desc:"", price:30, img:"images/chutney.png"},
+ 
  
 ];
 
