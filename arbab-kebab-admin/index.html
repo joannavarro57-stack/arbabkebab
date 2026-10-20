@@ -245,6 +245,12 @@ textarea{width:100%;resize:vertical}
   .detail{position:static;display:block!important;border:0;max-height:none;overflow:visible}
   input{border:0;padding:0}
 }
+.login{grid-template-rows:1fr auto}
+.credit-foot{text-align:center;padding:4px 16px 20px}
+.credit{display:inline-flex;align-items:center;gap:8px;opacity:.85;transition:opacity .2s;text-decoration:none;color:var(--muted);font-size:11px;letter-spacing:.04em}
+.login .credit{color:var(--char)}
+.credit:hover,.credit:focus-visible{opacity:1}
+.credit img{height:36px;width:auto;display:block}
 </style>
 </head>
 <body>
@@ -268,6 +274,7 @@ textarea{width:100%;resize:vertical}
     <div class="msg" id="loginMsg" role="alert"></div>
     <a class="link back" href="https://arbabkebab.vercel.app/">← Back to catalog</a>
   </form>
+  <footer class="credit-foot"><a class="credit" href="https://breadywebstudio.vercel.app/" target="_blank" rel="noopener" title="Website by Bready Web Studios"><span>Powered by</span><img src="bready-logo.png?v=2" alt="Bready Web Studios" width="78" height="36"></a></footer>
 </section>
 
 <!-- ================= APP ================= -->
@@ -342,6 +349,7 @@ textarea{width:100%;resize:vertical}
     <p class="hint" id="usersHint" style="margin:0 0 12px">Everyone here can log in to this admin site and see orders. Owners can also edit the menu and add, remove and reset passwords for users.</p>
     <div class="users-list" id="usersList"><div class="empty">Loading users…</div></div>
   </div>
+  <footer class="credit-foot"><a class="credit" href="https://breadywebstudio.vercel.app/" target="_blank" rel="noopener" title="Website by Bready Web Studios"><span>Powered by</span><img src="bready-logo.png?v=2" alt="Bready Web Studios" width="78" height="36"></a></footer>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
