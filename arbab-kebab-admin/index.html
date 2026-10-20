@@ -339,7 +339,7 @@ textarea{width:100%;resize:vertical}
       <button class="btn" id="usersRefresh" title="Reload">↻ Refresh</button>
       <button class="btn ember" id="addUser" hidden>＋ Add user</button>
     </div>
-    <p class="hint" id="usersHint" style="margin:0 0 12px">Everyone here can log in to this admin site, see orders and edit the menu. Admins can also add, remove and reset passwords for users.</p>
+    <p class="hint" id="usersHint" style="margin:0 0 12px">Everyone here can log in to this admin site, see orders and edit the menu. Owners can also add, remove and reset passwords for users.</p>
     <div class="users-list" id="usersList"><div class="empty">Loading users…</div></div>
   </div>
 </div>
@@ -396,7 +396,7 @@ textarea{width:100%;resize:vertical}
     </div>
     <label for="uPw">Password</label><input id="uPw" type="text" autocomplete="new-password" minlength="6">
     <p class="hint" style="margin:4px 0 0">At least 6 characters. Tell the person their password and ask them to change it after logging in (Forgot password on the login page).</p>
-    <label class="check" id="uAdminWrap" for="uAdmin"><input id="uAdmin" type="checkbox"> Admin (can add, remove and reset users)</label>
+    <label class="check" id="uAdminWrap" for="uAdmin"><input id="uAdmin" type="checkbox"> Owner (can add, remove and reset users)</label>
     <p class="msg" id="userMsg" role="alert"></p>
     <div class="buttons">
       <button class="btn" type="button" id="userCancel">Cancel</button>
@@ -1487,18 +1487,18 @@ async function loadUsers(){
 function renderUsers(){
   $("#addUser").hidden = !usersIsAdmin;
   $("#usersHint").textContent = usersIsAdmin
-    ? "Everyone here can log in to this admin site, see orders and edit the menu. As an admin you can add users, reset passwords and remove access."
-    : "Everyone here can log in to this admin site. Only admins can add or remove users.";
+    ? "Everyone here can log in to this admin site, see orders and edit the menu. As an owner you can add users, reset passwords and remove access."
+    : "Everyone here can log in to this admin site. Only owners can add or remove users.";
   const rows = [...siteUsers].sort((a,b) => (a.disabled - b.disabled) || (b.is_admin - a.is_admin) || a.email.localeCompare(b.email));
   $("#usersList").innerHTML = rows.length ? rows.map(u => {
     const me = u.email.toLowerCase() === usersMe;
     const last = u.last_sign_in_at ? "last login " + ago(u.last_sign_in_at) : (u.has_login ? "never logged in" : "no login yet (set a password)");
-    const flags = (u.is_admin ? `<span class="mflag admin">Admin</span>` : `<span class="mflag">Staff</span>`)
+    const flags = (u.is_admin ? `<span class="mflag admin">Owner</span>` : `<span class="mflag">Admin</span>`)
       + (u.disabled ? `<span class="mflag del">Removed</span>` : "") + (me ? `<span class="mtag">You</span>` : "");
     const btns = !usersIsAdmin ? "" : u.disabled
       ? `<button class="btn sm" data-urestore>Restore</button>`
       : `<button class="btn sm" data-ureset>🔑 Reset password</button>`
-        + (me ? "" : `<button class="btn sm" data-uadmin>${u.is_admin ? "Remove admin" : "Make admin"}</button><button class="btn sm danger" data-uremove>Remove</button>`);
+        + (me ? "" : `<button class="btn sm" data-uadmin>${u.is_admin ? "Change to admin" : "Make owner"}</button><button class="btn sm danger" data-uremove>Remove</button>`);
     return `<div class="ui${u.disabled ? " off" : ""}" data-email="${esc(u.email)}">
       <div style="min-width:0"><div class="ui-name">${esc(u.name || u.email.split("@")[0])}${flags}</div>
         <div class="ui-sub">${esc(u.email)} · ${esc(last)}</div></div>
@@ -1547,7 +1547,7 @@ $("#usersList").addEventListener("click", async e => {
   }else if(b.hasAttribute("data-urestore")){
     body = { action: "restore", email: u.email }; done = `Restored ${u.email}`;
   }else if(b.hasAttribute("data-uadmin")){
-    body = { action: "set_admin", email: u.email, is_admin: !u.is_admin }; done = u.is_admin ? `${u.email} is now staff` : `${u.email} is now an admin`;
+    body = { action: "set_admin", email: u.email, is_admin: !u.is_admin }; done = u.is_admin ? `${u.email} is now an admin` : `${u.email} is now an owner`;
   }else return;
   b.disabled = true;
   try{ await usersCall(body); toast(done); }catch(err){ toast("Couldn't save: " + err.message); }

@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!meRow.is_admin) return fail("Only admins can manage users.", 403);
+    if (!meRow.is_admin) return fail("Only owners can manage users.", 403);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Enter a valid email.");
     if (["remove", "set_admin"].includes(action) && email === me) return fail("You can't change your own access.");
     if (["create", "reset_password"].includes(action) && password.length < 6) return fail("Password needs at least 6 characters.");

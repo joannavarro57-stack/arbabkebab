@@ -19,7 +19,7 @@ create table if not exists public.staff (
   name       text,
   created_at timestamptz not null default now()
 );
--- is_admin: can add/remove users and reset passwords (admin site → Orders → 👥 Users,
+-- is_admin (shown as "Owner"; others show as "Admin"): can add/remove users and reset passwords (admin site → Orders → 👥 Users,
 -- through the edge function staff-users). disabled: "Removed" — login blocked, row kept.
 alter table public.staff add column if not exists is_admin boolean not null default false;
 alter table public.staff add column if not exists disabled boolean not null default false;
