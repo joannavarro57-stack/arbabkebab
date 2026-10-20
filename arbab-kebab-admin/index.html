@@ -192,6 +192,42 @@ textarea{width:100%;resize:vertical}
   .top .who{display:none}
 }
 
+/* view switch (Orders / Menu) */
+.views{display:inline-flex;gap:4px;background:#2c2621;border-radius:10px;padding:3px}
+.views button{border:0;background:transparent;color:#cfc4b3;font-weight:800;font-size:15px;padding:5px 12px;border-radius:8px}
+.views button.on{background:#fff;color:var(--char)}
+
+/* menu editor */
+.menu-list{display:grid;gap:18px}
+.menu-cat h2{font-size:15px;text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px;color:var(--ember-dark)}
+.menu-cat .items{display:grid;gap:8px}
+.mi{display:grid;grid-template-columns:56px minmax(0,1fr) auto auto;gap:12px;align-items:center;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 12px}
+.mi.off{opacity:.6;border-style:dashed}
+.mi-thumb{width:56px;height:56px;border-radius:50%;object-fit:cover;background:var(--saffron-soft);display:grid;place-items:center;font-weight:800;color:var(--ember-dark);border:2px solid var(--line)}
+.mi-name{font-weight:800;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.mi-desc{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mi-price{font-weight:800;font-size:16px;font-variant-numeric:tabular-nums;text-align:right}
+.mi-btns{display:flex;gap:6px}
+.mtag{display:inline-block;background:var(--char);color:var(--saffron);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:999px}
+.mflag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1.5px solid var(--grey);color:var(--grey)}
+.mflag.del{border-color:var(--red);color:var(--red)}
+.tag-picks{display:flex;flex-wrap:wrap;gap:6px}
+.tag-picks button.on{background:var(--char);border-color:var(--char);color:#fff}
+.img-edit{display:flex;gap:12px;align-items:center}
+.img-edit img,.img-edit .ph{width:96px;height:96px;flex:none;border-radius:50%;object-fit:cover;background:var(--saffron-soft);border:2px solid var(--line);display:grid;place-items:center;color:var(--muted);font-size:12px;font-weight:600}
+.img-edit .col{display:grid;gap:6px;flex:1;min-width:0}
+.img-edit .col .btn{justify-self:start}
+.hint{font-size:12px;font-weight:500;color:var(--muted)}
+.check{display:flex!important;align-items:center;gap:8px;font-weight:700}
+.check input{width:18px!important;height:18px}
+@media(max-width:620px){
+  .top .in{flex-wrap:wrap;row-gap:8px}
+  .top .sp{flex-basis:100%;height:0}
+  .mi{grid-template-columns:48px minmax(0,1fr) auto}
+  .mi-thumb{width:48px;height:48px}
+  .mi-btns{grid-column:1/-1;justify-content:flex-end}
+}
+
 /* print a kitchen ticket */
 @media print{
   body{background:#fff;font-size:13px}
@@ -230,7 +266,7 @@ textarea{width:100%;resize:vertical}
   <header class="top">
     <div class="in">
       <span class="mark">AK</span>
-      <h1>Orders</h1>
+      <nav class="views" aria-label="Admin sections"><button type="button" class="on" data-view="orders" aria-pressed="true">Orders</button><button type="button" data-view="menu" aria-pressed="false">Menu</button></nav>
       <span class="live" id="live" title="Live updates"><i></i><span id="liveTxt">connecting</span></span>
       <span class="sp"></span>
       <span class="who" id="who"></span>
@@ -240,7 +276,7 @@ textarea{width:100%;resize:vertical}
     </div>
   </header>
 
-  <div class="wrap">
+  <div class="wrap" id="ordersView">
     <div class="toolbar">
       <div class="date-range">
         <button class="btn date-range-trigger" id="dateRangeBtn" type="button" aria-haspopup="dialog" aria-expanded="false"></button>
@@ -272,9 +308,62 @@ textarea{width:100%;resize:vertical}
       <aside class="detail" id="detail" aria-label="Order details"><div class="placeholder">Select an order to see details.</div></aside>
     </div>
   </div>
+
+  <div class="wrap" id="menuView" hidden>
+    <div class="toolbar">
+      <input class="search" id="menuQ" type="search" placeholder="Search menu…" aria-label="Search menu">
+      <select id="menuCatF" aria-label="Category"></select>
+      <label class="btn" for="menuShowDeleted"><input id="menuShowDeleted" type="checkbox" style="margin:0"> Show deleted</label>
+      <button class="btn" id="menuRefresh" title="Reload">↻ Refresh</button>
+      <button class="btn ember" id="addMenuItem">＋ Add menu item</button>
+    </div>
+    <p class="hint" style="margin:0 0 12px">Changes show on the website as soon as you save (customers may need to refresh the page).</p>
+    <div class="menu-list" id="menuList"><div class="empty">Loading menu…</div></div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog class="order-edit-dialog" id="menuDialog" aria-labelledby="menuDialogTitle">
+  <form id="menuForm">
+    <div class="edit-head"><h2 id="menuDialogTitle">Edit menu item</h2><button class="btn sm" type="button" id="menuClose" aria-label="Close">✕</button></div>
+    <div class="edit-body">
+      <div class="edit-grid">
+        <label class="edit-field wide" for="mName">Name<input id="mName" type="text" maxlength="80" required></label>
+        <label class="edit-field" for="mCat">Category<select id="mCat" required></select></label>
+        <label class="edit-field" for="mPrice">Price (₱)<input id="mPrice" type="number" min="0" max="100000" step="any" inputmode="decimal" required></label>
+        <label class="edit-field wide" for="mDesc">Description<textarea id="mDesc" rows="2" maxlength="300" placeholder="e.g. Served with garlic paste and tomato chutney"></textarea></label>
+        <div class="edit-field wide">Tag
+          <div class="tag-picks" id="mTagPicks">
+            <button type="button" class="btn sm" data-tag="">No tag</button>
+            <button type="button" class="btn sm" data-tag="Fan favorite">⭐ Fan favorite</button>
+            <button type="button" class="btn sm" data-tag="Bestseller">Bestseller</button>
+            <button type="button" class="btn sm" data-tag="Must try">Must try</button>
+            <button type="button" class="btn sm" data-tag="New">New</button>
+          </div>
+          <input id="mTag" type="text" maxlength="24" placeholder="or type your own tag" aria-label="Tag">
+          <span class="hint">Shown as a badge on the item in the website menu.</span>
+        </div>
+        <div class="edit-field wide">Photo
+          <div class="img-edit">
+            <span id="mImgPreview"></span>
+            <div class="col">
+              <input id="mImgFile" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload photo">
+              <input id="mImg" type="text" placeholder="or image link (images/Name.png or https://…)" aria-label="Image link">
+              <button type="button" class="btn sm" id="mImgClear">Remove photo</button>
+            </div>
+          </div>
+        </div>
+        <label class="edit-field wide" for="mOpts">Choices customers pick (optional)
+          <textarea id="mOpts" rows="3" placeholder="Spice level: Mild, Spicy, Extra spicy&#10;Extra Kabsa Rice: No extra rice, Add Kabsa Rice +170"></textarea>
+          <span class="hint">One group per line: <b>Name: choice, choice +price</b>. The first choice is picked by default.</span>
+        </label>
+        <label class="edit-field check wide" for="mShown"><input id="mShown" type="checkbox"> Show on website (untick to hide, e.g. sold out)</label>
+      </div>
+      <div class="edit-msg" id="menuMsg" role="alert"></div>
+    </div>
+    <div class="edit-foot"><button class="btn danger" type="button" id="menuDelete" style="margin-right:auto">Delete item</button><button class="btn" type="button" id="menuCancel">Cancel</button><button class="btn dark" id="menuSave" type="submit">Save</button></div>
+  </form>
+</dialog>
 <dialog class="delete-dialog" id="deleteDialog" aria-labelledby="deleteTitle">
   <form id="deleteForm">
     <h2 id="deleteTitle">Delete order?</h2>
@@ -435,6 +524,8 @@ async function enterApp(session){
   $("#branchF").innerHTML = `<option value="">All branches</option>` + CONFIG.branches.map(b=>`<option>${esc(b)}</option>`).join("");
   const sb_ = ls.get("ak_branch"); if(sb_ !== null) $("#branchF").value = sb_;
   setSoundBtn();
+  showView(ls.get("ak_view") === "menu" ? "menu" : "orders");
+  loadMenu();
   await load();
   subscribe();
   clearInterval(pollTimer); pollTimer = setInterval(load, 60000);   // safety net if live updates drop
@@ -1141,6 +1232,194 @@ function setSoundBtn(){ $("#soundBtn").textContent = soundOn ? "🔔 Sound on" :
 $("#soundBtn").onclick = () => { soundOn = !soundOn; ls.set("ak_sound", soundOn ? "on" : "off"); setSoundBtn(); unlockAudio(); if(soundOn) beep(); };
 
 let tt; function toast(t, isNew){ const el = $("#toast"); el.textContent = t; el.className = "toast show" + (isNew ? " new" : ""); clearTimeout(tt); tt = setTimeout(() => el.className = "toast", isNew ? 6000 : 2200); }
+
+/* ================= MENU EDITOR =================
+   Items live in the Supabase table menu_items; the website reads the visible ones.
+   "Delete" archives an item (it can be restored with "Show deleted"). */
+const MENU_CATS = (window.SITE_CONFIG && window.SITE_CONFIG.menuCategories) || [
+  {id:"MealSets",name:"Meal Sets"},{id:"Potluck",name:"Potlucks"},{id:"Salads",name:"Salads"},
+  {id:"Solo",name:"Solo Orders"},{id:"Fried",name:"Fried"},{id:"AddOns",name:"Add-Ons"},
+  {id:"Wraps",name:"Wraps"},{id:"Drinks",name:"Drinks"},{id:"Sauces",name:"Sauces"}
+];
+let menuItems = [], editingMenuId = null, menuImgFile = null;
+const menuImgUrl = img => !img ? "" : /^(https?:|data:|blob:)/.test(img) ? img : CONFIG.orderSiteUrl.replace(/\/$/,"") + "/" + img.replace(/^\//,"");
+const catName = id => (MENU_CATS.find(c => c.id === id) || {}).name || id;
+
+function showView(view){
+  ls.set("ak_view", view);
+  document.querySelectorAll(".views button").forEach(b => { const on = b.dataset.view === view; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  $("#ordersView").hidden = view !== "orders";
+  $("#menuView").hidden = view !== "menu";
+}
+document.querySelectorAll(".views button").forEach(b => b.onclick = () => showView(b.dataset.view));
+
+async function loadMenu(){
+  const { data, error } = await sb.from("menu_items").select("*").order("sort").order("name");
+  if(error){ $("#menuList").innerHTML = `<div class="empty">Couldn't load the menu: ${esc(error.message)}</div>`; return; }
+  menuItems = data || [];
+  // the "Add order" product list follows the live menu
+  const live = menuItems.filter(m => !m.archived);
+  if(live.length) ADMIN_PRODUCTS.splice(0, ADMIN_PRODUCTS.length, ...live.map(m => ({id:m.id, name:m.name, price:Number(m.price)})));
+  renderMenuList();
+}
+function renderMenuList(){
+  const q = $("#menuQ").value.trim().toLowerCase(), cf = $("#menuCatF").value, showDel = $("#menuShowDeleted").checked;
+  const items = menuItems.filter(m => (showDel || !m.archived) && (!cf || m.cat === cf)
+    && (!q || `${m.name} ${m.description} ${m.tag||""}`.toLowerCase().includes(q)));
+  const cats = [...MENU_CATS, ...[...new Set(items.map(m => m.cat))].filter(id => !MENU_CATS.some(c => c.id === id)).map(id => ({id, name:id + " (not on website)"}))];
+  const html = cats.map(c => {
+    const list = items.filter(m => m.cat === c.id);
+    if(!list.length) return "";
+    return `<section class="menu-cat"><h2>${esc(c.name)} · ${list.length}</h2><div class="items">${list.map(m => {
+      const initials = m.name.split(" ").slice(0,2).map(w => w[0]).join("");
+      return `<div class="mi${m.hidden || m.archived ? " off" : ""}" data-id="${esc(m.id)}">
+        ${m.img ? `<img class="mi-thumb" src="${esc(menuImgUrl(m.img))}" alt="" loading="lazy">` : `<span class="mi-thumb">${esc(initials)}</span>`}
+        <div style="min-width:0"><div class="mi-name">${esc(m.name)}${m.tag ? `<span class="mtag">${esc(m.tag)}</span>` : ""}${m.archived ? `<span class="mflag del">Deleted</span>` : m.hidden ? `<span class="mflag">Hidden</span>` : ""}</div>
+          <div class="mi-desc">${esc(m.description || "")}</div></div>
+        <div class="mi-price">${peso(m.price)}</div>
+        <div class="mi-btns">${m.archived
+          ? `<button class="btn sm" data-mrestore>Restore</button>`
+          : `<button class="btn sm" data-mtoggle>${m.hidden ? "Show" : "Hide"}</button><button class="btn sm dark" data-medit>Edit</button>`}</div>
+      </div>`;
+    }).join("")}</div></section>`;
+  }).join("");
+  $("#menuList").innerHTML = html || `<div class="empty">${menuItems.length ? "No menu items match." : "No menu items yet. Click ＋ Add menu item."}</div>`;
+}
+$("#menuCatF").innerHTML = `<option value="">All categories</option>` + MENU_CATS.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
+$("#mCat").innerHTML = MENU_CATS.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
+$("#menuQ").addEventListener("input", renderMenuList);
+$("#menuCatF").addEventListener("change", renderMenuList);
+$("#menuShowDeleted").addEventListener("change", renderMenuList);
+$("#menuRefresh").onclick = loadMenu;
+$("#addMenuItem").onclick = () => openMenuEditor(null);
+
+async function patchMenuItem(id, patch, msg){
+  const { error } = await sb.from("menu_items").update(patch).eq("id", id);
+  if(error) return toast("Couldn't save: " + error.message), false;
+  Object.assign(menuItems.find(m => m.id === id) || {}, patch);
+  renderMenuList(); toast(msg); return true;
+}
+$("#menuList").addEventListener("click", e => {
+  const row = e.target.closest(".mi"); if(!row) return;
+  const m = menuItems.find(x => x.id === row.dataset.id); if(!m) return;
+  if(e.target.closest("[data-medit]")) openMenuEditor(m);
+  else if(e.target.closest("[data-mtoggle]")) patchMenuItem(m.id, {hidden: !m.hidden}, m.hidden ? `${m.name} is back on the website` : `${m.name} is hidden from the website`);
+  else if(e.target.closest("[data-mrestore]")) patchMenuItem(m.id, {archived: false}, `${m.name} restored`);
+});
+
+/* options text <-> [{label, choices:[{name, add}]}] */
+function optionsToText(options){
+  return (options || []).map(o => `${o.label}: ${(o.choices || []).map(c => c.name + (Number(c.add) ? ` +${Number(c.add)}` : "")).join(", ")}`).join("\n");
+}
+function textToOptions(text){
+  const groups = [];
+  for(const line of text.split("\n").map(l => l.trim()).filter(Boolean)){
+    const i = line.indexOf(":");
+    if(i < 1) throw new Error(`"${line}" needs a name and a colon, like "Spice level: Mild, Spicy"`);
+    const choices = line.slice(i + 1).split(",").map(c => c.trim()).filter(Boolean).map(c => {
+      const m = c.match(/^(.*?)\s*\+\s*₱?\s*(\d+(?:\.\d+)?)$/);
+      return m ? {name:m[1], add:Number(m[2])} : {name:c, add:0};
+    });
+    if(!choices.length) throw new Error(`"${line.slice(0, i)}" has no choices after the colon`);
+    groups.push({label:line.slice(0, i).trim(), choices});
+  }
+  return groups;
+}
+
+function setImgPreview(src){
+  $("#mImgPreview").innerHTML = src ? `<img src="${esc(src)}" alt="Photo preview">` : `<span class="ph">No photo</span>`;
+  $("#mImgClear").hidden = !src;
+}
+function syncTagPicks(){
+  const t = $("#mTag").value.trim();
+  document.querySelectorAll("#mTagPicks button").forEach(b => b.classList.toggle("on", b.dataset.tag === t));
+}
+$("#mTagPicks").addEventListener("click", e => { const b = e.target.closest("[data-tag]"); if(b){ $("#mTag").value = b.dataset.tag; syncTagPicks(); } });
+$("#mTag").addEventListener("input", syncTagPicks);
+$("#mImg").addEventListener("input", () => { menuImgFile = null; $("#mImgFile").value = ""; setImgPreview(menuImgUrl($("#mImg").value.trim())); });
+$("#mImgFile").addEventListener("change", () => {
+  const f = $("#mImgFile").files[0]; if(!f) return;
+  if(!/^image\/(jpeg|png|webp)$/.test(f.type)){ $("#menuMsg").textContent = "Use a JPG, PNG or WebP photo."; $("#mImgFile").value = ""; return; }
+  menuImgFile = f; $("#mImg").value = ""; setImgPreview(URL.createObjectURL(f));
+});
+$("#mImgClear").onclick = () => { menuImgFile = null; $("#mImgFile").value = ""; $("#mImg").value = ""; setImgPreview(""); };
+
+function openMenuEditor(m){
+  editingMenuId = m ? m.id : null; menuImgFile = null;
+  $("#menuDialogTitle").textContent = m ? `Edit ${m.name}` : "Add menu item";
+  $("#mName").value = m ? m.name : "";
+  $("#mCat").value = m ? m.cat : ($("#menuCatF").value || MENU_CATS[0].id);
+  $("#mPrice").value = m ? Number(m.price) : "";
+  $("#mDesc").value = m ? m.description || "" : "";
+  $("#mTag").value = m ? m.tag || "" : ""; syncTagPicks();
+  $("#mImg").value = m ? m.img || "" : ""; $("#mImgFile").value = "";
+  setImgPreview(m ? menuImgUrl(m.img) : "");
+  $("#mOpts").value = m ? optionsToText(m.options) : "";
+  $("#mShown").checked = m ? !m.hidden : true;
+  $("#menuDelete").hidden = !m || m.archived;
+  $("#menuMsg").textContent = "";
+  $("#menuSave").disabled = false;
+  $("#menuDialog").showModal();
+  $("#mName").focus();
+}
+const closeMenuEditor = () => $("#menuDialog").close();
+$("#menuClose").onclick = closeMenuEditor; $("#menuCancel").onclick = closeMenuEditor;
+
+/* shrink big photos before upload (max 900px) so the menu stays quick on phones */
+async function shrinkImage(file){
+  try{
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
+    if(scale === 1 && file.size < 600000) return file;
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/webp", .86));
+    return blob && blob.size < file.size ? blob : file;
+  }catch(e){ return file; }
+}
+
+$("#menuForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const msg = $("#menuMsg"); msg.textContent = "";
+  const name = $("#mName").value.trim(), price = Number($("#mPrice").value);
+  if(!name) return msg.textContent = "Add a name.";
+  if(!(price >= 0) || $("#mPrice").value === "") return msg.textContent = "Add a price.";
+  let options;
+  try{ options = textToOptions($("#mOpts").value); }catch(err){ return msg.textContent = err.message; }
+  $("#menuSave").disabled = true;
+  const id = editingMenuId || (name.replace(/[^a-z0-9]+/gi, "").slice(0, 16) || "item") + "_" + Date.now().toString(36);
+  let img = $("#mImg").value.trim();
+  if(menuImgFile){
+    msg.textContent = "Uploading photo…";
+    const blob = await shrinkImage(menuImgFile);
+    const ext = {"image/webp":"webp","image/png":"png","image/jpeg":"jpg"}[blob.type] || "jpg";
+    const path = `${id}/${Date.now()}.${ext}`;
+    const up = await sb.storage.from("menu-images").upload(path, blob, {contentType: blob.type, upsert: false});
+    if(up.error){ $("#menuSave").disabled = false; return msg.textContent = "Photo upload failed: " + up.error.message; }
+    img = sb.storage.from("menu-images").getPublicUrl(path).data.publicUrl;
+    msg.textContent = "";
+  }
+  const row = {name, cat:$("#mCat").value, price, description:$("#mDesc").value.trim(), tag:$("#mTag").value.trim() || null,
+    img: img || null, options, hidden: !$("#mShown").checked};
+  let res;
+  if(editingMenuId) res = await sb.from("menu_items").update(row).eq("id", id).select().single();
+  else {
+    row.id = id;
+    row.sort = menuItems.reduce((mx, m) => Math.max(mx, m.sort || 0), 0) + 10;
+    res = await sb.from("menu_items").insert(row).select().single();
+  }
+  $("#menuSave").disabled = false;
+  if(res.error) return msg.textContent = "Couldn't save: " + res.error.message;
+  closeMenuEditor();
+  await loadMenu();
+  toast(editingMenuId ? `Saved ${name}` : `Added ${name} to the menu`);
+});
+$("#menuDelete").onclick = async () => {
+  const m = menuItems.find(x => x.id === editingMenuId); if(!m) return;
+  if(!confirm(`Delete "${m.name}" from the menu?\n\nIt disappears from the website. You can bring it back with "Show deleted" → Restore.`)) return;
+  if(await patchMenuItem(m.id, {archived: true}, `${m.name} deleted from the menu`)) closeMenuEditor();
+};
 
 boot();
 </script>

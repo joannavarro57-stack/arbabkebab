@@ -552,6 +552,94 @@ for each row execute function public.notify_order_email();
 create or replace trigger orders_email_completed after update of status on public.orders
 for each row execute function public.notify_order_email();
 
+-- ---------- menu (edited in the admin site → Menu tab) ----------
+-- The website reads visible items from here; if this table is missing or empty
+-- it falls back to the menu written in index.html. "Delete" in the admin only
+-- archives an item (archived = true), so nothing is lost and it can be restored.
+create table if not exists public.menu_items (
+  id          text primary key,
+  cat         text not null,
+  name        text not null,
+  description text not null default '',
+  price       numeric(10,2) not null check (price >= 0),
+  tag         text,                       -- badge on the card, e.g. 'Fan favorite'
+  img         text,                       -- 'images/x.png' on the website, or a full URL
+  options     jsonb not null default '[]'::jsonb,   -- [{label, choices:[{name, add}]}]
+  sort        integer not null default 0,
+  hidden      boolean not null default false,       -- true = not shown to customers (e.g. sold out)
+  archived    boolean not null default false,       -- true = deleted in the admin
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  updated_by  text
+);
+
+create or replace function public.touch_menu_item() returns trigger
+language plpgsql as $$
+begin
+  new.updated_at := now();
+  new.updated_by := coalesce(auth.jwt() ->> 'email', new.updated_by);
+  return new;
+end $$;
+create or replace trigger menu_items_touch before insert or update on public.menu_items
+for each row execute function public.touch_menu_item();
+
+alter table public.menu_items enable row level security;
+drop policy if exists "everyone reads visible menu" on public.menu_items;
+drop policy if exists "staff read menu"   on public.menu_items;
+drop policy if exists "staff add menu"    on public.menu_items;
+drop policy if exists "staff edit menu"   on public.menu_items;
+create policy "everyone reads visible menu" on public.menu_items for select to anon, authenticated using (not hidden and not archived);
+create policy "staff read menu" on public.menu_items for select to authenticated using (public.is_staff());
+create policy "staff add menu"  on public.menu_items for insert to authenticated with check (public.is_staff());
+create policy "staff edit menu" on public.menu_items for update to authenticated using (public.is_staff()) with check (public.is_staff());
+grant select on public.menu_items to anon, authenticated;
+grant insert, update on public.menu_items to authenticated;
+
+-- Starting menu (copied from index.html). Existing rows are never overwritten.
+insert into public.menu_items (id, cat, name, description, price, tag, img, options, sort) values
+  ('MS1', 'MealSets', 'Shawaya Set 1', 'Whole chicken served with tomato chutney and garlic paste', 375, 'Bestseller', 'images/Shawaya_1.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]},{"label":"Extra Kabsa Rice","choices":[{"name":"No extra rice","add":0},{"name":"Add Kabsa Rice","add":170}]}]', 10),
+  ('MS2', 'MealSets', 'Shawaya Set 2', 'Whole chicken with 2 cups of rice, served with tomato chutney and garlic paste', 475, null, 'images/Shawaya_2.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]},{"label":"Extra Kabsa Rice","choices":[{"name":"No extra rice","add":0},{"name":"Add Kabsa Rice","add":170}]}]', 20),
+  ('MS3', 'MealSets', 'Shawaya Set 3', 'Whole chicken with 4 pcs Arabic bread and fries platter, served with tomato chutney and garlic paste', 595, 'Must try', 'images/Shawaya_3.png', '[{"label":"Extra Kabsa Rice","choices":[{"name":"No extra rice","add":0},{"name":"Add Kabsa Rice","add":170}]}]', 30),
+  ('MS4', 'MealSets', 'Shawaya Set 4', 'Whole chicken with 4 cups of rice and your choice of salad, served with tomato chutney and garlic paste.', 695, null, 'images/Shawaya_4.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]},{"label":"Extra Kabsa Rice","choices":[{"name":"No extra rice","add":0},{"name":"Add Kabsa Rice","add":170}]},{"label":"Salad","choices":[{"name":"Fattoush","add":0},{"name":"Tabbouleh","add":0}]}]', 40),
+  ('PL1', 'Potluck', 'Potluck', 'Good for 4-6 pax.', 995, null, 'images/Potluck.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]},{"label":"Extra Kabsa Rice","choices":[{"name":"No extra rice","add":0},{"name":"Add Kabsa Rice","add":170}]}]', 50),
+  ('PL2', 'Potluck', 'Shawaya Potluck', 'Good for 4–6 pax', 1299, null, 'images/S_Potluck.png', '[{"label":"Skewers","choices":[{"name":"2 skewers","add":0},{"name":"3 skewers","add":70}]},{"label":"Extra Kabsa Rice","choices":[{"name":"No extra rice","add":0},{"name":"Add Kabsa Rice","add":170}]}]', 60),
+  ('SLD1', 'Salads', 'Fattoush', 'Fresh greens with bread crisps', 179, null, 'images/Fattoush.png', '[]', 70),
+  ('SLD2', 'Salads', 'Tabbouleh', 'Fresh parsley, tomato, onions and other greens with olive oil and lemon dressing', 229, null, 'images/Tabouleh.png', '[]', 80),
+  ('sloKC', 'Solo', 'Kabsa Chicken', 'Charcoal-grilled quarter chicken, served with tomato chutney', 260, null, 'images/Kabsa_Chk.png', '[]', 90),
+  ('sloKB', 'Solo', 'Kabsa Beef', 'Tender beef chunks, served with tomato chutney', 350, null, 'images/Kabsa_Bf.png', '[]', 100),
+  ('sloCB', 'Solo', 'Chicken Biryani', 'Served with yogurt salad (raita)', 290, null, 'images/Chk_Biryani.png', '[]', 110),
+  ('sloGHC', 'Solo', 'Grilled Half Chicken', 'Charcoal-grilled half chicken with Arabic bread and fries platter, served with garlic paste and BBQ sauce', 375, 'Fan favorite', 'images/GrilledChk_hf.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]}]', 120),
+  ('sloBKR', 'Solo', 'Beef Kebab with Rice', 'Choose between 1 or 2 piece kebabs', 195, null, 'images/Bf_Kebab.png', '[{"label":"Kebab count","choices":[{"name":"1 piece","add":0},{"name":"2 pieces","add":95}]}]', 130),
+  ('sloCKR', 'Solo', 'Chicken Kebab with Rice', 'Choose between 1 or 2 piece kebabs', 170, null, 'images/Chk_Kebab.png', '[{"label":"Kebab count","choices":[{"name":"1 piece","add":0},{"name":"2 pieces","add":70}]}]', 140),
+  ('ChkW', 'Fried', 'Chicken Wings', 'Crispy chicken wings with fries, served with BBQ sauce · 6 pcs / 12 pcs', 180, null, 'images/Chk_Wings.png', '[{"label":"Wings count","choices":[{"name":"6 pcs","add":0},{"name":"12 pcs","add":110}]}]', 150),
+  ('Falafel', 'Fried', 'Fried Falafel', '6 pcs, served with tzatziki sauce', 150, null, 'images/Falafel.png', '[]', 160),
+  ('FFries', 'Fried', 'Fries Platter', 'Served with BBQ sauce', 150, null, 'images/Fries_Pltr.png', '[]', 170),
+  ('BKS', 'Wraps', 'Beef Kebab Shawarma', '', 150, null, 'images/Bf_Kbb_Shwrma.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]}]', 180),
+  ('CSma', 'Wraps', 'Chicken Shawarma', '', 135, null, 'images/Chk_Shwrma.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]}]', 190),
+  ('CKS', 'Wraps', 'Chicken Kebab Shawarma', '', 130, null, 'images/Chk_Kbb_Shwrma.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]}]', 200),
+  ('FLW', 'Wraps', 'Falafel Wrap', '', 130, null, 'images/Falafel_Shwrma.png', '[{"label":"Spice level","choices":[{"name":"Mild","add":0},{"name":"Spicy","add":0},{"name":"Extra spicy","add":0}]}]', 210),
+  ('BTR_Chk', 'AddOns', 'Buttered Chicken', '', 195, null, 'images/BTTR_Chk.png', '[]', 220),
+  ('CHN_Msla', 'AddOns', 'Chana Masala', 'Served with 1 pc Arabic bread', 150, null, 'images/CHNA_MSLA.png', '[]', 230),
+  ('Hms', 'AddOns', 'Hummus', '', 150, null, 'images/Hms.png', '[]', 240),
+  ('Kbs_Rice', 'AddOns', 'Kabsa Rice', '', 170, null, 'images/Kabsa_Rice.png', '[]', 250),
+  ('Wtr', 'Drinks', 'Water', '', 35, null, null, '[]', 260),
+  ('Sfd', 'Drinks', 'Soda', '', 50, null, null, '[]', 270)
+on conflict (id) do nothing;
+
+-- Public bucket for menu photos uploaded from the admin site (staff only can upload).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('menu-images', 'menu-images', true, 5242880,
+        array['image/jpeg','image/png','image/webp'])
+on conflict (id) do update
+  set public = true, file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "staff upload menu images" on storage.objects;
+drop policy if exists "staff update menu images" on storage.objects;
+create policy "staff upload menu images" on storage.objects for insert to authenticated
+  with check (bucket_id = 'menu-images' and public.is_staff());
+create policy "staff update menu images" on storage.objects for update to authenticated
+  using (bucket_id = 'menu-images' and public.is_staff());
+
 -- ---------- live updates for the admin site ----------
 do $$
 begin

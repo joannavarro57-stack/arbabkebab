@@ -301,9 +301,9 @@
 /* =========================================================
    ARBAB KEBAB — catalog & order site
    ---------------------------------------------------------
-   TO EDIT: change STORE (contact/branches) and MENU (items,
-   prices, photos) in the script block at the bottom. Add a photo
-   by setting img: "https://…/photo.jpg" on any item.
+   TO EDIT: menu items, prices, photos and tags are edited in the
+   admin site (Menu tab). Branches and menu categories are in
+   config.js. The MENU list at the bottom is only a fallback.
    ========================================================= */
 :root{
   --saffron:#E29231;
@@ -752,12 +752,15 @@ const STORE = {
 };
 Object.assign(STORE, window.SITE_CONFIG || {});   // values from config.js win
 
-/* ================= MENU (sample — replace with real items & prices) =================
+/* ================= MENU =================
+   The live menu is edited in the admin site (Menu tab) and loaded from Supabase.
+   The list below is only the fallback if the database can't be reached.
    Each item: id, cat, name, desc, price, optional tag, optional img URL,
    optional options: [{label, choices:[{name, add}] }]  (add = extra peso cost)        */
 const SPICE = {label:"Spice level", choices:[{name:"Mild",add:0},{name:"Spicy",add:0},{name:"Extra spicy",add:0}]};
 const EXTRA_KABSA_RICE = {label:"Extra Kabsa Rice", choices:[{name:"No extra rice",add:0},{name:"Add Kabsa Rice",add:170}]};
-const MENU_CATS = [
+/* categories can also be set in config.js (menuCategories) — the admin Menu tab uses the same list */
+const MENU_CATS = STORE.menuCategories || [
   {id:"MealSets", name:"Meal Sets", sub:""},
   {id:"Potluck", name:"Potlucks", sub:""},
   {id:"Salads", name:"Salads", sub:""},
@@ -856,7 +859,33 @@ function card(m){
       <button class="add" data-add="${m.id}" aria-label="Add ${esc(m.name)}">Add</button></div></div>
   </article>`;
 }
+/* live menu from Supabase (admin → Menu tab); last good copy is cached so repeat visits show it straight away */
+function useMenu(rows){
+  if(!Array.isArray(rows) || !rows.length) return false;
+  MENU.splice(0, MENU.length, ...rows.map(r => ({id:r.id, cat:r.cat, name:r.name, desc:r.description || "", price:Number(r.price) || 0,
+    tag:r.tag || "", img:r.img || "", options:Array.isArray(r.options) ? r.options : []})));
+  // keep prices in a saved cart in step with the menu
+  cart.forEach(l => {
+    const m = MENU.find(x => x.id === l.id); if(!m) return;
+    l.unit = m.price + (m.options || []).reduce((s,o) => s + ((o.choices || []).find(c => l.opts.includes(c.name)) || {add:0}).add, 0);
+  });
+  return true;
+}
+useMenu(store.get("ak_menu"));
 renderMenu();
+(async () => {
+  if(!STORE.supabaseUrl || !STORE.supabaseKey) return;
+  try{
+    const headers = {apikey: STORE.supabaseKey};
+    if(!STORE.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + STORE.supabaseKey;
+    const r = await fetch(STORE.supabaseUrl.replace(/\/$/,"") + "/rest/v1/menu_items?select=id,cat,name,description,price,tag,img,options&order=sort.asc,name.asc", {headers});
+    if(!r.ok) return;
+    const rows = await r.json();
+    if(!useMenu(rows)) return;
+    store.set("ak_menu", rows);
+    renderMenu($("#q").value); watch(); save();
+  }catch(e){}
+})();
 $("#q").addEventListener("input", e => renderMenu(e.target.value));
 $("#searchToggle").addEventListener("click", () => {
   const search = $("#menuSearch"), input = $("#q"), toggle = $("#searchToggle");

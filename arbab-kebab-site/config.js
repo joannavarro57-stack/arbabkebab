@@ -30,6 +30,20 @@ window.SITE_CONFIG = {
     // example: { name: "New Branch", lat: 14.0000, lng: 121.0000, address: "Street, Barangay, City", hours: "10 AM – 9 PM" },
   ],//14.638209287629184, 121.10864875741734
 
+  /* MENU CATEGORIES — the tabs on the website menu, in order. The admin Menu tab lists the same ones.
+     id is saved on each menu item (don't change it once items use it); name is what customers see. */
+  menuCategories: [
+    { id: "MealSets", name: "Meal Sets" },
+    { id: "Potluck", name: "Potlucks" },
+    { id: "Salads", name: "Salads" },
+    { id: "Solo", name: "Solo Orders" },
+    { id: "Fried", name: "Fried" },
+    { id: "AddOns", name: "Add-Ons" },
+    { id: "Wraps", name: "Wraps" },
+    { id: "Drinks", name: "Drinks" },
+    { id: "Sauces", name: "Sauces" },
+  ],
+
   /* Chat buttons shown after an order is placed (index.html and pay.html).
      instagram: the account's username without @, e.g. "arbabkebab". Leave "" to hide the button. */
   messenger: "https://m.me/ArbabKebabOfficial",
