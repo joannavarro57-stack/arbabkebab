@@ -154,7 +154,8 @@ drop policy if exists "staff can read staff"    on public.staff;
 
 create policy "staff can read orders"   on public.orders for select to authenticated using (public.is_staff());
 create policy "staff can update orders" on public.orders for update to authenticated using (public.is_staff()) with check (public.is_staff());
-create policy "staff can read staff"    on public.staff  for select to authenticated using (public.is_staff());
+-- owners see every staff row; admins (non-owners) only see admin rows
+create policy "staff can read staff"    on public.staff  for select to authenticated using (public.is_staff_admin() or (public.is_staff() and not is_admin));
 
 -- table privileges: customers get nothing directly; staff may only change these columns
 revoke all on public.orders from anon, authenticated;

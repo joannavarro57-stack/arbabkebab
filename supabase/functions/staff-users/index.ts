@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
       return reply({
         me,
         is_admin: meRow.is_admin,
-        users: (staff || []).map((s) => {
+        // admins (non-owners) only see other admins, not owners
+        users: (staff || []).filter((s) => meRow.is_admin || !s.is_admin).map((s) => {
           const u = byEmail.get(s.email.toLowerCase());
           return {
             email: s.email, name: s.name, is_admin: s.is_admin, disabled: s.disabled, added_at: s.created_at,
