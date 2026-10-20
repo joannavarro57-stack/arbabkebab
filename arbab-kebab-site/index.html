@@ -757,7 +757,7 @@ Object.assign(STORE, window.SITE_CONFIG || {});   // values from config.js win
    The list below is only the fallback if the database can't be reached.
    Each item: id, cat, name, desc, price, optional tag, optional img URL,
    optional options: [{label, choices:[{name, add}] }]  (add = extra peso cost)        */
-/*const SPICE = {label:"Spice level", choices:[{name:"Mild",add:0},{name:"Spicy",add:0},{name:"Extra spicy",add:0}]};*/
+const SPICE = {label:"Spice level", choices:[{name:"Mild",add:0},{name:"Spicy",add:0},{name:"Extra spicy",add:0}]};
 const EXTRA_KABSA_RICE = {label:"Extra Kabsa Rice", choices:[{name:"No extra rice",add:0},{name:"Add Kabsa Rice",add:170}]};
 /* categories can also be set in config.js (menuCategories) — the admin Menu tab uses the same list */
 const MENU_CATS = STORE.menuCategories || [
