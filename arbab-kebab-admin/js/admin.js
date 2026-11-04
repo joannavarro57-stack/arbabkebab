@@ -942,16 +942,34 @@ function syncTagPicks(){
 }
 $("#mTagPicks").addEventListener("click", e => { const b = e.target.closest("[data-tag]"); if(b){ $("#mTag").value = b.dataset.tag; syncTagPicks(); } });
 $("#mTag").addEventListener("input", syncTagPicks);
-$("#mImg").addEventListener("input", () => { menuImgFile = null; $("#mImgFile").value = ""; setImgPreview(menuImgUrl($("#mImg").value.trim())); });
+$("#mImg").addEventListener("input", () => { menuImgJob = null; menuImgFile = null; $("#mImgFile").value = ""; setImgPreview(menuImgUrl($("#mImg").value.trim())); });
+/* every menu photo is optimized as soon as it's picked (js/image-optimize.js): upright, no hidden GPS data,
+   at least MENU_PHOTO.minSide px so it looks sharp, at most MENU_PHOTO.maxSide px, WebP. Only the optimized copy is uploaded. */
+const MENU_PHOTO = {maxSide: 900, minSide: 400, quality: 0.86, minQuality: 0.62, maxBytes: 300 * 1024, hardLimit: 1024 * 1024, what: "photo"};
+let menuImgJob = null;
 $("#mImgFile").addEventListener("change", () => {
   const f = $("#mImgFile").files[0]; if(!f) return;
-  if(!/^image\/(jpeg|png|webp)$/.test(f.type)){ $("#menuMsg").textContent = "Use a JPG, PNG or WebP photo."; $("#mImgFile").value = ""; return; }
-  menuImgFile = f; $("#mImg").value = ""; setImgPreview(URL.createObjectURL(f));
+  const msg = $("#menuMsg");
+  menuImgFile = null;
+  msg.textContent = "Optimizing photo…";
+  const job = menuImgJob = optimizeImage(f, MENU_PHOTO).then(r => {
+    if(job !== menuImgJob) return null;   // a newer photo was picked meanwhile
+    menuImgFile = r; $("#mImg").value = "";
+    setImgPreview(URL.createObjectURL(r.blob));
+    msg.textContent = `Photo optimized: ${r.width}×${r.height} px, ${r.before} → ${r.after}.`;
+    return r;
+  }).catch(err => {
+    if(job !== menuImgJob) return null;
+    // keep the item's current photo; the refused one is never uploaded
+    menuImgJob = null; menuImgFile = null; $("#mImgFile").value = "";
+    msg.textContent = err.message;
+    return null;
+  });
 });
-$("#mImgClear").onclick = () => { menuImgFile = null; $("#mImgFile").value = ""; $("#mImg").value = ""; setImgPreview(""); };
+$("#mImgClear").onclick = () => { menuImgJob = null; menuImgFile = null; $("#mImgFile").value = ""; $("#mImg").value = ""; setImgPreview(""); $("#menuMsg").textContent = ""; };
 
 function openMenuEditor(m){
-  editingMenuId = m ? m.id : null; menuImgFile = null;
+  editingMenuId = m ? m.id : null; menuImgFile = null; menuImgJob = null;
   $("#menuDialogTitle").textContent = m ? `Edit ${m.name}` : "Add menu item";
   $("#mName").value = m ? m.name : "";
   $("#mCat").value = m ? m.cat : ($("#menuCatF").value || MENU_CATS[0].id);
@@ -971,20 +989,6 @@ function openMenuEditor(m){
 const closeMenuEditor = () => $("#menuDialog").close();
 $("#menuClose").onclick = closeMenuEditor; $("#menuCancel").onclick = closeMenuEditor;
 
-/* shrink big photos before upload (max 900px) so the menu stays quick on phones */
-async function shrinkImage(file){
-  try{
-    const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
-    if(scale === 1 && file.size < 600000) return file;
-    const c = document.createElement("canvas");
-    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
-    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
-    const blob = await new Promise(r => c.toBlob(r, "image/webp", .86));
-    return blob && blob.size < file.size ? blob : file;
-  }catch(e){ return file; }
-}
-
 $("#menuForm").addEventListener("submit", async e => {
   e.preventDefault();
   const msg = $("#menuMsg"); msg.textContent = "";
@@ -996,12 +1000,16 @@ $("#menuForm").addEventListener("submit", async e => {
   $("#menuSave").disabled = true;
   const id = editingMenuId || (name.replace(/[^a-z0-9]+/gi, "").slice(0, 16) || "item") + "_" + Date.now().toString(36);
   let img = $("#mImg").value.trim();
+  if(menuImgJob && !menuImgFile){   // still optimizing the photo that was just picked
+    msg.textContent = "Optimizing photo…";
+    await menuImgJob;
+    if(!menuImgFile){ $("#menuSave").disabled = false; return msg.textContent = "That photo couldn't be used — pick another one, or save without changing the photo."; }
+  }
   if(menuImgFile){
     msg.textContent = "Uploading photo…";
-    const blob = await shrinkImage(menuImgFile);
-    const ext = {"image/webp":"webp","image/png":"png","image/jpeg":"jpg"}[blob.type] || "jpg";
+    const {blob, ext} = menuImgFile;   // only the optimized copy is ever uploaded
     const path = `${id}/${Date.now()}.${ext}`;
-    const up = await sb.storage.from("menu-images").upload(path, blob, {contentType: blob.type, upsert: false});
+    const up = await sb.storage.from("menu-images").upload(path, blob, {contentType: blob.type, upsert: false, cacheControl: "31536000"});
     if(up.error){ $("#menuSave").disabled = false; return msg.textContent = "Photo upload failed: " + up.error.message; }
     img = sb.storage.from("menu-images").getPublicUrl(path).data.publicUrl;
     msg.textContent = "";

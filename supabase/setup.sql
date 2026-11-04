@@ -648,8 +648,10 @@ insert into public.menu_items (id, cat, name, description, price, tag, img, opti
 on conflict (id) do nothing;
 
 -- Public bucket for menu photos uploaded from the admin site (staff only can upload).
+-- The admin optimizes every photo before upload (max 900 px WebP, usually 50–300 KB), so 1 MB
+-- is plenty and stops unoptimized originals from being stored.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('menu-images', 'menu-images', true, 5242880,
+values ('menu-images', 'menu-images', true, 1048576,
         array['image/jpeg','image/png','image/webp'])
 on conflict (id) do update
   set public = true, file_size_limit = excluded.file_size_limit,

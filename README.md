@@ -44,6 +44,17 @@ node tools/update-seo.mjs
 
 Moving to your own domain (e.g. arbabkebab.com)? Change `SITE_URL` at the top of that file, run it, and commit.
 
+## Photo uploads
+
+Every photo is optimized in the browser before it's uploaded and saved in the database
+(`js/image-optimize.js` — the same file is in both sites, keep the copies identical):
+
+- **Menu photos (admin):** turned upright, GPS/camera data removed, shrunk to max 900 px, saved as WebP
+  (usually 50–300 KB). Photos smaller than 400 px are refused because they would look blurry.
+  The `menu-images` storage bucket only accepts files up to 1 MB (set in `supabase/setup.sql`).
+- **GCash screenshots (payment page):** same clean-up, max 2000 px so reference numbers stay readable.
+  If a phone can't optimize, a valid original under 5 MB is still sent, so payments are never blocked.
+
 ## Adding a branch
 
 1. Open `arbab-kebab-site/config.js` and find `branches`.

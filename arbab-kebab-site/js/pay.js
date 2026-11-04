@@ -136,7 +136,7 @@ function renderPay(o){
       <form id="f" novalidate>
         <label for="proof">GCash payment screenshot<span style="font-weight:400;color:var(--muted)"> *required </span></label>
         <input id="proof" type="file" accept="image/jpeg,image/png,image/webp" required>
-        <p class="hint">Upload a screenshot of your successful payment (JPG, PNG, or WebP; up to 5 MB).</p>
+        <p class="hint">Upload a screenshot of your successful payment (JPG, PNG, or WebP). We'll shrink it for you before sending.</p>
         <div class="err" id="err" role="alert"></div>
         <button class="btn dark" id="sub" type="submit">Send Order to Store</button>
       </form>
@@ -150,17 +150,28 @@ function renderPay(o){
     const file = $("#proof").files[0];
     const extensions = {"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
     if(!file){ $("#err").textContent = "Please upload your GCash payment screenshot."; return; }
-    if(!extensions[file.type] || file.size > 5 * 1024 * 1024){
-      $("#err").textContent = "Choose a JPG, PNG, or WebP screenshot no larger than 5 MB.";
+    if(!extensions[file.type] || file.size > 25 * 1024 * 1024){
+      $("#err").textContent = "Choose a JPG, PNG, or WebP screenshot.";
       return;
     }
-    $("#sub").disabled = true; $("#sub").textContent = "Sending…"; $("#err").textContent = "";
+    $("#sub").disabled = true; $("#sub").textContent = "Preparing screenshot…"; $("#err").textContent = "";
     try{
-      const path = `${o.ref}/${crypto.randomUUID()}.${extensions[file.type]}`;
+      /* optimize before upload (js/image-optimize.js): smaller and faster on mobile data, hidden GPS data removed,
+         still sharp enough to read the reference number. A payment must never be blocked by this, so if this
+         phone can't optimize, a valid original under the 5 MB storage limit is sent as it is. */
+      let body = file, type = file.type, ext = extensions[file.type];
+      try{
+        const r = await optimizeImage(file, {maxSide: 2000, quality: 0.9, minQuality: 0.75, maxBytes: 900 * 1024, what: "screenshot"});
+        body = r.blob; type = r.blob.type; ext = r.ext;
+      }catch(optErr){
+        if(file.size > 5 * 1024 * 1024) throw optErr;
+      }
+      $("#sub").textContent = "Sending…";
+      const path = `${o.ref}/${crypto.randomUUID()}.${ext}`;
       const headers = {"apikey":C.supabaseKey};
       if(C.supabaseKey && !C.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + C.supabaseKey;
       const upload = await fetch(`${C.supabaseUrl.replace(/\/$/,"")}/storage/v1/object/gcash-confirmations/${path}`, {
-        method:"POST", headers:{...headers,"Content-Type":file.type,"x-upsert":"false"}, body:file
+        method:"POST", headers:{...headers,"Content-Type":type,"x-upsert":"false"}, body
       });
       if(!upload.ok){
         const details = await upload.json().catch(() => null);
