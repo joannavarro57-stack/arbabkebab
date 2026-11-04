@@ -1,0 +1,94 @@
+# Arbab Kebab
+
+> Arbab Kebab (أرباب كباب) is a Middle Eastern restaurant in the Philippines — "Sarap na Legit, Lasang Middle East". It serves charcoal-grilled shawaya chicken, kabsa, biryani, kebab, shawarma wraps, falafel and salads, with online ordering for delivery and pick-up at https://arbabkebab.vercel.app/.
+
+## Ordering
+- Order online: https://arbabkebab.vercel.app/#menu — add dishes, choose Delivery or Pick-Up, pick a branch, date and time.
+- Time slots: hourly, 11:00 AM to 8:00 PM, today or a later date.
+- Payment: Cash on delivery / cash on pick-up, or GCash. The delivery fee is confirmed separately.
+- Phone: +639700910888 · Email: arabiya.official@gmail.com · Facebook: https://www.facebook.com/ArbabKebabOfficial
+
+## Branches
+- Malolos — Bulacan — map: https://www.google.com/maps/search/?api=1&query=14.8433,120.8114
+- C6 Banaba — San Mateo, Rizal — map: https://www.google.com/maps/search/?api=1&query=14.67685030707215,121.11544909999999
+- Makati — Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.563169874749514,121.0130246153436
+- Fairview — Quezon City, Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.71143651904663,121.06178288412517
+- Pasig — Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.554163592535158,121.09678732454763
+- Diliman — Quezon City, Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.631154670911398,121.03891623619046
+- Marikina — Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.638209287629184,121.10864875741734
+
+## Menu (prices in Philippine pesos, updated 2026-11-05)
+
+### Meal Sets
+- Shawaya Set 1 — ₱375: 1 whole chicken served with tomato chutney and garlic paste
+- Shawaya Set 2 — ₱475: 1 whole chicken with 2 cups of rice, served with tomato chutney and garlic paste
+- Shawaya Set 3 — ₱595: 1 whole chicken with 4 pcs Arabic bread and fries platter, served with tomato chutney and garlic paste (Must try)
+- Shawaya Set 4 — ₱695: Whole chicken with 4 cups of rice and your choice of salad, served with tomato chutney and garlic paste. (Bestseller)
+
+### Potlucks
+- Potluck — ₱995: kabsa chicken, kabsa beef, 2 pcs beef kebab, 2 pcs chicken kebab, 6 cups of rice, served with tomato chutney and garlic paste (Good for 4-6 pax) (Bestseller)
+- Shawaya Potluck — ₱1,299: 1 whole chicken, 3 beef kebabs, 3 chicken kebabs, 6 cups of rice, served with tomato chutney and garlic paste (Good for 4-6 pax) (Must try)
+
+### Salads
+- Fattoush — ₱160: Fresh lettuce, tomato, cucumber topped with fried pita bread (Bestseller)
+- Tabbouleh — ₱160: Fresh chopped parsley, tomato and onion
+
+### Solo Orders
+- Kabsa Chicken — ₱260: Charcoal-grilled quarter chicken, served with tomato chutney
+- Kabsa Beef — ₱350: Tender beef chunks, served with tomato chutney
+- Chicken Biryani — ₱290: Served with yogurt salad (raita)
+- Grilled Half Chicken — ₱375: Charcoal-grilled half chicken with 2pcs arabic bread and fries platter, served with garlic paste and BBQ sauce (Fan favorite)
+- Beef Kebab with Rice — ₱195
+- Chicken Kebab with Rice — ₱170
+
+### Fried
+- Chicken Wings — ₱180: Crispy chicken wings with fries, served with BBQ sauce ·
+- Fried Falafel — ₱150: 6 pcs, served with tzatziki sauce
+- Fries Platter — ₱150: Served with BBQ sauce
+
+### Add-Ons
+- Buttered Chicken — ₱195
+- Chana Masala — ₱150: made from chick peas, served with 1 arabic bread
+- Kabsa Rice — ₱170
+
+### Wraps
+- Beef Kebab Shawarma — ₱150
+- Chicken Shawarma — ₱135
+- Chicken Kebab Shawarma — ₱130
+- Falafel Wrap — ₱130
+
+### Drinks
+- Sweetened Yogurt — ₱110
+- Cucumber Lemon — ₱95
+- Karak Chai — ₱75
+- Ali Cafe — ₱50
+
+### Sauces
+- Pickles — ₱30
+- BBQ Sauce — ₱30
+- Raita — ₱30: yogurt salad
+- Garlic Paste — ₱80
+- Tomato Chutney — ₱30
+
+## FAQ
+
+**Do you deliver?**
+Yes — we offer delivery and contactless delivery, plus pick-up. We'll confirm the delivery fee for your area when we reply to your order.
+
+**How do I order?**
+Add dishes to your cart, enter your details, and tap “Place Order.” For GCash, you'll go to the payment page to pay and submit your reference number.
+
+**How can I pay?**
+Pay by GCash using the link after placing your order, or choose cash on delivery or pickup. Delivery fees are settled separately from GCash food payments.
+
+**Where are your branches?**
+We have 7 branches: Makati, Pasig, Diliman (Quezon City), Fairview (Quezon City), Marikina, C6 Banaba (San Mateo, Rizal) and Malolos (Bulacan). When you pin your delivery location, the order form picks the nearest branch for you.
+
+**What time can I order for?**
+You can schedule delivery or pick-up for today or a later date, in hourly slots from 11:00 AM to 8:00 PM.
+
+**What should I try first?**
+Our Shawaya sets — charcoal-grilled whole chicken with tomato chutney and garlic paste — are the house favorite. For groups, the Potluck and Shawaya Potluck are good for 4–6 people.
+
+**Do you cater for parties and offices?**
+Our potlucks and meal sets are made for sharing. For bigger orders, message us on Facebook or call us.

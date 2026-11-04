@@ -1,4 +1,6 @@
+# Search engines and AI assistants are welcome to read the public menu.
 User-agent: *
 Allow: /
+Disallow: /pay.html
 
-Sitemap: https://arbabkebab.com/sitemap.xml
+Sitemap: https://arbabkebab.vercel.app/sitemap.xml

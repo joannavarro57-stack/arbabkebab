@@ -1,6 +1,6 @@
 // Arbab Kebab — customer order emails.
 //
-// Called by the database (see "automatic customer emails" in supabase-setup.sql)
+// Called by the database (see "automatic customer emails" in supabase/setup.sql)
 // with {"order_id": "..."} when an order with an email is placed, and again when
 // it is marked completed. The function reads the order itself, decides which
 // email is due, records email_*_sent_at so each email goes out at most once,
