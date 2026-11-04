@@ -7,6 +7,7 @@
    ========================================================= */
 :root{
   --saffron:#E29231;
+  --ease-out:cubic-bezier(.2,.75,.2,1);
   --saffron-soft:#FFF9E6;
   --ember:#E0701C;
   --ember-dark:#B9530C;
@@ -83,10 +84,17 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 .tab:hover{border-color:var(--char)}
 .tab.on{background:var(--char);border-color:var(--char);color:#fff}
 
-.cat{scroll-margin-top:130px;padding:26px 0 34px}
-.cat:nth-child(even){background:var(--saffron)}
+.cat{position:relative;scroll-margin-top:130px;padding:46px 0 52px}
+.cat:nth-child(even){background:var(--saffron);isolation:isolate}
+/* soft dune-shaped edges where a saffron band meets a cream one */
+.cat:nth-child(even)::before,.cat:nth-child(even)::after{content:"";position:absolute;left:0;right:0;height:var(--dune,40px);background:var(--saffron);pointer-events:none;z-index:1;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 40' preserveAspectRatio='none'%3E%3Cpath d='M0 40V22C160 6 300 2 470 12s320 26 500 18 330-26 470-30V40z'/%3E%3C/svg%3E") center/100% 100% no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 40' preserveAspectRatio='none'%3E%3Cpath d='M0 40V22C160 6 300 2 470 12s320 26 500 18 330-26 470-30V40z'/%3E%3C/svg%3E") center/100% 100% no-repeat}
+.cat:nth-child(even)::before{bottom:calc(100% - 1px)}
+.cat:nth-child(even)::after{top:calc(100% - 1px);transform:scale(-1,-1)}
 .cat-inner{max-width:1120px;margin:0 auto;padding:0 16px}
-.cat h3{font-family:Arial,sans-serif;font-size:clamp(28px,4vw,40px);font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px;color:#090705}
+.cat h3{font-family:Arial,sans-serif;font-size:clamp(28px,4vw,40px);font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin:0 0 20px;color:#090705}
+.cat h3::after{content:"";display:block;width:56px;height:5px;margin-top:10px;border-radius:3px;background:currentColor;transform-origin:left center}
 .cat:nth-child(odd) h3{color:var(--ember-dark)}
 .cat:nth-child(even) h3{color:var(--char)}
 .cat .sub{color:var(--char-2);margin:0 0 16px;font-size:14px}
@@ -244,10 +252,30 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
   .grid{grid-template-columns:1fr;gap:12px}
   .card{grid-template-columns:112px minmax(0,1fr);gap:14px;padding:12px;border-radius:20px}
   .card:hover{transform:none}
-  .cat{padding:22px 0 28px}
+  .cat{padding:36px 0 42px;--dune:26px}
   .menu-head{padding-top:26px}
 }
 @media(hover:none){.card:hover .thumb img{transform:none}}
+/* ---------- motion ----------
+   Hero: plays once on load (pure CSS). Everything else: revealed on scroll by js/main.js,
+   which only adds .js-motion when motion is allowed — without JS (search engines) all content stays visible. */
+@keyframes rise{from{opacity:0;transform:translate3d(0,28px,0)}to{opacity:1;transform:none}}
+@keyframes wipe{from{opacity:0;clip-path:inset(-10% 100% -10% 0)}to{opacity:1;clip-path:inset(-10% 0 -10% 0)}}
+@keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes pop{from{opacity:0;transform:scale(.86) rotate(-8deg)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:no-preference){
+  .hero .arabic,.hero h1,.hero .lede,.hero .cta-row,.hero .badges{animation:rise .8s var(--ease-out) backwards}
+  .hero h1{animation-delay:.08s}
+  .hero .lede{animation-delay:.18s}
+  .hero .cta-row{animation-delay:.26s}
+  .hero .badges{animation-delay:.34s}
+  .seal{animation:pop 1.1s var(--ease-out) .2s backwards}
+  .js-motion .reveal:not(.in){opacity:0}
+  .js-motion .reveal.in{animation:rise .8s var(--ease-out) var(--d,0ms) backwards}
+  .js-motion .cat h3.reveal.in,.js-motion .menu-head h2.reveal.in{animation:wipe .9s var(--ease-out) backwards}
+  .js-motion .cat h3.reveal:not(.in)::after{transform:scaleX(0)}
+  .js-motion .cat h3.reveal.in::after{animation:draw .7s var(--ease-out) .35s backwards}
+}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 /* delivery pin map */
 .order-note{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--saffron-soft);border:1.5px solid var(--saffron);border-left:5px solid var(--ember);border-radius:12px;color:var(--char);font-size:14px;line-height:1.4}

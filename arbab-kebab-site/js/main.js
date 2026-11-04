@@ -115,6 +115,33 @@ $("#branchList").innerHTML = BRANCHES.map(b => `<li>${esc(b.name)} branch`
 $("#branch").innerHTML = BRANCHES.map(b => `<option>${esc(b.name)}</option>`).join("");
 $("#branchBadge").textContent = BRANCHES.length > 1 ? `${BRANCHES.length} branches` : BRANCHES[0].name;
 
+/* ================= SCROLL REVEALS =================
+   Sections, headings and cards ease in as they scroll into view (styles under "motion" in css/main.css).
+   Content is only ever hidden here, by JS, so search engines and no-JS visitors always see everything.
+   Off when the visitor's device asks for reduced motion. */
+const MOTION = !matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window;
+if(MOTION) document.documentElement.classList.add("js-motion");
+const REVEAL_SEL = ".cat h3, .card, .menu-head h2, .about h2, .about > p, .faq details, .info .wrap > div";
+const revealObs = MOTION ? new IntersectionObserver(entries => entries.forEach(en => {
+  if(!en.isIntersecting) return;
+  en.target.classList.add("in");
+  revealObs.unobserve(en.target);
+}), {rootMargin: "0px 0px -8% 0px", threshold: 0.12}) : null;
+function revealIn(root, instant = false){
+  if(!revealObs || instant) return;   // instant: e.g. search results while typing
+  const vh = window.innerHeight;
+  root.querySelectorAll(REVEAL_SEL).forEach(el => {
+    if(el.classList.contains("reveal")) return;
+    const r = el.getBoundingClientRect();
+    if(r.top < vh && r.bottom > 0) return;   // already on screen — never hide what someone is looking at
+    const i = Array.prototype.indexOf.call(el.parentElement.children, el);
+    // cards: left column first, right column a beat later; lists/columns: a gentle cascade
+    el.style.setProperty("--d", (el.matches(".card") ? (i % 2) * 90 : el.matches(".faq details, .info .wrap > div") ? Math.min(i, 5) * 70 : 0) + "ms");
+    el.classList.add("reveal");
+    revealObs.observe(el);
+  });
+}
+
 /* render menu */
 function renderMenu(q=""){
   q = q.trim().toLowerCase();
@@ -128,6 +155,7 @@ function renderMenu(q=""){
   $("#tabs").innerHTML = tabs.join("");
   $("#cats").innerHTML = blocks.length ? blocks.join("") : `<p class="empty">No dishes match “${esc(q)}”.</p>`;
   const first = $("#tabs .tab"); if(first) first.classList.add("on");
+  revealIn($("#cats"), !!q);
 }
 /* local photos in images/ also ship as sharper, lighter .webp files — use those, falling back to the original */
 const webpOf = u => /^images\/[^/?#]+\.png$/i.test(u) ? u.replace(/\.png$/i, ".webp") : u;
@@ -159,6 +187,7 @@ function useMenu(rows){
 }
 useMenu(store.get("ak_menu"));
 renderMenu();
+revealIn(document);   // the rest of the page: menu title, About, FAQ, info columns
 (async () => {
   if(!STORE.supabaseUrl || !STORE.supabaseKey) return;
   try{
