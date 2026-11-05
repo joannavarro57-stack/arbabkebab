@@ -1,24 +1,25 @@
+@charset "UTF-8";
 :root{--saffron:#E29231;--saffron-soft:#FCE7AE;--ember:#E0701C;--ember-dark:#B9530C;--char:#1E1A16;--char-2:#3A322B;--cream:#FFF8EA;--paper:#FFFDF8;--line:#EADFC8;--muted:#7A6D5F;--ok:#2F7D4F;--gcash:#0B5FD7}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--cream);color:var(--char);font-family:Inter,system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--cream);color:var(--char);font-family:Cairo,system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
 button,input{font:inherit;color:inherit}
 .top{background:var(--saffron);border-bottom:4px solid var(--char)}
 .top .in{max-width:520px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:10px}
 .mark{width:42px;height:42px;border-radius:50%;flex:none;box-shadow:0 2px 6px rgba(30,26,22,.25)}
-.top a{display:flex;align-items:center;gap:10px;color:var(--char);text-decoration:none;font-family:Arial,sans-serif;font-weight:900;font-size:20px}
+.top a{display:flex;align-items:center;gap:10px;color:var(--char);text-decoration:none;font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:20px}
 :focus-visible{outline:3px solid var(--ember);outline-offset:2px}
 .btn{transition:background .15s ease,transform .15s ease}
 .btn:active{transform:scale(.97)}
 main{max-width:520px;margin:0 auto;padding:18px 16px 48px}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(30,26,22,.05),0 8px 24px rgba(30,26,22,.06)}
-h1{font-family:Arial,sans-serif;font-weight:900;font-size:28px;line-height:1.1;margin:0 0 4px}
+h1{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:28px;line-height:1.1;margin:0 0 4px}
 .sub{color:var(--muted);margin:0}
-.ref{font-family:ui-monospace,Menlo,monospace;background:var(--saffron-soft);padding:2px 8px;border-radius:6px;font-weight:700;letter-spacing:.03em}
+.ref{font-family:Cairo,system-ui,sans-serif;background:var(--saffron-soft);padding:2px 8px;border-radius:6px;font-weight:700;letter-spacing:.03em}
 .order-number{display:inline-block;background:var(--saffron);border:2px solid var(--char);border-radius:9px;padding:4px 10px;color:var(--char);font-size:18px;font-weight:800;letter-spacing:.03em}
 .amount{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:2px solid var(--char)}
 .amount .l{font-weight:700}
-.amount .v{font-family:Arial,sans-serif;font-weight:900;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
+.amount .v{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
 details{margin-top:10px}
 details.resend{margin:4px 0 0}
 details.resend > summary{padding:12px 14px;border:1.5px dashed var(--line);border-radius:12px;background:#fff;text-align:center}
@@ -51,18 +52,18 @@ input[type=file]{font-size:14px}
 .state .icon.ok{background:#CFEBD9}
 .state .icon.wait{background:var(--saffron-soft)}
 .state .icon.bad{background:#F3D6D2}
-.state h2{font-family:Arial,sans-serif;font-weight:900;font-size:24px;margin:0 0 6px}
+.state h2{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:24px;margin:0 0 6px}
 .state p{color:var(--char-2);margin:0 0 6px}
 .proof-image{display:block;width:min(100%,420px);max-height:70vh;object-fit:contain;margin:12px auto 0;border:1px solid var(--line);border-radius:12px;background:#fff}
 .links{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
 .done-ref{margin:0 0 6px;font-size:16px}
-.done-ref b{font-family:ui-monospace,Menlo,monospace;letter-spacing:.04em;background:var(--saffron-soft);padding:2px 8px;border-radius:6px}
+.done-ref b{font-family:Cairo,system-ui,sans-serif;letter-spacing:.04em;background:var(--saffron-soft);padding:2px 8px;border-radius:6px}
 .chat-box{margin:16px 0 0;padding:14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;text-align:center}
 .card > .chat-box{margin:0;border:0;padding:0;background:none}
 .chat-box .chat-title{margin:0 0 10px;font-weight:800;font-size:17px;color:#FF5F1F}
 .chat-title span{margin:0 0 10px;font-weight:700;color:#FF5F1F}
 .chat-sub{margin:-6px 0 8px;font-size:13.5px;color:var(--char-2)}
-.chat-msg{margin:0;padding:10px 12px;text-align:left;background:var(--saffron-soft);border:1.5px dashed var(--saffron);border-radius:10px;font:13px/1.5 Inter,system-ui,sans-serif;color:var(--char);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto}
+.chat-msg{margin:0;padding:10px 12px;text-align:left;background:var(--saffron-soft);border:1.5px dashed var(--saffron);border-radius:10px;font:13px/1.5 Cairo,system-ui,sans-serif;color:var(--char);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto}
 .chat-copy{width:100%;margin:10px 0 8px;padding:12px;border:2px solid var(--char);border-radius:12px;background:#fff;color:var(--char);font:inherit;font-weight:700;cursor:pointer}
 .chat-copy.done{background:var(--char);color:#fff}
 .chat-btns{display:flex;gap:8px}

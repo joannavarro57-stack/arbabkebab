@@ -1,3 +1,4 @@
+@charset "UTF-8";
 :root{
   --saffron:#F5B21B; --saffron-soft:#FCE7AE; --ember:#E0701C; --ember-dark:#B9530C;
   --char:#1E1A16; --char-2:#3A322B; --muted:#7A6D5F; --line:#E7DCC7; --bg:#F6F1E7; --card:#FFFDF8;
@@ -5,11 +6,11 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--char);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--bg);color:var(--char);font-family:Cairo,system-ui,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:inherit}
-.mark{width:34px;height:34px;flex:none;border-radius:50%;background:var(--ember);border:3px solid var(--char);display:grid;place-items:center;font-family:Arial,sans-serif;font-weight:900;font-size:12px}
+.mark{width:34px;height:34px;flex:none;border-radius:50%;background:var(--ember);border:3px solid var(--char);display:grid;place-items:center;font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:12px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;font-weight:600;text-decoration:none;white-space:nowrap}
 .btn:hover{border-color:var(--char-2)}
 .btn.dark{background:var(--char);border-color:var(--char);color:#fff}
@@ -55,7 +56,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 /* login */
 .login{min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--saffron)}
 .login form{width:min(380px,100%);background:var(--card);border:3px solid var(--char);border-radius:20px;padding:28px 22px;box-shadow:8px 8px 0 var(--char)}
-.login h1{font-family:Arial,sans-serif;font-weight:900;font-size:28px;margin:12px 0 2px}
+.login h1{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:28px;margin:12px 0 2px}
 .login p{color:var(--muted);margin:0 0 18px}
 .login label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
 .login input{width:100%;padding:11px 12px}
@@ -122,7 +123,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ember)}
 .pay.unpaid{color:var(--grey)} .pay.submitted{color:#fff;background:var(--amber);border-color:var(--amber)} .pay.paid{color:var(--green)} .pay.refunded{color:var(--purple)}
 .paybox{border-radius:12px;padding:10px 12px;margin-top:8px;background:var(--bg)}
 .paybox.submitted{background:#FFF3D6;border:1.5px solid var(--amber)}
-.paybox .big{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:800;letter-spacing:.04em}
+.paybox .big{font-family:Cairo,system-ui,sans-serif;font-size:18px;font-weight:800;letter-spacing:.04em}
 .pay-proof img{display:block;width:min(100%,420px);max-height:480px;object-fit:contain;margin-top:8px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);background:var(--card);border:1.5px dashed var(--line);border-radius:14px}
 
@@ -155,7 +156,7 @@ table.items .o{color:var(--muted);font-size:12.5px}
 .sum .grand{font-size:20px;font-weight:800;border-top:2px solid var(--char);padding-top:8px}
 .driver-fee{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;font-weight:700}
 .driver-fee input{width:120px;text-align:right;font-weight:700}
-.driver-msg{margin:0;padding:10px 12px;background:#fff;border:1.5px solid var(--line);border-radius:10px;font:13px/1.5 Inter,system-ui,sans-serif;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto}
+.driver-msg{margin:0;padding:10px 12px;background:#fff;border:1.5px solid var(--line);border-radius:10px;font:13px/1.5 Cairo,system-ui,sans-serif;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto}
 .driver-copy{width:100%;margin-top:8px}
 .driver-hint{margin:6px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .note-box{background:var(--saffron-soft);border-radius:10px;padding:8px 10px;font-size:14px}
