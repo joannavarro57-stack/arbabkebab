@@ -210,4 +210,26 @@
     scrollPush += (y - lastScroll) * 0.06;   // frames per pixel scrolled: down turns forward, up turns back
     lastScroll = y;
   }, {passive: true});
+
+  /* hide the rotisserie while it would sit on top of a menu card's Add button, so the button is never covered */
+  let checkQueued = false;
+  function checkOverlap(){
+    checkQueued = false;
+    const g = host.getBoundingClientRect();
+    let hit = false;
+    for(const b of document.querySelectorAll(".add")){
+      const r = b.getBoundingClientRect();
+      if(r.bottom > g.top && r.top < g.bottom && r.right > g.left && r.left < g.right){ hit = true; break; }
+    }
+    host.classList.toggle("blocked", hit);
+  }
+  function queueCheck(){ if(!checkQueued){ checkQueued = true; requestAnimationFrame(checkOverlap); } }
+  window.addEventListener("scroll", queueCheck, {passive: true});
+  window.addEventListener("resize", queueCheck);
+  host.addEventListener("transitionend", queueCheck);   // it moves up when the order bar shows
+  window.addEventListener("load", queueCheck);
+  // the menu can re-render (live menu, search), which moves the buttons
+  const menuRoot = document.getElementById("menu") || document.body;
+  new MutationObserver(queueCheck).observe(menuRoot, {childList: true, subtree: true});
+  queueCheck();
 })();
