@@ -256,15 +256,14 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
   .menu-head{padding-top:26px}
 }
 @media(hover:none){.card:hover .thumb img{transform:none}}
-/* decorative rotisserie, middle of the right edge — three chickens on spits, drawn on a canvas by js/grill.js.
-   Above the sticky header and category bar; below the bottom order bar, cart drawer and popups.
-   Fades in once its sprite has loaded (.ready); tucked partly off the edge at rest, slides out while scrolling (.awake). */
-.grill{position:fixed;right:0;top:50%;z-index:35;width:clamp(120px,11vw,168px);pointer-events:none;opacity:0;transform:translate3d(32%,-50%,0);transform:translate3d(max(0px, clamp(120px,11vw,168px) - max(24px, (100vw - 1136px) / 2)),-50%,0);transition:transform .8s var(--ease-out),opacity .6s ease;filter:drop-shadow(0 12px 16px rgba(30,26,22,.25))}
+/* decorative rotisserie floating in the bottom-right corner of the screen — three chickens on spits, drawn on a
+   canvas by js/grill.js. Fades in once its sprite has loaded (.ready); lifts above the order bar when it shows.
+   Above the sticky header and category bar; below the order bar, cart drawer and popups; clicks pass through. */
+.grill{position:fixed;right:10px;bottom:12px;z-index:35;width:clamp(110px,10.35vw,161px);pointer-events:none;opacity:0;transition:opacity .6s ease,bottom .3s var(--ease-out);filter:drop-shadow(0 12px 16px rgba(30,26,22,.25))}
 .grill.ready{opacity:1}
-.grill.awake{transform:translate3d(-8px,-50%,0)}
+.bar.show ~ .grill{bottom:84px}
 .grill canvas{display:block;width:100%;aspect-ratio:340/518}
-@media(max-width:900px){.grill.awake{transform:translate3d(30%,-50%,0)}}
-@media(max-width:640px){.grill{width:84px;transform:translate3d(60px,-50%,0)}.grill.awake{transform:translate3d(40%,-50%,0)}}
+@media(max-width:640px){.grill{width:69px;right:-6px}}
 
 /* ---------- motion ----------
    Hero: plays once on load (pure CSS). Everything else: revealed on scroll by js/main.js,

@@ -1,5 +1,5 @@
 /* =====================================================================
-   ARBAB KEBAB — the rotisserie on the middle of the right edge (decorative)
+   ARBAB KEBAB — the rotisserie floating in the bottom-right corner (decorative)
    ---------------------------------------------------------------------
    Three chickens turning on steel spits, stacked in a rotisserie frame, drawn
    on a <canvas> from images/brand/rotisserie-sprite.webp — 60 frames of one
@@ -9,8 +9,7 @@
      at rest they keep turning at the video's own speed.
    • Each spit is a third of a turn apart, so they never move in step.
    • Neighbouring frames are blended so the turn stays smooth.
-   • While the page scrolls it slides out from the edge; when it stops it
-     tucks back. The sprite loads only after the rest of the page has.
+   • The sprite loads only after the rest of the page has.
    • Drawn at the screen's pixel density; only animates while the tab is open.
      With reduced motion it shows a still frame. Clicks pass through it and
      screen readers skip it.
@@ -58,7 +57,7 @@
     fit = out; fitScale = target;
   }
 
-  let pos = 0, scrollPush = 0, lastScroll = window.scrollY, raf = 0, last = 0, idleTimer = null;
+  let pos = 0, scrollPush = 0, lastScroll = window.scrollY, raf = 0, last = 0;
   const sheet = new Image();
   let ready = false;
 
@@ -147,8 +146,5 @@
     const y = window.scrollY;
     scrollPush += (y - lastScroll) * 0.06;   // frames per pixel scrolled: down turns forward, up turns back
     lastScroll = y;
-    host.classList.add("awake");
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => host.classList.remove("awake"), 1100);
   }, {passive: true});
 })();
