@@ -266,7 +266,7 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .grill.ready{opacity:1}
 .bar.show ~ .grill{bottom:84px}
 .grill canvas{display:block;width:100%;aspect-ratio:340/560}
-@media(max-width:640px){.grill{width:83px;right:6px}}
+@media(max-width:640px){.grill{width:71px;right:6px}}
 
 /* ---------- motion ----------
    Hero: plays once on load (pure CSS). Everything else: revealed on scroll by js/main.js,
