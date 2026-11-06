@@ -250,6 +250,7 @@ function openItemModal(m, line=null, index=null){
   curQty = line ? line.qty : 1;
   editIndex = index;
   $("#mTitle").textContent = m.name;
+  $("#mMainName").textContent = m.name;
   $("#mDesc").textContent = m.desc || "";
   $("#mAction").textContent = line ? "Save changes" : "Add";
   // new item: the first paid extra starts at 1 (customer can lower it or tap "No Extra"); editing keeps the saved counts
@@ -260,9 +261,10 @@ function openItemModal(m, line=null, index=null){
     return o.choices.map((c,j) => j === first ? 1 : 0);
   });
   $("#mOpts").innerHTML = (m.options || []).map((o,i)=>{
-    if(curExtras[i]) return `<div class="opt-group"><p>${esc(o.label)}</p>${o.choices.map((c,j)=>isNoneChoice(c)
-      ? `<div class="chips extra-none"><button type="button" class="chip-btn" data-exnone="${i}">${esc(c.name)}</button></div>`
-      : `<div class="extra-row"><span>${esc(c.name)} <small>+${peso(c.add)} each</small></span><div class="qty"><button type="button" data-exdec="${i}-${j}" aria-label="Fewer ${esc(c.name)}">−</button><span id="ex-${i}-${j}">${curExtras[i][j]}</span><button type="button" data-exinc="${i}-${j}" aria-label="More ${esc(c.name)}">+</button></div></div>`).join("")}</div>`;
+    // each paid extra is one pill: name + price + its own − n + counter; it turns black while n > 0
+    if(curExtras[i]) return `<div class="opt-group"><p>${esc(o.label)}</p><div class="chips">${o.choices.map((c,j)=>isNoneChoice(c)
+      ? `<button type="button" class="chip-btn" data-exnone="${i}">${esc(c.name)}</button>`
+      : `<div class="extra-chip" data-exchip="${i}-${j}"><button type="button" class="extra-name" data-exinc="${i}-${j}">${esc(c.name)} +${peso(c.add)}</button><button type="button" class="extra-step" data-exdec="${i}-${j}" aria-label="Fewer ${esc(c.name)}">−</button><span id="ex-${i}-${j}">${curExtras[i][j]}</span><button type="button" class="extra-step" data-exinc="${i}-${j}" aria-label="More ${esc(c.name)}">+</button></div>`).join("")}</div></div>`;
     const selected = line ? o.choices.findIndex(c=>line.opts.includes(c.name)) : 0;
     const selectedIndex = selected >= 0 ? selected : 0;
     return `<div class="opt-group"><p>${esc(o.label)}</p><div class="chips">${o.choices.map((c,j)=>`<label class="chip"><input type="radio" name="o${i}" value="${j}" ${j===selectedIndex?"checked":""}><span>${esc(c.name)}${c.add?` +${peso(c.add)}`:""}</span></label>`).join("")}</div></div>`;
@@ -320,6 +322,7 @@ function updM(){
   $("#mQty").textContent = curQty;
   $("#mPrice").textContent = peso((cur.price+add)*curQty + extrasTotal({extras: chosenExtras()}));
   document.querySelectorAll("#mOpts [data-exnone]").forEach(b => b.classList.toggle("on", curExtras[+b.dataset.exnone].every(n => !n)));
+  document.querySelectorAll("#mOpts [data-exchip]").forEach(el => { const [i,j] = el.dataset.exchip.split("-").map(Number); el.classList.toggle("on", curExtras[i][j] > 0); });
 }
 $("#mOpts").addEventListener("change", updM);
 $("#mOpts").addEventListener("click", e=>{

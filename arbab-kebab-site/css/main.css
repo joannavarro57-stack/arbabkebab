@@ -234,10 +234,20 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .sheet .modal-cancel{display:block;width:auto;margin:8px auto 0;padding:8px 14px}
 .opt-group{margin-top:14px}
 .opt-group p{font-weight:700;margin:0 0 8px;font-size:14px}
+/* the main item's quantity, set apart from the options above it */
+.main-qty{margin-top:18px;padding-top:14px;border-top:1.5px dashed var(--line)}
+.main-qty p{font-weight:700;margin:0 0 8px;font-size:14px}
+.main-qty-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600;font-size:14px}
+.main-qty-row .qty{justify-self:auto}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.extra-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;font-weight:600;font-size:14px}
-.extra-row small{font-weight:500;opacity:.7}
-.extra-none{margin-top:6px}
+.extra-chip{display:inline-flex;align-items:center;border:1.5px solid var(--line);border-radius:999px;background:#fff;font-weight:600;font-size:14px;overflow:hidden}
+.extra-chip button{background:none;border:0;color:inherit;font:inherit;cursor:pointer}
+.extra-chip .extra-name{position:relative;padding:8px 12px 8px 14px;margin-right:4px}
+.extra-chip .extra-name::after{content:"";position:absolute;right:0;top:7px;bottom:7px;border-right:1.5px dashed var(--line)}
+.extra-chip .extra-step{width:30px;height:36px;font-size:16px;font-weight:700}
+.extra-chip span{min-width:18px;text-align:center;font-weight:700}
+.extra-chip .extra-step:last-child{margin-right:4px}
+.extra-chip.on{background:var(--char);border-color:var(--char);color:#fff}
 .chip-btn{border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;font-size:14px;background:#fff;color:inherit;cursor:pointer}
 .chip-btn.on{background:var(--char);border-color:var(--char);color:#fff}
 .chip{position:relative}
