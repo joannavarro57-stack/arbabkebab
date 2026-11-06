@@ -235,6 +235,8 @@ legend{font-weight:700;margin-bottom:8px;font-size:15px}
 .opt-group{margin-top:14px}
 .opt-group p{font-weight:700;margin:0 0 8px;font-size:14px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
+.extra-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;font-weight:600;font-size:14px}
+.extra-row small{font-weight:500;opacity:.7}
 .chip{position:relative}
 .chip input{position:absolute;opacity:0}
 .chip span{display:inline-block;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;background:#fff;cursor:pointer}

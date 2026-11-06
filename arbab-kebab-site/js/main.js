@@ -181,7 +181,9 @@ function useMenu(rows){
   // keep prices in a saved cart in step with the menu
   cart.forEach(l => {
     const m = MENU.find(x => x.id === l.id); if(!m) return;
-    l.unit = m.price + (m.options || []).reduce((s,o) => s + ((o.choices || []).find(c => l.opts.includes(c.name)) || {add:0}).add, 0);
+    l.unit = m.price + (m.options || []).reduce((s,o) => s + (isExtrasGroup(o)
+      ? o.choices.reduce((t,c) => t + c.add * extraCount(l.opts, c.name), 0)
+      : ((o.choices || []).find(c => l.opts.includes(c.name)) || {add:0}).add), 0);
   });
   return true;
 }
@@ -240,7 +242,9 @@ function openItemModal(m, line=null, index=null){
   $("#mTitle").textContent = m.name;
   $("#mDesc").textContent = m.desc || "";
   $("#mAction").textContent = line ? "Save changes" : "Add";
+  curExtras = (m.options || []).map(o => isExtrasGroup(o) ? o.choices.map(c => line ? extraCount(line.opts, c.name) : 0) : null);
   $("#mOpts").innerHTML = (m.options || []).map((o,i)=>{
+    if(curExtras[i]) return `<div class="opt-group"><p>${esc(o.label)}</p>${o.choices.map((c,j)=>`<div class="extra-row"><span>${esc(c.name)} <small>+${peso(c.add)} each</small></span><div class="qty"><button type="button" data-exdec="${i}-${j}" aria-label="Fewer ${esc(c.name)}">−</button><span id="ex-${i}-${j}">${curExtras[i][j]}</span><button type="button" data-exinc="${i}-${j}" aria-label="More ${esc(c.name)}">+</button></div></div>`).join("")}</div>`;
     const selected = line ? o.choices.findIndex(c=>line.opts.includes(c.name)) : 0;
     const selectedIndex = selected >= 0 ? selected : 0;
     return `<div class="opt-group"><p>${esc(o.label)}</p><div class="chips">${o.choices.map((c,j)=>`<label class="chip"><input type="radio" name="o${i}" value="${j}" ${j===selectedIndex?"checked":""}><span>${esc(c.name)}${c.add?` +${peso(c.add)}`:""}</span></label>`).join("")}</div></div>`;
@@ -254,9 +258,34 @@ document.addEventListener("click", e => {
   if(!m.options || !m.options.length){ addToCart(m, [], 1); return; }
   openItemModal(m);
 });
-function chosen(){ return (cur.options || []).map((o,i)=>o.choices[+document.querySelector(`input[name=o${i}]:checked`).value]); }
+/* A group where every choice costs extra (e.g. "Extra: Arabic Bread +₱15") is a set of add-ons:
+   each gets its own counter, so customers can add several without ordering more of the main item.
+   Counts are per main item and saved in the option text, e.g. "Arabic Bread ×3". */
+let curExtras = [];
+function isExtrasGroup(o){ return Array.isArray(o.choices) && o.choices.length > 0 && o.choices.every(c => (+c.add || 0) > 0); }
+function extraLabel(name, n){ return n > 1 ? `${name} ×${n}` : name; }
+function extraCount(opts, name){
+  for(const s of opts || []){
+    if(s === name) return 1;
+    if(s.startsWith(name + " ×")){ const n = parseInt(s.slice(name.length + 2), 10); if(n > 0) return n; }
+  }
+  return 0;
+}
+function chosen(){
+  return (cur.options || []).flatMap((o,i)=>{
+    if(curExtras[i]) return o.choices.map((c,j)=>({n:curExtras[i][j], c})).filter(x=>x.n>0).map(({n,c})=>({name:extraLabel(c.name,n), add:c.add*n}));
+    return [o.choices[+document.querySelector(`input[name=o${i}]:checked`).value]];
+  });
+}
 function updM(){ const add = chosen().reduce((s,c)=>s+c.add,0); $("#mQty").textContent = curQty; $("#mPrice").textContent = peso((cur.price+add)*curQty); }
 $("#mOpts").addEventListener("change", updM);
+$("#mOpts").addEventListener("click", e=>{
+  const b = e.target.closest("[data-exinc],[data-exdec]"); if(!b) return;
+  const [i,j] = (b.dataset.exinc || b.dataset.exdec).split("-").map(Number);
+  curExtras[i][j] = Math.max(0, curExtras[i][j] + (b.dataset.exinc ? 1 : -1));
+  $(`#ex-${i}-${j}`).textContent = curExtras[i][j];
+  updM();
+});
 $("#mMinus").onclick = ()=>{ if(curQty>1){curQty--; updM();} };
 $("#mPlus").onclick = ()=>{ curQty++; updM(); };
 function closeItemModal(){ $("#modal").classList.remove("open"); editIndex=null; }
