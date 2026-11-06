@@ -181,8 +181,18 @@ function useMenu(rows){
   // keep prices in a saved cart in step with the menu
   cart.forEach(l => {
     const m = MENU.find(x => x.id === l.id); if(!m) return;
-    l.unit = m.price + (m.options || []).reduce((s,o) => s + (isExtrasGroup(o)
-      ? o.choices.reduce((t,c) => t + c.add * extraCount(l.opts, c.name), 0)
+    l.extras = l.extras || [];
+    (m.options || []).forEach(o => {
+      if(!isExtrasGroup(o)) return;
+      o.choices.forEach(c => {
+        if(isNoneChoice(c)) return;
+        // carts saved by the earlier per-item version kept extras in opts ("Arabic Bread ×3"): move them over
+        const old = extraCount(l.opts, c.name);
+        if(old){ l.opts = l.opts.filter(s => s !== c.name && !s.startsWith(c.name + " ×")); addExtra(l.extras, c.name, c.add, old * l.qty); }
+        const e = l.extras.find(x => x.name === c.name); if(e) e.add = +c.add;
+      });
+    });
+    l.unit = m.price + (m.options || []).reduce((s,o) => s + (isExtrasGroup(o) ? 0
       : ((o.choices || []).find(c => l.opts.includes(c.name)) || {add:0}).add), 0);
   });
   return true;
@@ -242,9 +252,17 @@ function openItemModal(m, line=null, index=null){
   $("#mTitle").textContent = m.name;
   $("#mDesc").textContent = m.desc || "";
   $("#mAction").textContent = line ? "Save changes" : "Add";
-  curExtras = (m.options || []).map(o => isExtrasGroup(o) ? o.choices.map(c => line ? extraCount(line.opts, c.name) : 0) : null);
+  // new item: the first paid extra starts at 1 (customer can lower it or tap "No Extra"); editing keeps the saved counts
+  curExtras = (m.options || []).map(o => {
+    if(!isExtrasGroup(o)) return null;
+    if(line) return o.choices.map(c => isNoneChoice(c) ? 0 : ((line.extras || []).find(x => x.name === c.name) || {n:0}).n);
+    const first = o.choices.findIndex(c => !isNoneChoice(c));
+    return o.choices.map((c,j) => j === first ? 1 : 0);
+  });
   $("#mOpts").innerHTML = (m.options || []).map((o,i)=>{
-    if(curExtras[i]) return `<div class="opt-group"><p>${esc(o.label)}</p>${o.choices.map((c,j)=>`<div class="extra-row"><span>${esc(c.name)} <small>+${peso(c.add)} each</small></span><div class="qty"><button type="button" data-exdec="${i}-${j}" aria-label="Fewer ${esc(c.name)}">−</button><span id="ex-${i}-${j}">${curExtras[i][j]}</span><button type="button" data-exinc="${i}-${j}" aria-label="More ${esc(c.name)}">+</button></div></div>`).join("")}</div>`;
+    if(curExtras[i]) return `<div class="opt-group"><p>${esc(o.label)}</p>${o.choices.map((c,j)=>isNoneChoice(c)
+      ? `<div class="chips extra-none"><button type="button" class="chip-btn" data-exnone="${i}">${esc(c.name)}</button></div>`
+      : `<div class="extra-row"><span>${esc(c.name)} <small>+${peso(c.add)} each</small></span><div class="qty"><button type="button" data-exdec="${i}-${j}" aria-label="Fewer ${esc(c.name)}">−</button><span id="ex-${i}-${j}">${curExtras[i][j]}</span><button type="button" data-exinc="${i}-${j}" aria-label="More ${esc(c.name)}">+</button></div></div>`).join("")}</div>`;
     const selected = line ? o.choices.findIndex(c=>line.opts.includes(c.name)) : 0;
     const selectedIndex = selected >= 0 ? selected : 0;
     return `<div class="opt-group"><p>${esc(o.label)}</p><div class="chips">${o.choices.map((c,j)=>`<label class="chip"><input type="radio" name="o${i}" value="${j}" ${j===selectedIndex?"checked":""}><span>${esc(c.name)}${c.add?` +${peso(c.add)}`:""}</span></label>`).join("")}</div></div>`;
@@ -258,12 +276,30 @@ document.addEventListener("click", e => {
   if(!m.options || !m.options.length){ addToCart(m, [], 1); return; }
   openItemModal(m);
 });
-/* A group where every choice costs extra (e.g. "Extra: Arabic Bread +₱15") is a set of add-ons:
-   each gets its own counter, so customers can add several without ordering more of the main item.
-   Counts are per main item and saved in the option text, e.g. "Arabic Bread ×3". */
+/* A group of paid add-ons (e.g. "Extra: Arabic Bread +₱15, No Extra") gets a counter per paid
+   choice, so customers can add several without ordering more of the main item. A free "No …"
+   choice ("No Extra", "No extra rice") shows as a button that sets every counter in the group to 0.
+   Groups with any other free choice (e.g. "Kebab count: 1 piece / 2 pieces +₱95") stay pick-one chips.
+   Extra counts are for the whole cart line, not per main item: 2 chicken + 3 bread = 3 bread.
+   They live in line.extras [{name, add, n}] and go to the kitchen as their own order items. */
 let curExtras = [];
-function isExtrasGroup(o){ return Array.isArray(o.choices) && o.choices.length > 0 && o.choices.every(c => (+c.add || 0) > 0); }
-function extraLabel(name, n){ return n > 1 ? `${name} ×${n}` : name; }
+function addExtra(list, name, add, n){
+  if(!(n > 0)) return;
+  const e = list.find(x => x.name === name);
+  if(e) e.n += n; else list.push({name, add:+add, n});
+}
+function extrasTotal(l){ return (l.extras || []).reduce((s,e) => s + e.add * e.n, 0); }
+function lineTotal(l){ return l.unit * l.qty + extrasTotal(l); }
+// cart line → order items: the main item, then each extra as its own item
+function orderItems(lines){
+  return lines.flatMap(l => [{name: l.name, opts: l.opts || [], qty: l.qty, unit: l.unit},
+    ...(l.extras || []).map(e => ({name: e.name, opts: ["Extra for " + l.name], qty: e.n, unit: e.add}))]);
+}
+function isNoneChoice(c){ return !(+c.add) && /^no\b/i.test(String(c.name || "").trim()); }
+function isExtrasGroup(o){
+  return Array.isArray(o.choices) && o.choices.some(c => (+c.add || 0) > 0)
+    && o.choices.every(c => (+c.add || 0) > 0 || isNoneChoice(c));
+}
 function extraCount(opts, name){
   for(const s of opts || []){
     if(s === name) return 1;
@@ -272,17 +308,31 @@ function extraCount(opts, name){
   return 0;
 }
 function chosen(){
-  return (cur.options || []).flatMap((o,i)=>{
-    if(curExtras[i]) return o.choices.map((c,j)=>({n:curExtras[i][j], c})).filter(x=>x.n>0).map(({n,c})=>({name:extraLabel(c.name,n), add:c.add*n}));
-    return [o.choices[+document.querySelector(`input[name=o${i}]:checked`).value]];
-  });
+  return (cur.options || []).flatMap((o,i)=> curExtras[i] ? [] : [o.choices[+document.querySelector(`input[name=o${i}]:checked`).value]]);
 }
-function updM(){ const add = chosen().reduce((s,c)=>s+c.add,0); $("#mQty").textContent = curQty; $("#mPrice").textContent = peso((cur.price+add)*curQty); }
+function chosenExtras(){
+  const list = [];
+  (cur.options || []).forEach((o,i)=>{ if(curExtras[i]) o.choices.forEach((c,j)=>addExtra(list, c.name, c.add, curExtras[i][j])); });
+  return list;
+}
+function updM(){
+  const add = chosen().reduce((s,c)=>s+c.add,0);
+  $("#mQty").textContent = curQty;
+  $("#mPrice").textContent = peso((cur.price+add)*curQty + extrasTotal({extras: chosenExtras()}));
+  document.querySelectorAll("#mOpts [data-exnone]").forEach(b => b.classList.toggle("on", curExtras[+b.dataset.exnone].every(n => !n)));
+}
 $("#mOpts").addEventListener("change", updM);
 $("#mOpts").addEventListener("click", e=>{
+  const none = e.target.closest("[data-exnone]");
+  if(none){
+    const i = +none.dataset.exnone;
+    curExtras[i] = curExtras[i].map(() => 0);
+    curExtras[i].forEach((n,j) => { const s = $(`#ex-${i}-${j}`); if(s) s.textContent = 0; });
+    updM(); return;
+  }
   const b = e.target.closest("[data-exinc],[data-exdec]"); if(!b) return;
   const [i,j] = (b.dataset.exinc || b.dataset.exdec).split("-").map(Number);
-  curExtras[i][j] = Math.max(0, curExtras[i][j] + (b.dataset.exinc ? 1 : -1));
+  curExtras[i][j] = Math.max(0, Math.min(99, curExtras[i][j] + (b.dataset.exinc ? 1 : -1)));
   $(`#ex-${i}-${j}`).textContent = curExtras[i][j];
   updM();
 });
@@ -292,46 +342,51 @@ function closeItemModal(){ $("#modal").classList.remove("open"); editIndex=null;
 $("#mCancel").onclick = closeItemModal;
 $("#modal").addEventListener("click", e=>{ if(e.target.id==="modal") closeItemModal(); });
 $("#mAdd").onclick = ()=>{
-  const opts = chosen();
-  if(editIndex===null) addToCart(cur, opts, curQty);
+  const opts = chosen(), extras = chosenExtras();
+  if(editIndex===null) addToCart(cur, opts, curQty, extras);
   else {
     const index = editIndex, names = opts.map(o=>o.name);
     const unit = cur.price + opts.reduce((s,o)=>s+o.add,0);
     const key = cur.id + "|" + names.join("|");
     const existing = cart.findIndex((line,i)=>i!==index && line.key===key);
-    if(existing>=0){ cart[existing].qty += curQty; cart.splice(index,1); }
-    else cart[index] = {key,id:cur.id,name:cur.name,opts:names,unit,qty:curQty};
+    if(existing>=0){
+      const into = cart[existing]; into.qty += curQty; into.extras = into.extras || [];
+      extras.forEach(e => addExtra(into.extras, e.name, e.add, e.n));
+      cart.splice(index,1);
+    }
+    else cart[index] = {key,id:cur.id,name:cur.name,opts:names,unit,qty:curQty,extras};
     save(); toast(`Updated ${cur.name}`);
   }
   closeItemModal();
 };
 
 /* cart */
-function addToCart(m, opts, qty){
+function addToCart(m, opts, qty, extras=[]){
   const names = opts.map(o=>o.name), unit = m.price + opts.reduce((s,o)=>s+o.add,0);
   const key = m.id + "|" + names.join("|");
   const ex = cart.find(l=>l.key===key);
-  if(ex) ex.qty += qty; else cart.push({key, id:m.id, name:m.name, opts:names, unit, qty});
+  if(ex){ ex.qty += qty; ex.extras = ex.extras || []; extras.forEach(e => addExtra(ex.extras, e.name, e.add, e.n)); }
+  else cart.push({key, id:m.id, name:m.name, opts:names, unit, qty, extras});
   save(); toast(`Added ${m.name}`);
   const cb = $("#openCart"); cb.classList.remove("bump"); void cb.offsetWidth; cb.classList.add("bump");
 }
 function save(){ store.set("ak_cart", cart); renderCart(); }
-function subtotal(){ return cart.reduce((s,l)=>s+l.unit*l.qty,0); }
+function subtotal(){ return cart.reduce((s,l)=>s+lineTotal(l),0); }
 function renderCart(){
   const n = cart.reduce((s,l)=>s+l.qty,0);
   $("#count").textContent = n;
   $("#barCount").textContent = n + (n===1?" item":" items");
   $("#barTotal").textContent = peso(subtotal());
   $("#bar").classList.toggle("show", n>0 && !$("#drawer").classList.contains("open"));
-  $("#lines").innerHTML = cart.length ? cart.map((l,i)=>`<div class="line">
-      <div class="line-main"><div class="ln">${esc(l.name)}</div>${l.opts.length?`<div class="lo">${esc(l.opts.join(" · "))}</div>`:""}
+  $("#lines").innerHTML = cart.length ? cart.map((l,i)=>{ const shown = [...l.opts, ...(l.extras || []).map(e => `+ ${e.n} ${e.name}`)]; return `<div class="line">
+      <div class="line-main"><div class="ln">${esc(l.name)}</div>${shown.length?`<div class="lo">${esc(shown.join(" · "))}</div>`:""}
         <div class="line-actions"><button class="line-action" data-edit="${i}" aria-label="Edit ${esc(l.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14 5 5 5"/><path d="M4 20h4l11-11a2.1 2.1 0 0 0-4-4L4 16v4Z"/></svg>Edit</button>
         <button class="line-delete" data-remove="${i}" aria-label="Remove ${esc(l.name)}" title="Remove item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button></div>
       </div>
-      <div class="line-pricing"><div class="lp">${peso(l.unit*l.qty)}</div><div class="lo">${peso(l.unit)} each</div>
+      <div class="line-pricing"><div class="lp">${peso(lineTotal(l))}</div><div class="lo">${peso(l.unit)} each${extrasTotal(l)?` + ${peso(extrasTotal(l))} extras`:""}</div>
         <div class="qty"><button data-dec="${i}" aria-label="Less">−</button><span>${l.qty}</span><button data-inc="${i}" aria-label="More">+</button></div>
       </div>
-    </div>`).join("") : `<p class="empty">Your order is empty.<br>Add something masarap!</p>`;
+    </div>`; }).join("") : `<p class="empty">Your order is empty.<br>Add something masarap!</p>`;
   $("#totals").innerHTML = cart.length ? `<div><span>Subtotal</span><span>${peso(subtotal())}</span></div><div class="note"><span>Delivery fee</span><span>To be confirmed</span></div><div class="grand"><span>Estimated total</span><span>${peso(subtotal())}</span></div>` : "";
 }
 $("#lines").addEventListener("click", e=>{
@@ -730,7 +785,7 @@ async function saveOrder(channel){
     lat: mode==="Delivery" && pin ? pin.lat : null, lng: mode==="Delivery" && pin ? pin.lng : null,
     order_date: $("#orderDate").value,
     time: $("#tm").value.trim() || "ASAP", payment: $("#pay").value, notes: $("#nt").value.trim(),
-    channel, items: cart.map(l=>({name: l.name, opts: l.opts, qty: l.qty, unit: l.unit})) };
+    channel, items: orderItems(cart) };
   const headers = {"Content-Type":"application/json", apikey: STORE.supabaseKey};
   if(!STORE.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + STORE.supabaseKey; // legacy anon JWT
   try{
@@ -752,7 +807,7 @@ async function placeOrder(){
     const res = await saveOrder("website");
     if(res.error) throw new Error(res.error);
     const placedRef = orderRef;
-    const placedItems = cart.map(l => ({name: l.name, opts: l.opts || [], qty: l.qty, unit: l.unit})), placedSubtotal = subtotal();
+    const placedItems = orderItems(cart), placedSubtotal = subtotal();
     cart = []; store.set("ak_cart", cart); renderCart();
     orderRef = newRef(); store.set("ak_ref", orderRef);
     const placedMode = $("input[name=mode]:checked").value;
