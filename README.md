@@ -64,3 +64,17 @@ Every photo is optimized in the browser before it's uploaded and saved in the da
    and the admin site picks it up automatically (it reads the website's `config.js`).
 
 Don't rename a branch after it has orders — the name is saved with each order.
+
+## Branch specials (items only some branches sell)
+
+1. Run `supabase/setup.sql` once to add the `branches` column to the menu (safe to rerun).
+2. In the admin site → **Menu** → add or edit the item → **Available at** → *Only these branches* → tick the branches.
+   Leave it on *All branches* for the regular menu.
+3. Use the branch filter in the Menu tab to see what one branch sells, or only the specials.
+
+On the website a **Menu for [branch]** picker appears above the menu (only once a special exists). It is the same choice
+as the Branch field at checkout, and pinning a delivery location moves both to the nearest branch. Specials carry a
+"Malolos special" badge and only show for their branches. If the cart has an item the chosen branch doesn't sell,
+the line is flagged and the order can't be placed. The database also rejects it.
+In admin **Add / Edit order**, the product list follows the order's branch with that branch's specials at the top.
+Staff can still save an item another branch sells after confirming, for special arrangements.

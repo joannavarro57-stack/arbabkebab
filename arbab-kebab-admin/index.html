@@ -90,6 +90,7 @@
     <div class="toolbar">
       <input class="search" id="menuQ" type="search" placeholder="Search menu…" aria-label="Search menu">
       <select id="menuCatF" aria-label="Category"></select>
+      <select id="menuBranchF" aria-label="Branch"></select>
       <label class="btn" for="menuShowDeleted"><input id="menuShowDeleted" type="checkbox" style="margin:0"> Show deleted</label>
       <button class="btn" id="menuRefresh" title="Reload">↻ Refresh</button>
       <button class="btn ember" id="addMenuItem">＋ Add menu item</button>
@@ -147,6 +148,13 @@
           <textarea id="mOpts" rows="3" placeholder="Spice level: Mild, Spicy, Extra spicy&#10;Extra Kabsa Rice: No extra rice, Add Kabsa Rice +170"></textarea>
           <span class="hint">One group per line: <b>Name: choice, choice +price</b>. The first choice is picked by default.</span>
         </label>
+        <fieldset class="edit-field wide branch-pick" id="mBranches">
+          <legend>Available at</legend>
+          <label class="check"><input type="radio" name="mBranchMode" value="all" checked> All branches (regular menu)</label>
+          <label class="check"><input type="radio" name="mBranchMode" value="some"> Only these branches (branch special)</label>
+          <div class="branch-boxes" id="mBranchBoxes"></div>
+          <span class="hint">Branch specials only show on the website, and in "Add order", for the branches you tick.</span>
+        </fieldset>
         <label class="edit-field check wide" for="mShown"><input id="mShown" type="checkbox"> Show on website (untick to hide, e.g. sold out)</label>
       </div>
       <div class="edit-msg" id="menuMsg" role="alert"></div>

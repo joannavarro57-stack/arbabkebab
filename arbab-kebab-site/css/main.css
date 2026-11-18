@@ -73,6 +73,12 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 /* menu */
 .menu-head{max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;padding:34px 16px 18px}
 .menu-head h2{font-family:Lalezar,Cairo,sans-serif;font-size:clamp(38px,7vw,64px);font-weight:400;text-transform:uppercase;letter-spacing:.14em;margin:0;line-height:.95;color:#090705}
+.menu-branch{display:flex;align-items:center;gap:8px;margin-right:auto;font-size:14px;font-weight:700;color:var(--char-2)}
+.menu-branch[hidden]{display:none}
+.menu-branch select{padding:9px 12px;border:1.5px solid var(--line);border-radius:999px;background:var(--paper);font-weight:700;color:var(--char)}
+.menu-branch select:focus{outline:none;border-color:var(--ember)}
+.tag.special{background:var(--ember-dark);color:#fff}
+.line-warn{margin-top:4px;font-size:12px;font-weight:700;color:#B3261E}
 .search{position:relative;display:flex;align-items:center;justify-content:flex-end;flex:0 0 auto}
 .search input{width:0;min-width:0;padding:0;border:0;opacity:0;visibility:hidden;border-radius:999px;background:var(--paper);transition:width .2s ease,opacity .2s ease,padding .2s ease}
 .search input:focus{outline:none;border-color:var(--ember)}
