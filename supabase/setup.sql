@@ -513,6 +513,11 @@ create policy "owners edit branch gcash"  on public.branch_gcash for update to a
 create policy "owners clear branch gcash" on public.branch_gcash for delete to authenticated using (public.is_staff_admin());
 revoke all on public.branch_gcash from anon, authenticated;
 grant select, insert, update, delete on public.branch_gcash to authenticated;
+-- Malolos keeps the original account and QR. Added only if Malolos has no account yet,
+-- so changes made later in the admin GCash tab are never overwritten.
+insert into public.branch_gcash (branch, account_name, number, qr_url) values
+  ('Malolos', 'Jana May N.', '09161118041', 'https://arbabkebab.vercel.app/images/payments/gcash-qr.jpg')
+on conflict (branch) do nothing;
 
 -- Payment pages can look up a limited set of order fields by reference only.
 create or replace function public.get_payment(p_ref text) returns jsonb

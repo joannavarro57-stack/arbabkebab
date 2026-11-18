@@ -866,6 +866,8 @@ const menuImgUrl = img => !img ? "" : /^(https?:|data:|blob:)/.test(img) ? img :
 const catName = id => (MENU_CATS.find(c => c.id === id) || {}).name || id;
 
 function showView(view){
+  // Menu and GCash settings are for owners only (the database enforces this too)
+  if((view === "menu" || view === "gcash") && !isOwner) view = "orders";
   ls.set("ak_view", view);
   document.querySelectorAll(".views button").forEach(b => { const on = b.dataset.view === view; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
   $("#ordersView").hidden = view !== "orders";
@@ -1086,6 +1088,7 @@ async function loadGcashRows(){
   if(selId) renderDetail();
 }
 async function loadGcash(){
+  if(!isOwner){ $("#gcashList").innerHTML = ""; return; }   // owners only
   $("#gcashHint").innerHTML = `Customers paying by GCash see the account of the branch they ordered from. A branch without its own account uses the default: <b>${esc(GCASH_DEFAULT.accountName || "—")}</b> · ${esc(GCASH_DEFAULT.number || "—")} (set in the website's config.js).`;
   const { data, error } = await sb.from("branch_gcash").select("*");
   if(error){
