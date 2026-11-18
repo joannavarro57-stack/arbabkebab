@@ -824,7 +824,7 @@
       <h1>Sarap na Legit,<br><em>Lasang Middle East.</em></h1>
       <p class="lede">Savor the spice, embrace the nostalgia — shawarma, kebab, kabsa, biryani and charcoal-grilled shawaya chicken, delivered to your door.</p>
       <div class="cta-row">
-        <a class="btn btn-dark" href="#branches">Order now</a>
+        <a class="btn btn-dark" href="#menu">Order now</a>
         <a class="btn btn-light" id="callHero" href="tel:+639700910888">Call us</a>
       </div>
       <ul class="badges">
@@ -850,6 +850,14 @@
 </section>
 
 <main id="menu">
+  <div class="gate" id="menuGate" hidden>
+    <div class="gate-card" role="dialog" aria-labelledby="gateTitle" aria-describedby="gateText">
+      <span class="gate-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg></span>
+      <h3 id="gateTitle">Choose your branch to start ordering</h3>
+      <p id="gateText">Each branch has its own menu. Pick the one you'll order from to see what's available.</p>
+      <select class="bselect" id="gatePick" aria-label="Choose your branch"></select>
+    </div>
+  </div>
   <div class="menu-head">
     <div><h2>Menu</h2><p class="menu-for" id="menuFor" hidden></p></div>
     <div class="search" id="menuSearch">

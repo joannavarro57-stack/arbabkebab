@@ -130,7 +130,7 @@ const ICON = {
   pin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>`,
   clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`
 };
-$("#branchPick").innerHTML = `<option value="">Select a branch…</option>`
+$("#branchPick").innerHTML = $("#gatePick").innerHTML = `<option value="">Select a branch…</option>`
   + BRANCHES.map(b => `<option value="${esc(b.name)}">${esc(b.name)}${b.city && b.city !== b.name ? ` · ${esc(b.city)}` : ""}</option>`).join("");
 function renderBranchDetail(){   // the dropdown + the chosen branch's address and map
   const b = branchChosen && BRANCHES.find(x => x.name === currentBranch()), box = $("#branchDetail");
@@ -153,6 +153,11 @@ function renderBranchDetail(){   // the dropdown + the chosen branch's address a
       src="https://maps.google.com/maps?q=${+b.lat},${+b.lng}&z=16&output=embed"></iframe></div>` : ""}`;
 }
 function branchChanged(){   // redraw everything that depends on the branch
+  // no branch yet: the menu stays locked behind the gate card, and the branch details section waits
+  $("#menu").classList.toggle("locked", !branchChosen);
+  $("#menuGate").hidden = branchChosen;
+  $("#branches").hidden = !branchChosen;
+  $("#gatePick").value = "";
   renderBranchDetail();
   $("#menuFor").hidden = !branchChosen;
   $("#menuFor").innerHTML = `Showing the menu for our <b>${esc(currentBranch())}</b> branch · <a href="#branches">Change</a>`;
@@ -160,13 +165,16 @@ function branchChanged(){   // redraw everything that depends on the branch
   watch();   // defined further down; branchChanged() first runs after it
   renderCart();
 }
-$("#branchPick").addEventListener("change", e => {
-  if(!e.target.value) return;
+function chooseBranch(name, fromGate){
+  if(!name) return;
   branchChosen = true;
-  $("#branch").value = e.target.value;
-  $("#branch").dispatchEvent(new Event("change"));   // saves it, redraws the menu, moves the delivery map
-  toast(`Ordering from our ${e.target.value} branch`);
-});
+  $("#branch").value = name;
+  $("#branch").dispatchEvent(new Event("change"));   // saves it, unlocks and redraws the menu, moves the delivery map
+  toast(`Ordering from our ${name} branch`);
+  if(fromGate) $("#menu").scrollIntoView({behavior: "smooth", block: "start"});
+}
+$("#branchPick").addEventListener("change", e => chooseBranch(e.target.value));
+$("#gatePick").addEventListener("change", e => chooseBranch(e.target.value, true));
 $("#branchBadge").textContent = BRANCHES.length > 1 ? `${BRANCHES.length} branches` : BRANCHES[0].name;
 
 /* ================= SCROLL REVEALS =================
@@ -334,7 +342,8 @@ document.addEventListener("click", e => {
   const b = e.target.closest("[data-add]"); if(!b) return;
   if(!branchChosen){
     toast("Choose your branch first");
-    $("#branches").scrollIntoView({behavior: "smooth", block: "start"});
+    $("#menu").scrollIntoView({behavior: "smooth", block: "start"});
+    $("#gatePick").focus({preventScroll: true});
     return;
   }
   const m = MENU.find(x=>x.id===b.dataset.add);
@@ -832,6 +841,7 @@ let orderRef = store.get("ak_ref") || newRef(); store.set("ak_ref", orderRef);
 function validateOrder(){
   const err = $("#err"); err.textContent = "";
   if(!cart.length){ err.textContent = "Add at least one item first."; return false; }
+  if(!branchChosen){ err.textContent = "Please choose your branch first."; return false; }
   const away = cart.filter(notSoldHere).map(l => l.name);
   if(away.length){ err.textContent = `${[...new Set(away)].join(", ")} ${away.length > 1 ? "aren't" : "isn't"} available at our ${currentBranch()} branch. Remove ${away.length > 1 ? "them" : "it"} or choose another branch.`; return false; }
   syncTimeSlots();

@@ -67,11 +67,13 @@ Don't rename a branch after it has orders — the name is saved with each order.
 
 ## Choosing a branch, and items a branch can't supply
 
-**Website:** a *Choose your branch* dropdown sits between the top banner and the menu. Choosing a branch shows
-its `address` and `hours` from `config.js` (fill those in so customers see them), an *Open in Google Maps* link and
-a map from its `lat` / `lng`. Customers must pick a branch before they can add anything. The menu then shows only
-what that branch can supply, and the checkout Branch field follows the same choice (it is remembered for next
-time). Pinning a delivery location still switches to the nearest branch.
+**Website:** choosing a branch comes first. Until a customer picks one, the menu is blurred and locked behind a
+*Choose your branch to start ordering* card with a branch dropdown, so nothing can be added. After they choose,
+the menu shows only what that branch can supply, and a section above it shows the branch's `address` and `hours`
+from `config.js` (fill those in so customers see them), an *Open in Google Maps* link, a map from its `lat` / `lng`,
+and a dropdown to change branch. The checkout Branch field follows the same choice, and it is remembered for next
+time. Pinning a delivery location still switches to the nearest branch. The lock is added by the page script only,
+so search engines still read the full menu.
 
 **Switching an item off at a branch** (e.g. no supply there):
 1. Admin site → **Menu** → edit the item → **Not available at** → tick the branch(es). Untick when it's back.

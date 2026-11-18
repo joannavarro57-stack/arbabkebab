@@ -92,6 +92,20 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 .bbtn.dark{background:var(--char);border-color:var(--char);color:#fff}
 .bmap{min-height:220px;border-radius:16px;overflow:hidden;background:var(--line)}
 .bmap iframe{display:block;width:100%;height:100%;min-height:220px;border:0}
+/* branch gate: until a branch is chosen the menu is blurred and locked behind this card (added by JS only,
+   so search engines still read the menu) */
+#menu{position:relative}
+#menu.locked{max-height:960px;overflow:hidden}
+#menu.locked>.tabs,#menu.locked>#cats,#menu.locked .search{filter:blur(7px);opacity:.5;pointer-events:none;user-select:none}
+#menu.locked::after{content:"";position:absolute;z-index:25;left:0;right:0;bottom:0;height:320px;background:linear-gradient(rgba(255,248,234,0),var(--cream) 85%);pointer-events:none}
+.gate{position:absolute;z-index:30;left:0;right:0;top:150px;display:flex;justify-content:center;padding:0 16px}
+.gate[hidden]{display:none}
+.gate-card{width:100%;max-width:460px;padding:26px 24px 24px;text-align:center;background:var(--paper);border:1px solid rgba(30,26,22,.08);border-radius:24px;box-shadow:0 2px 4px rgba(30,26,22,.06),0 24px 56px rgba(30,26,22,.2)}
+.gate-ico{display:inline-grid;place-items:center;width:52px;height:52px;border-radius:50%;background:var(--saffron-soft);color:var(--ember-dark)}
+.gate-ico svg{width:26px;height:26px}
+.gate-card h3{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:clamp(22px,4vw,28px);line-height:1.05;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 8px;color:#090705}
+.gate-card p{margin:0 0 16px;color:var(--char-2);font-size:14px}
+.gate-card .bselect{max-width:none;padding-top:12px;padding-bottom:12px}
 .menu-for{margin:8px 0 0;font-size:14px;color:var(--char-2)}
 .menu-for[hidden]{display:none}
 .menu-for a{color:var(--ember-dark);font-weight:700;text-underline-offset:3px}
