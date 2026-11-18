@@ -21,7 +21,7 @@ window.SITE_CONFIG = {
      address, hours   optional, shown under "Branches" on the website (a street address helps local search a lot)
      The admin site reads this list too, so new branches appear there automatically. */
   branches: [
-    { name: "Malolos", lat: 14.8433, lng: 120.8114, city: "Malolos", region: "Bulacan", address: "", hours: "" },
+    { name: "Malolos", lat: 14.847192462613048, lng: 120.8348831381463, city: "Malolos", region: "Bulacan", address: "", hours: "" },
     { name: "C6 Banaba", lat: 14.67685030707215, lng: 121.11544909999999, city: "San Mateo", region: "Rizal", address: "", hours: "" },
     { name: "Makati", lat: 14.563169874749514, lng: 121.0130246153436, city: "Makati", region: "Metro Manila", address: "", hours: "" },
     { name: "Fairview", lat: 14.71143651904663, lng: 121.06178288412517, city: "Quezon City", region: "Metro Manila", address: "", hours: "" },

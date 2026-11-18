@@ -9,7 +9,7 @@
 - Phone: +639700910888 · Email: arabiya.official@gmail.com · Facebook: https://www.facebook.com/ArbabKebabOfficial
 
 ## Branches
-- Malolos — Bulacan — map: https://www.google.com/maps/search/?api=1&query=14.8433,120.8114
+- Malolos — Bulacan — map: https://www.google.com/maps/search/?api=1&query=14.847192462613048,120.8348831381463
 - C6 Banaba — San Mateo, Rizal — map: https://www.google.com/maps/search/?api=1&query=14.67685030707215,121.11544909999999
 - Makati — Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.563169874749514,121.0130246153436
 - Fairview — Quezon City, Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.71143651904663,121.06178288412517
@@ -17,7 +17,7 @@
 - Diliman — Quezon City, Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.631154670911398,121.03891623619046
 - Marikina — Metro Manila — map: https://www.google.com/maps/search/?api=1&query=14.638209287629184,121.10864875741734
 
-## Menu (prices in Philippine pesos, updated 2026-11-05)
+## Menu (prices in Philippine pesos, updated 2026-11-18)
 
 ### Meal Sets
 - Shawaya Set 1 — ₱375: 1 whole chicken served with tomato chutney and garlic paste
