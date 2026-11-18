@@ -117,7 +117,12 @@ $("#branch").innerHTML = BRANCHES.map(b => `<option>${esc(b.name)}</option>`).jo
    Customers choose a branch (dropdown above the menu) before ordering. Some branches can't supply some
    items (admin → Menu → Not available at): those are hidden from that branch's menu, and the cart and
    checkout follow the chosen branch. The dropdown and the checkout Branch field are the same setting. */
-let branchChosen = BRANCHES.length === 1 || BRANCHES.some(b => b.name === (store.get("ak_details") || {}).br);
+// The customer's own branch choice, saved only when they pick one (the checkout form's saved details
+// can't be used: they include the Branch field's default, so an untouched default would count as chosen).
+const CHOICE_KEY = "ak_branch_choice";
+const savedChoice = BRANCHES.some(b => b.name === store.get(CHOICE_KEY)) ? store.get(CHOICE_KEY) : "";
+let branchChosen = BRANCHES.length === 1 || !!savedChoice;
+function markChosen(){ branchChosen = true; store.set(CHOICE_KEY, $("#branch").value); }
 const currentBranch = () => $("#branch").value;
 const soldAt = (m, branch = currentBranch()) => !branchChosen || !(m.unavailable_at || []).includes(branch);
 const menuItemOf = l => MENU.find(m => m.id === l.id);
@@ -486,7 +491,7 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeCart(); clo
 /* form: remember details, toggle address */
 const saved = store.get("ak_details") || {};
 ["nm","ph","ad"].forEach(id=>{ if(saved[id]) $("#"+id).value = saved[id]; });
-if(saved.br && BRANCHES.some(b => b.name === saved.br)) $("#branch").value = saved.br;   // last branch used
+if(savedChoice) $("#branch").value = savedChoice;   // the branch this customer chose last time
 branchChanged();
 /* ================= DELIVERY PIN MAP =================
    Google Maps when googleMapsKey is set in config.js; otherwise (or if Google fails
@@ -533,7 +538,7 @@ let branchNote = "";
 function pickNearestBranch(p){   // set the Branch dropdown to the closest branch (without moving the map)
   const best = nearestBranch(p);
   if(!best) return (branchNote = "");
-  if($("#branch").value !== best.name){ $("#branch").value = best.name; branchChosen = true; rememberDetails(); branchChanged(); }
+  if($("#branch").value !== best.name){ $("#branch").value = best.name; markChosen(); rememberDetails(); branchChanged(); }
   return (branchNote = ` Nearest branch: ${best.name} (${best.km < 10 ? best.km.toFixed(1) : Math.round(best.km)} km).`);
 }
 
@@ -748,7 +753,7 @@ async function searchPlace(){
 }
 $("#pinSearchBtn").onclick = searchPlace;
 $("#branch").addEventListener("change", () => {   // show the area around the chosen branch
-  branchChosen = true;
+  markChosen();
   rememberDetails();
   branchChanged();
   const n = cart.filter(notSoldHere).length;
