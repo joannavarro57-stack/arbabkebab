@@ -145,8 +145,8 @@ function renderBranchDetail(){   // the dropdown + the chosen branch's address a
       <span class="bline">${ICON.pin}<span>${esc(b.address || place || "Message us for the exact address")}${b.address && place ? `<br>${esc(place)}` : ""}</span></span>
       ${b.hours ? `<span class="bline">${ICON.clock}<span>${esc(b.hours)}</span></span>` : ""}
       <div class="bactions">
-        <a class="btn btn-dark" href="#menu">See the menu ↓</a>
-        <a class="btn btn-light" href="${esc(mapsLink(b))}" target="_blank" rel="noopener">Open in Google Maps</a>
+        <a class="bbtn dark" href="#menu">See the menu ↓</a>
+        <a class="bbtn" href="${esc(mapsLink(b))}" target="_blank" rel="noopener">Open in Google Maps</a>
       </div>
     </div>
     ${hasSpot(b) ? `<div class="bmap"><iframe title="Map of our ${esc(b.name)} branch" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
