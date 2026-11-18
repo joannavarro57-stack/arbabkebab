@@ -137,10 +137,34 @@ function showGate(open){   // open = lock the menu behind the gate card
   $("#gateKeep").hidden = !(open && branchChosen);
   $("#gateKeep").textContent = `Keep ordering from ${currentBranch()}`;
 }
+/* the chosen branch under the Menu title: name, address, Google Maps pin link, and a small map beside
+   them (kept short so it takes little scroll space) */
+const hasSpot = b => b && b.lat !== "" && b.lng !== "" && Number.isFinite(+b.lat) && Number.isFinite(+b.lng);
+const mapsLink = b => hasSpot(b)
+  ? `https://www.google.com/maps/search/?api=1&query=${+b.lat},${+b.lng}`
+  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([STORE.name || "Arbab Kebab", b.address || b.name, b.city, b.region].filter(Boolean).join(", "))}`;
+function renderMenuFor(){
+  const b = BRANCHES.find(x => x.name === currentBranch()) || {name: currentBranch()};
+  const place = [b.city, b.region].filter(Boolean).join(", ");
+  const addr = [b.address, place].filter(Boolean).join(", ") || "Message us for the exact address";
+  $("#menuFor").innerHTML = `<div class="mf-row">
+      <span class="mf-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg></span>
+      <span class="mf-text">
+        <span class="mf-line">Ordering from our <b>${esc(b.name)}</b> branch</span>
+        <span class="mf-addr">${esc(addr)}${b.hours ? ` · ${esc(b.hours)}` : ""}</span>
+        <span class="mf-links"><a href="${esc(mapsLink(b))}" target="_blank" rel="noopener">View on Google Maps</a></span>
+      </span>
+      <a class="mf-change" href="#menu" data-change-branch>Change</a>
+    </div>
+    ${hasSpot(b) ? `<div class="mf-map"><iframe title="Map of our ${esc(b.name)} branch" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      src="https://maps.google.com/maps?q=${+b.lat},${+b.lng}&z=15&output=embed"></iframe>
+      <svg class="mf-pin" viewBox="0 0 24 34" aria-hidden="true"><path d="M12 33S1 20.5 1 12a11 11 0 0 1 22 0c0 8.5-11 21-11 21Z" fill="#D93025" stroke="#8C1B12" stroke-width="1.2"/><circle cx="12" cy="12" r="4.2" fill="#8C1B12"/></svg></div>` : ""}`;
+  $("#menuFor").classList.toggle("has-map", hasSpot(b));
+}
 function branchChanged(){   // redraw everything that depends on the branch
   showGate(!branchChosen);   // no branch yet: the menu stays locked behind the gate card
   $("#menuFor").hidden = !branchChosen;
-  $("#menuFor").innerHTML = `Showing the menu for our <b>${esc(currentBranch())}</b> branch · <a href="#menu" data-change-branch>Change</a>`;
+  if(branchChosen) renderMenuFor();
   renderMenu($("#q").value);
   watch();   // defined further down; branchChanged() first runs after it
   renderCart();
