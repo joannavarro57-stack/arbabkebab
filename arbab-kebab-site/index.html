@@ -840,15 +840,6 @@
   </div>
 </section>
 
-<section class="pick" id="branches" aria-labelledby="pickTitle">
-  <div class="wrap">
-    <h2 id="pickTitle">Choose your branch</h2>
-    <p class="pick-sub">Pick the branch you'll order from. The menu below shows what that branch has.</p>
-    <select class="bselect" id="branchPick" aria-label="Choose your branch"></select>
-    <div class="bdetail" id="branchDetail" hidden></div>
-  </div>
-</section>
-
 <main id="menu">
   <div class="gate" id="menuGate" hidden>
     <div class="gate-card" role="dialog" aria-labelledby="gateTitle" aria-describedby="gateText">
@@ -856,6 +847,7 @@
       <h3 id="gateTitle">Choose your branch to start ordering</h3>
       <p id="gateText">Each branch has its own menu. Pick the one you'll order from to see what's available.</p>
       <select class="bselect" id="gatePick" aria-label="Choose your branch"></select>
+      <button class="gate-keep" id="gateKeep" type="button" hidden></button>
     </div>
   </div>
   <div class="menu-head">

@@ -69,10 +69,9 @@ Don't rename a branch after it has orders — the name is saved with each order.
 
 **Website:** choosing a branch comes first. Until a customer picks one, the menu is blurred and locked behind a
 *Choose your branch to start ordering* card with a branch dropdown, so nothing can be added. After they choose,
-the menu shows only what that branch can supply, and a section above it shows the branch's `address` and `hours`
-from `config.js` (fill those in so customers see them), an *Open in Google Maps* link, a map from its `lat` / `lng`,
-and a dropdown to change branch. The checkout Branch field follows the same choice, and it is remembered for next
-time. Pinning a delivery location still switches to the nearest branch. The lock is added by the page script only,
+the menu shows only what that branch can supply, with "Showing the menu for our … branch · Change" under the title
+(Change reopens the card). The checkout Branch field follows the same choice, and it is remembered for next time.
+Pinning a delivery location still switches to the nearest branch. The lock is added by the page script only,
 so search engines still read the full menu.
 
 **Switching an item off at a branch** (e.g. no supply there):
