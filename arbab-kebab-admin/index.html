@@ -42,7 +42,7 @@
   <header class="top">
     <div class="in">
       <span class="mark">AK</span>
-      <nav class="views" aria-label="Admin sections"><button type="button" class="on" data-view="orders" aria-pressed="true">Orders</button><button type="button" data-view="menu" aria-pressed="false" id="menuTab">Menu</button></nav>
+      <nav class="views" aria-label="Admin sections"><button type="button" class="on" data-view="orders" aria-pressed="true">Orders</button><button type="button" data-view="menu" aria-pressed="false" id="menuTab">Menu</button><button type="button" data-view="gcash" aria-pressed="false" id="gcashTab" hidden>GCash</button></nav>
       <span class="live" id="live" title="Live updates"><i></i><span id="liveTxt">connecting</span></span>
       <span class="sp"></span>
       <span class="who" id="who"></span>
@@ -97,6 +97,16 @@
     </div>
     <p class="hint" style="margin:0 0 12px">Changes show on the website as soon as you save (customers may need to refresh the page).</p>
     <div class="menu-list" id="menuList"><div class="empty">Loading menu…</div></div>
+  </div>
+
+  <div class="wrap" id="gcashView" hidden>
+    <div class="toolbar">
+      <strong style="font-size:18px">GCash account per branch</strong>
+      <span class="sp" style="flex:1"></span>
+      <button class="btn" id="gcashRefresh" title="Reload">↻ Refresh</button>
+    </div>
+    <p class="hint" id="gcashHint" style="margin:0 0 12px"></p>
+    <div class="gcash-list" id="gcashList"><div class="empty">Loading GCash accounts…</div></div>
   </div>
 
   <div class="wrap" id="usersView" hidden>

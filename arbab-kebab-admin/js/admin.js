@@ -129,10 +129,11 @@ async function enterApp(session){
   const sb_ = ls.get("ak_branch"); if(sb_ !== null) $("#branchF").value = sb_;
   setSoundBtn();
   // only owners edit the menu (the database enforces this too)
-  isOwner = !!me.is_admin; $("#menuTab").hidden = !isOwner;
+  isOwner = !!me.is_admin; $("#menuTab").hidden = !isOwner; $("#gcashTab").hidden = !isOwner;
   const v = ls.get("ak_view");
-  showView(v === "users" || (v === "menu" && isOwner) ? v : "orders");
+  showView(v === "users" || ((v === "menu" || v === "gcash") && isOwner) ? v : "orders");
   loadMenu();
+  loadGcashRows();   // so GCash orders show which account they were paid to
   await load();
   subscribe();
   clearInterval(pollTimer); pollTimer = setInterval(load, 60000);   // safety net if live updates drop
@@ -301,7 +302,7 @@ function renderDetail(){
         ${hasPin ? `<dt>Pinned</dt><dd><a href="${maps}" target="_blank" rel="noopener">📍 ${esc(pinQuery)}</a></dd>` : (o.mode === "Delivery" ? `<dt>Pinned</dt><dd style="color:var(--muted)">No map pin</dd>` : "")}
         <dt>Date</dt><dd>${esc(fmtOrderDate(o.order_date))}</dd>
         <dt>Time</dt><dd>${esc(o.preferred_time||"—")}</dd>
-        <dt>Payment</dt><dd>${esc(o.payment||"—")}</dd>
+        <dt>Payment</dt><dd>${esc(o.payment||"—")}${isGcash(o) ? `<div style="font-size:12px;color:var(--muted)">Paid to ${esc(gcashPayTo(o.branch))}</div>` : ""}</dd>
       </dl>
       <div class="row-btns one-line no-print">
         <a class="btn sm" href="tel:${esc(phone)}">📞 Call</a>
@@ -870,7 +871,9 @@ function showView(view){
   $("#ordersView").hidden = view !== "orders";
   $("#menuView").hidden = view !== "menu";
   $("#usersView").hidden = view !== "users";
+  $("#gcashView").hidden = view !== "gcash";
   if(view === "users") loadUsers();
+  if(view === "gcash") loadGcash();
 }
 document.querySelectorAll(".views button").forEach(b => b.onclick = () => showView(b.dataset.view));
 
@@ -1059,6 +1062,133 @@ $("#menuDelete").onclick = async () => {
   if(!confirm(`Delete "${m.name}" from the menu?\n\nIt disappears from the website. You can bring it back with "Show deleted" → Restore.`)) return;
   if(await patchMenuItem(m.id, {archived: true}, `${m.name} deleted from the menu`)) closeMenuEditor();
 };
+
+/* ================= GCASH PER BRANCH =================
+   Owners set each branch's GCash account (table branch_gcash). The payment page shows the account of the
+   order's branch; a branch without one uses the default account in the website's config.js. */
+const GCASH_DEFAULT = (window.SITE_CONFIG && window.SITE_CONFIG.gcash) || {};
+// QR codes must stay crisp to scan: high quality, never shrunk below 300 px
+const QR_PHOTO = {maxSide: 1200, minSide: 300, quality: 0.95, minQuality: 0.85, maxBytes: 700 * 1024, hardLimit: 1024 * 1024, what: "QR code"};
+let gcashRows = {};
+const gcashQr = {};   // branch → {file:{blob,ext}, url} picked but not saved yet, or "remove"
+const gcashSlug = b => b.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "branch";
+const gcashCard = b => document.querySelector(`.gc-card[data-branch="${CSS.escape(b)}"]`);
+
+// which account a branch's GCash orders are paid to (its own, or the default)
+function gcashPayTo(branch){
+  const r = gcashRows[branch];
+  return r ? `${r.account_name} · ${r.number}` : `${GCASH_DEFAULT.accountName || "default account"} · ${GCASH_DEFAULT.number || ""} (default)`;
+}
+async function loadGcashRows(){
+  const { data, error } = await sb.from("branch_gcash").select("*");
+  if(error) return;   // table not created yet: everything uses the default account
+  gcashRows = Object.fromEntries((data || []).map(r => [r.branch, r]));
+  if(selId) renderDetail();
+}
+async function loadGcash(){
+  $("#gcashHint").innerHTML = `Customers paying by GCash see the account of the branch they ordered from. A branch without its own account uses the default: <b>${esc(GCASH_DEFAULT.accountName || "—")}</b> · ${esc(GCASH_DEFAULT.number || "—")} (set in the website's config.js).`;
+  const { data, error } = await sb.from("branch_gcash").select("*");
+  if(error){
+    $("#gcashList").innerHTML = `<div class="empty">Couldn't load GCash accounts: ${esc(error.message)}<br>Run the latest supabase/setup.sql in Supabase first.</div>`;
+    return;
+  }
+  gcashRows = Object.fromEntries((data || []).map(r => [r.branch, r]));
+  Object.keys(gcashQr).forEach(k => delete gcashQr[k]);
+  renderGcash();
+  if(selId) renderDetail();
+}
+function gcashQrBox(b){
+  const pending = gcashQr[b], r = gcashRows[b];
+  const url = pending === "remove" ? "" : pending ? pending.url : r && r.qr_url;
+  return url ? `<img src="${esc(url)}" alt="${esc(b)} GCash QR">` : `No QR<br>${r || pending ? "customers see the number only" : "uses default"}`;
+}
+function renderGcash(){
+  // branches customers can order from (the website's config.js), plus any that already have an account saved
+  const branches = [...new Set([...(SITE_BRANCHES.length ? SITE_BRANCHES : CONFIG.branches), ...Object.keys(gcashRows)])];
+  $("#gcashList").innerHTML = branches.map(b => {
+    const r = gcashRows[b];
+    return `<form class="gc-card" data-branch="${esc(b)}" novalidate>
+      <div class="gc-head"><h3>${esc(b)}</h3><span class="gc-state${r ? " own" : ""}">${r ? "Own account" : "Uses default account"}</span></div>
+      <label class="edit-field">Account name (as shown in GCash)<input name="name" maxlength="80" value="${esc(r ? r.account_name : "")}" placeholder="${esc(GCASH_DEFAULT.accountName || "e.g. Juan D.")}"></label>
+      <label class="edit-field">GCash number<input name="number" type="tel" inputmode="tel" maxlength="20" value="${esc(r ? r.number : "")}" placeholder="${esc(GCASH_DEFAULT.number || "09XX XXX XXXX")}"></label>
+      <div class="gc-qr">
+        <div class="qrbox">${gcashQrBox(b)}</div>
+        <div class="qrbtns">
+          <label class="btn sm">Upload QR<input type="file" accept="image/jpeg,image/png,image/webp" data-gc-file hidden></label>
+          <button type="button" class="btn sm" data-gc-noqr ${(r && r.qr_url) || (gcashQr[b] && gcashQr[b] !== "remove") ? "" : "hidden"}>Remove QR</button>
+          <span class="hint">From GCash: Profile → My QR → Download.</span>
+        </div>
+      </div>
+      <div class="gc-foot">
+        <button type="submit" class="btn dark sm">Save</button>
+        ${r ? `<button type="button" class="btn sm" data-gc-default>Use default account</button>` : ""}
+        <span class="gc-msg" role="status"></span>
+      </div>
+    </form>`;
+  }).join("") || `<div class="empty">No branches yet. Add them in the website's config.js.</div>`;
+}
+$("#gcashRefresh").onclick = loadGcash;
+$("#gcashList").addEventListener("change", async e => {
+  const input = e.target.closest("[data-gc-file]"); if(!input) return;
+  const card = input.closest(".gc-card"), b = card.dataset.branch, msg = card.querySelector(".gc-msg");
+  const f = input.files[0]; if(!f) return;
+  msg.textContent = "Preparing QR…";
+  try{
+    const r = await optimizeImage(f, QR_PHOTO);
+    gcashQr[b] = {file: r, url: URL.createObjectURL(r.blob)};
+    card.querySelector(".qrbox").innerHTML = gcashQrBox(b);
+    card.querySelector("[data-gc-noqr]").hidden = false;
+    msg.textContent = `QR ready (${r.width}×${r.height} px). Click Save to use it.`;
+  }catch(err){ msg.textContent = err.message; }
+  input.value = "";
+});
+$("#gcashList").addEventListener("click", async e => {
+  const card = e.target.closest(".gc-card"); if(!card) return;
+  const b = card.dataset.branch, msg = card.querySelector(".gc-msg");
+  if(e.target.closest("[data-gc-noqr]")){
+    gcashQr[b] = "remove";
+    card.querySelector(".qrbox").innerHTML = gcashQrBox(b);
+    e.target.closest("[data-gc-noqr]").hidden = true;
+    msg.textContent = "QR will be removed when you click Save. Customers will see the number only.";
+  }
+  if(e.target.closest("[data-gc-default]")){
+    if(!confirm(`Use the default GCash account for ${b}?\n\n${b} customers will pay ${GCASH_DEFAULT.accountName || ""} · ${GCASH_DEFAULT.number || ""}.`)) return;
+    const { error } = await sb.from("branch_gcash").delete().eq("branch", b);
+    if(error) return msg.textContent = "Couldn't change it: " + error.message;
+    toast(`${b} now uses the default GCash account`);
+    loadGcash();
+  }
+});
+$("#gcashList").addEventListener("submit", async e => {
+  e.preventDefault();
+  const card = e.target, b = card.dataset.branch, msg = card.querySelector(".gc-msg");
+  const name = card.elements.name.value.trim(), number = card.elements.number.value.trim();
+  if(!/^[0-9+() -]{7,20}$/.test(number) || number.replace(/\D/g, "").length < 10)
+    return msg.textContent = "Enter the GCash mobile number, e.g. 0917 123 4567.";
+  if(!name) return msg.textContent = "Enter the account name as it appears in GCash, so customers can check they're paying the right person.";
+  const save = card.querySelector("[type=submit]"); save.disabled = true;
+  try{
+    let qr_url = gcashRows[b] ? gcashRows[b].qr_url : null;
+    const pending = gcashQr[b];
+    if(pending === "remove") qr_url = null;
+    else if(pending){
+      msg.textContent = "Uploading QR…";
+      const {blob, ext} = pending.file;
+      const path = `gcash-qr/${gcashSlug(b)}/${Date.now()}.${ext}`;
+      const up = await sb.storage.from("menu-images").upload(path, blob, {contentType: blob.type, upsert: false, cacheControl: "31536000"});
+      if(up.error) throw new Error("QR upload failed: " + up.error.message);
+      qr_url = sb.storage.from("menu-images").getPublicUrl(path).data.publicUrl;
+    }
+    msg.textContent = "Saving…";
+    const { error } = await sb.from("branch_gcash").upsert({branch: b, account_name: name, number, qr_url}, {onConflict: "branch"});
+    if(error) throw new Error("Couldn't save: " + error.message);
+    toast(`${b} GCash account saved`);
+    await loadGcash();
+    const after = gcashCard(b);
+    if(after) after.querySelector(".gc-msg").textContent = qr_url ? "Saved. Customers of this branch now see this QR and number." : "Saved. Customers of this branch see this number (no QR).";
+  }catch(err){ msg.textContent = err.message; }
+  finally{ save.disabled = false; }
+});
 
 /* ================= USERS =================
    Staff logins are managed by the edge function staff-users (it holds the service key).

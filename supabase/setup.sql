@@ -480,6 +480,40 @@ end $$;
 revoke all on function public.place_order(jsonb) from public;
 grant execute on function public.place_order(jsonb) to anon, authenticated;
 
+-- ---------- GCash account per branch (admin site → GCash tab, owners only) ----------
+-- A branch with a row here is paid to its own account; a branch without one uses the default
+-- account in config.js. The payment page only ever gets the account of the order's own branch
+-- (through get_payment below), so customers can't list the accounts.
+create table if not exists public.branch_gcash (
+  branch       text primary key check (length(branch) between 1 and 60),
+  account_name text not null default '' check (length(account_name) <= 80),
+  number       text not null check (number ~ '^[0-9+() -]{7,20}$'),
+  qr_url       text check (qr_url is null or qr_url ~ '^https://'),   -- QR image (menu-images bucket); null = number only
+  updated_at   timestamptz not null default now(),
+  updated_by   text
+);
+create or replace function public.touch_branch_gcash() returns trigger
+language plpgsql as $$
+begin
+  new.updated_at := now();
+  new.updated_by := coalesce(auth.jwt() ->> 'email', new.updated_by);
+  return new;
+end $$;
+create or replace trigger branch_gcash_touch before insert or update on public.branch_gcash
+for each row execute function public.touch_branch_gcash();
+
+alter table public.branch_gcash enable row level security;
+drop policy if exists "staff read branch gcash"   on public.branch_gcash;
+drop policy if exists "owners add branch gcash"   on public.branch_gcash;
+drop policy if exists "owners edit branch gcash"  on public.branch_gcash;
+drop policy if exists "owners clear branch gcash" on public.branch_gcash;
+create policy "staff read branch gcash"   on public.branch_gcash for select to authenticated using (public.is_staff());
+create policy "owners add branch gcash"   on public.branch_gcash for insert to authenticated with check (public.is_staff_admin());
+create policy "owners edit branch gcash"  on public.branch_gcash for update to authenticated using (public.is_staff_admin()) with check (public.is_staff_admin());
+create policy "owners clear branch gcash" on public.branch_gcash for delete to authenticated using (public.is_staff_admin());
+revoke all on public.branch_gcash from anon, authenticated;
+grant select, insert, update, delete on public.branch_gcash to authenticated;
+
 -- Payment pages can look up a limited set of order fields by reference only.
 create or replace function public.get_payment(p_ref text) returns jsonb
 language sql security definer set search_path = public as $$
@@ -496,7 +530,10 @@ language sql security definer set search_path = public as $$
     'status', o.status,
     'payment_status', o.payment_status,
     'payment_ref_last4', o.payment_ref_last4,
-    'payment_screenshot_path', case when o.payment_status in ('submitted','paid') then o.payment_screenshot_path end
+    'payment_screenshot_path', case when o.payment_status in ('submitted','paid') then o.payment_screenshot_path end,
+    -- the GCash account of this order's branch (null = use the default account in config.js)
+    'gcash', (select jsonb_build_object('account_name', g.account_name, 'number', g.number, 'qr_url', g.qr_url)
+              from public.branch_gcash g where g.branch = o.branch)
   )
   from public.orders o
   where o.ref = upper(trim(p_ref))

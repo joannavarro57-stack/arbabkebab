@@ -82,3 +82,14 @@ so search engines still read the full menu.
 
 In admin **Add / Edit order**, the product list leaves out items the order's branch can't supply. Staff can still
 keep one after confirming, for special arrangements. Needs the latest `supabase/setup.sql` (safe to rerun).
+
+## GCash account per branch
+
+Each branch can receive GCash payments in its own account. Owners set them in the admin site → **GCash** tab:
+account name, GCash number, and the QR (from GCash: Profile → My QR → Download). The payment page shows the
+account of the branch the order was placed at; staff see it under **Payment** in the order details.
+
+- A branch without its own account uses the default account in `config.js` (`gcash`).
+- A branch with its own number but no QR shows the number only — never the default QR, so nobody pays the wrong account.
+- **Use default account** removes a branch's own account.
+- Needs the latest `supabase/setup.sql` (table `branch_gcash`; safe to rerun). QR images are stored in the `menu-images` bucket under `gcash-qr/`.

@@ -1,5 +1,12 @@
 const C = window.SITE_CONFIG || {};
-const G = C.gcash || {};
+const G = C.gcash || {};   // default account, used when the order's branch has none of its own
+/* Each branch can have its own GCash account (admin site → GCash tab). get_payment returns the account
+   of the order's branch; when a branch has its own account, never show the default QR for it. */
+function gcashFor(o){
+  const g = o && o.gcash;
+  if(g && g.number) return {accountName: g.account_name || "", number: g.number, qrImage: g.qr_url || "", own: true};
+  return G;
+}
 const MESSENGER = C.messenger || "https://m.me/ArbabKebabOfficial";
 const IG = (C.instagram || "").replace(/^@/, "").trim();
 const FIRST_BRANCH = ((C.branches || []).map(b => typeof b === "string" ? b : b && b.name).filter(Boolean))[0] || "our";
@@ -112,6 +119,7 @@ function summary(o){
 }
 
 function renderPay(o){
+  const P = gcashFor(o);
   setTimeout(() => { if(o.payment_status === "submitted") loadPaidScreenshot(o.payment_screenshot_path); }, 0);
   const resubmit = o.payment_status === "submitted";
   $("#main").innerHTML = `
@@ -124,12 +132,13 @@ function renderPay(o){
     ${resubmit ? `<details class="resend"><summary>Need to update your payment proof? Tap here</summary>` : ""}
     <div class="card">
       <div class="step"><b>1</b><h2>Send ${peso(o.subtotal)} via GCash</h2></div>
-      ${G.qrImage ? `<div class="center" id="qrWrap">
-          <img class="qr" id="qr" src="${esc(G.qrImage)}" alt="Arbab Kebab GCash QR code">
-          <a class="btn sm" href="${esc(G.qrImage)}" download="ArbabKebab-GCash-QR.png">⬇ Save QR to phone</a>
+      ${P.own ? `<p class="hint" style="margin:0 0 10px">Pay to our <b>${esc(o.branch)}</b> branch's GCash account.</p>` : ""}
+      ${P.qrImage ? `<div class="center" id="qrWrap">
+          <img class="qr" id="qr" src="${esc(P.qrImage)}" alt="Arbab Kebab ${esc(o.branch || "")} GCash QR code">
+          <a class="btn sm" href="${esc(P.qrImage)}" download="ArbabKebab-${esc(String(o.branch || "").replace(/[^a-z0-9]+/gi, "-"))}-GCash-QR.png">⬇ Save QR to phone</a>
           <p class="hint">On this phone? Save the QR, then in GCash tap <b>Scan QR → Upload QR</b> and pick the saved image.</p>
         </div>` : ""}
-      ${G.number ? `<div class="row"><div><div class="k">Or Send Money to</div><div class="val">${esc(G.number)}</div>${G.accountName ? `<div class="k">${esc(G.accountName)}</div>` : ""}</div><button class="btn sm" data-copy="${esc(G.number.replace(/\s/g,""))}" data-label="Number">Copy</button></div>` : ""}
+      ${P.number ? `<div class="row"><div><div class="k">${P.qrImage ? "Or Send Money to" : "Send Money to"}</div><div class="val">${esc(P.number)}</div>${P.accountName ? `<div class="k">${esc(P.accountName)}</div>` : ""}</div><button class="btn sm" data-copy="${esc(P.number.replace(/\s/g,""))}" data-label="Number">Copy</button></div>` : ""}
     </div>
     <div class="card">
       <div class="step"><b>2</b><h2>Upload your GCash receipt</h2></div>
