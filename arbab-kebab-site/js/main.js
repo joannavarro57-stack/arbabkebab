@@ -114,9 +114,9 @@ $("#branchList").innerHTML = BRANCHES.map(b => `<li>${esc(b.name)} branch`
   + (BRANCHES.some(b => b.hours) ? "" : `<li class="note" style="color:#c9bba6">Message us for today's hours.</li>`);
 $("#branch").innerHTML = BRANCHES.map(b => `<option>${esc(b.name)}</option>`).join("");
 /* ================= BRANCH PICKER =================
-   Customers choose a branch (cards above the menu) before ordering. Some branches can't supply some
+   Customers choose a branch (dropdown above the menu) before ordering. Some branches can't supply some
    items (admin → Menu → Not available at): those are hidden from that branch's menu, and the cart and
-   checkout follow the chosen branch. The card choice and the checkout Branch field are the same setting. */
+   checkout follow the chosen branch. The dropdown and the checkout Branch field are the same setting. */
 let branchChosen = BRANCHES.length === 1 || BRANCHES.some(b => b.name === (store.get("ak_details") || {}).br);
 const currentBranch = () => $("#branch").value;
 const soldAt = (m, branch = currentBranch()) => !branchChosen || !(m.unavailable_at || []).includes(branch);
@@ -126,49 +126,46 @@ const hasSpot = b => Number.isFinite(+b.lat) && Number.isFinite(+b.lng) && b.lat
 const mapsLink = b => hasSpot(b)
   ? `https://www.google.com/maps/search/?api=1&query=${+b.lat},${+b.lng}`
   : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(["Arbab Kebab", b.address || b.name, b.city, b.region].filter(Boolean).join(", "))}`;
-const PIN_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>`;
-function renderBranchCards(){
-  const cur = currentBranch();
-  $("#branchCards").innerHTML = BRANCHES.map(b => {
-    const on = branchChosen && b.name === cur;
-    const place = [b.city, b.region].filter(Boolean).join(", ");
-    return `<div class="bcard${on ? " on" : ""}">
-      <button class="bcard-pick" type="button" data-branch="${esc(b.name)}" aria-pressed="${on}">
-        <span class="bname">${esc(b.name)}</span>
-        ${place ? `<span class="bplace">${esc(place)}</span>` : ""}
-        ${b.address ? `<span class="baddr">${esc(b.address)}</span>` : ""}
-        ${b.hours ? `<span class="bhours">🕒 ${esc(b.hours)}</span>` : ""}
-        <span class="bstate">${on ? "✓ Ordering here" : "Order from here"}</span>
-      </button>
-      <a class="bpin" href="${esc(mapsLink(b))}" target="_blank" rel="noopener">${PIN_SVG}View on Google Maps</a>
-    </div>`;
-  }).join("");
-  // map of the chosen branch (only reloaded when the branch changes)
-  const b = branchChosen && BRANCHES.find(x => x.name === cur), box = $("#branchMap");
-  if(!b || !hasSpot(b)){ box.hidden = true; box.innerHTML = ""; box.dataset.for = ""; return; }
+const ICON = {
+  pin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>`,
+  clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`
+};
+$("#branchPick").innerHTML = `<option value="">Select a branch…</option>`
+  + BRANCHES.map(b => `<option value="${esc(b.name)}">${esc(b.name)}${b.city && b.city !== b.name ? ` · ${esc(b.city)}` : ""}</option>`).join("");
+function renderBranchDetail(){   // the dropdown + the chosen branch's address and map
+  const b = branchChosen && BRANCHES.find(x => x.name === currentBranch()), box = $("#branchDetail");
+  $("#branchPick").value = b ? b.name : "";
+  if(!b){ box.hidden = true; box.innerHTML = ""; box.dataset.for = ""; return; }
   box.hidden = false;
-  if(box.dataset.for !== b.name){
-    box.dataset.for = b.name;
-    box.innerHTML = `<iframe title="Map of our ${esc(b.name)} branch" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-      src="https://maps.google.com/maps?q=${+b.lat},${+b.lng}&z=16&output=embed"></iframe>`;
-  }
+  if(box.dataset.for === b.name) return;   // don't reload the map when nothing changed
+  box.dataset.for = b.name;
+  const place = [b.city, b.region].filter(Boolean).join(", ");
+  box.innerHTML = `<div class="binfo">
+      <span class="bname">${esc(b.name)} branch</span>
+      <span class="bline">${ICON.pin}<span>${esc(b.address || place || "Message us for the exact address")}${b.address && place ? `<br>${esc(place)}` : ""}</span></span>
+      ${b.hours ? `<span class="bline">${ICON.clock}<span>${esc(b.hours)}</span></span>` : ""}
+      <div class="bactions">
+        <a class="btn btn-dark" href="#menu">See the menu ↓</a>
+        <a class="btn btn-light" href="${esc(mapsLink(b))}" target="_blank" rel="noopener">Open in Google Maps</a>
+      </div>
+    </div>
+    ${hasSpot(b) ? `<div class="bmap"><iframe title="Map of our ${esc(b.name)} branch" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      src="https://maps.google.com/maps?q=${+b.lat},${+b.lng}&z=16&output=embed"></iframe></div>` : ""}`;
 }
 function branchChanged(){   // redraw everything that depends on the branch
-  renderBranchCards();
+  renderBranchDetail();
   $("#menuFor").hidden = !branchChosen;
   $("#menuFor").innerHTML = `Showing the menu for our <b>${esc(currentBranch())}</b> branch · <a href="#branches">Change</a>`;
   renderMenu($("#q").value);
   watch();   // defined further down; branchChanged() first runs after it
   renderCart();
 }
-$("#branchCards").addEventListener("click", e => {
-  const pick = e.target.closest("[data-branch]"); if(!pick) return;
-  const first = !branchChosen;
+$("#branchPick").addEventListener("change", e => {
+  if(!e.target.value) return;
   branchChosen = true;
-  $("#branch").value = pick.dataset.branch;
+  $("#branch").value = e.target.value;
   $("#branch").dispatchEvent(new Event("change"));   // saves it, redraws the menu, moves the delivery map
-  toast(`Ordering from our ${pick.dataset.branch} branch`);
-  if(first) $("#menu").scrollIntoView({behavior: "smooth", block: "start"});
+  toast(`Ordering from our ${e.target.value} branch`);
 });
 $("#branchBadge").textContent = BRANCHES.length > 1 ? `${BRANCHES.length} branches` : BRANCHES[0].name;
 

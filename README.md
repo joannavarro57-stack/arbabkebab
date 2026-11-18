@@ -30,9 +30,9 @@ supabase/
 
 Run `supabase/setup.sql` in the Supabase SQL Editor to create or update the database schema, payment RPCs, private GCash confirmation screenshot bucket, staff order editing/creation RPC, soft-delete audit fields/RPC, and order-mode migration from `Takeout` to `Pick-Up`. The script is designed to be rerun after deployment changes. Staff can create and edit orders in the admin interface; deletion archives the record in the database.
 
-## Search engines & AI search (SEO / GEO)
+## Search engines (SEO)
 
-Google, ChatGPT, Perplexity and other AI assistants read the page's HTML, but the menu is normally drawn by JavaScript.
+Google and other search tools read the page's HTML, but the menu is normally drawn by JavaScript.
 `tools/update-seo.mjs` fixes that: it reads the live menu and `config.js`, then writes a pre-rendered copy of the menu and
 branches into `index.html`, the structured data (restaurant, branches, menu, FAQ), `sitemap.xml`, `robots.txt` and `llms.txt`.
 
@@ -67,11 +67,11 @@ Don't rename a branch after it has orders — the name is saved with each order.
 
 ## Choosing a branch, and items a branch can't supply
 
-**Website:** a *Choose your branch* section sits between the top banner and the menu. Each branch is a card with its
-city, `address` and `hours` from `config.js` (fill those in so customers see them) and a *View on Google Maps* pin
-from its `lat` / `lng`. Customers must pick a branch before they can add anything. The chosen branch shows a map,
-the menu shows only what that branch can supply, and the checkout Branch field follows the same choice (it is
-remembered for next time). Pinning a delivery location still switches to the nearest branch.
+**Website:** a *Choose your branch* dropdown sits between the top banner and the menu. Choosing a branch shows
+its `address` and `hours` from `config.js` (fill those in so customers see them), an *Open in Google Maps* link and
+a map from its `lat` / `lng`. Customers must pick a branch before they can add anything. The menu then shows only
+what that branch can supply, and the checkout Branch field follows the same choice (it is remembered for next
+time). Pinning a delivery location still switches to the nearest branch.
 
 **Switching an item off at a branch** (e.g. no supply there):
 1. Admin site → **Menu** → edit the item → **Not available at** → tick the branch(es). Untick when it's back.

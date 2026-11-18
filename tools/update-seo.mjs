@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* =====================================================================
-   ARBAB KEBAB — SEO / AI-search updater
+   ARBAB KEBAB — SEO updater
    ---------------------------------------------------------------------
    Run after changing the menu (admin → Menu tab), branches (config.js)
    or the FAQ (index.html), then commit:
@@ -10,7 +10,7 @@
    It reads the live menu from Supabase plus config.js, and rewrites:
      • index.html   site address in canonical/og/twitter tags, structured data
                     (JSON-LD), and a pre-rendered copy of the menu + branch list
-                    so search engines and AI assistants can read them without
+                    so search engines can read them without
                     running JavaScript (the page's script replaces them on load)
      • robots.txt, sitemap.xml, llms.txt
    Moving to your own domain? Change SITE_URL below and run it again.
@@ -163,7 +163,7 @@ html = html.replace(/(<script type="application\/ld\+json">)[\s\S]*?(<\/script>)
 write("index.html", html);
 
 /* ---------- robots.txt, sitemap.xml ---------- */
-write("robots.txt", `# Search engines and AI assistants are welcome to read the public menu.
+write("robots.txt", `# Search engines are welcome to read the public menu.
 User-agent: *
 Allow: /
 Disallow: /pay.html
@@ -176,7 +176,7 @@ write("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>
 </urlset>
 `);
 
-/* ---------- llms.txt (plain summary for AI assistants, see llmstxt.org) ---------- */
+/* ---------- llms.txt (plain-text summary for search tools, see llmstxt.org) ---------- */
 const md = [
   `# ${STORE.name}`, "",
   `> ${STORE.name} (أرباب كباب) is a Middle Eastern restaurant in the Philippines — "${STORE.slogan}". It serves charcoal-grilled shawaya chicken, kabsa, biryani, kebab, shawarma wraps, falafel and salads, with online ordering for delivery and pick-up at ${SITE_URL}/.`, "",

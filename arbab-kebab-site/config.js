@@ -17,7 +17,7 @@ window.SITE_CONFIG = {
      name     shown to customers and saved with every order (don't rename a branch once it has orders)
      lat, lng where the delivery map starts for that branch — in Google Maps, right-click the shop
               and click the two numbers to copy them (first number = lat, second = lng)
-     city, region     the city and province — used by Google and AI search to show the branch for local searches
+     city, region     the city and province — used by Google and other search tools to show the branch for local searches
      address, hours   optional, shown under "Branches" on the website (a street address helps local search a lot)
      The admin site reads this list too, so new branches appear there automatically. */
   branches: [
