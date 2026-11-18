@@ -810,6 +810,10 @@
       <span class="logo-name">Arbab Kebab</span>
     </a>
     <span class="spacer"></span>
+    <button class="branch-chip" id="branchChip" type="button" hidden aria-label="Change branch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      <span class="bc-name" id="branchChipName"></span>
+    </button>
     <button class="cart-btn" id="openCart" aria-label="Open your order">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>
       <span class="lbl">Your order</span><span class="count" id="count">0</span>
@@ -851,7 +855,7 @@
     </div>
   </div>
   <div class="menu-head">
-    <div><h2>Menu</h2><div class="menu-for" id="menuFor" hidden></div></div>
+    <div><div class="menu-for" id="menuFor" hidden></div><h2>Menu</h2></div>
     <div class="search" id="menuSearch">
       <input id="q" type="search" placeholder="Search menu…" aria-label="Search the menu" tabindex="-1">
       <button class="search-toggle" id="searchToggle" type="button" aria-label="Open menu search" aria-expanded="false" aria-controls="q">

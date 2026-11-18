@@ -40,6 +40,13 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 .logo-image{width:42px;height:42px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(30,26,22,.2)}
 .logo-name{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:20px;letter-spacing:-.01em}
 .top .spacer{flex:1}
+/* chosen branch, beside the cart in the header (tap to change) */
+.branch-chip{display:flex;align-items:center;gap:6px;max-width:44vw;padding:8px 14px 8px 10px;background:var(--saffron-soft);border:2px solid var(--saffron);border-radius:999px;color:var(--char);font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:border-color .15s ease}
+.branch-chip[hidden]{display:none}
+.branch-chip:hover{border-color:var(--ember-dark)}
+.branch-chip svg{width:16px;height:16px;flex:none;color:var(--ember-dark)}
+.bc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:440px){.top .wrap .logo-name{display:none}.branch-chip{max-width:52vw}}
 .cart-btn{display:flex;align-items:center;gap:8px;background:var(--char);color:#fff;border:0;border-radius:999px;padding:10px 16px;font-weight:600;transition:background .15s ease}
 .cart-btn:hover{background:var(--ember-dark)}
 .cart-btn.bump .count{animation:bump .35s ease}
@@ -94,7 +101,7 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 .gate-keep{margin-top:12px;background:none;border:0;padding:6px;font:inherit;font-size:14px;font-weight:700;color:var(--ember-dark);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .gate-keep[hidden]{display:none}
 /* chosen branch, highlighted under the Menu title */
-.menu-for{width:fit-content;max-width:100%;margin:12px 0 0;padding:8px;display:flex;align-items:stretch;gap:12px;background:var(--saffron-soft);border:1.5px solid var(--saffron);border-radius:12px;font-size:15px;color:var(--char-2)}
+.menu-for{width:fit-content;max-width:100%;margin:0 0 22px;padding:8px;display:flex;align-items:stretch;gap:12px;background:var(--saffron-soft);border:3px solid var(--saffron);border-radius:14px;font-size:15px;color:var(--char-2)}
 .menu-for[hidden]{display:none}
 .mf-row{display:flex;align-items:center;gap:10px}
 .mf-text{display:flex;flex-direction:column;gap:1px;min-width:0;margin-right:6px}

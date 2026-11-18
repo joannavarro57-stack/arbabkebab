@@ -165,6 +165,10 @@ function branchChanged(){   // redraw everything that depends on the branch
   showGate(!branchChosen);   // no branch yet: the menu stays locked behind the gate card
   $("#menuFor").hidden = !branchChosen;
   if(branchChosen) renderMenuFor();
+  // header chip beside the cart
+  $("#branchChip").hidden = !branchChosen;
+  $("#branchChipName").textContent = currentBranch();
+  $("#branchChip").setAttribute("aria-label", `Ordering from ${currentBranch()} branch, change branch`);
   renderMenu($("#q").value);
   watch();   // defined further down; branchChanged() first runs after it
   renderCart();
@@ -178,13 +182,17 @@ function chooseBranch(name, fromGate){
   if(fromGate) $("#menu").scrollIntoView({behavior: "smooth", block: "start"});
 }
 $("#gatePick").addEventListener("change", e => chooseBranch(e.target.value, true));
-$("#menuFor").addEventListener("click", e => {
-  if(!e.target.closest("[data-change-branch]")) return;
-  e.preventDefault();
+function openBranchChange(){   // reopen the gate card so the customer can pick another branch (or keep this one)
   showGate(true);
   $("#menu").scrollIntoView({behavior: "smooth", block: "start"});
   $("#gatePick").focus({preventScroll: true});
+}
+$("#menuFor").addEventListener("click", e => {
+  if(!e.target.closest("[data-change-branch]")) return;
+  e.preventDefault();
+  openBranchChange();
 });
+$("#branchChip").addEventListener("click", openBranchChange);
 $("#gateKeep").addEventListener("click", () => showGate(false));
 $("#branchBadge").textContent = BRANCHES.length > 1 ? `${BRANCHES.length} branches` : BRANCHES[0].name;
 
