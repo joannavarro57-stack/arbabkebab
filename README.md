@@ -65,16 +65,19 @@ Every photo is optimized in the browser before it's uploaded and saved in the da
 
 Don't rename a branch after it has orders — the name is saved with each order.
 
-## Branch specials (items only some branches sell)
+## Choosing a branch, and items a branch can't supply
 
-1. Run `supabase/setup.sql` once to add the `branches` column to the menu (safe to rerun).
-2. In the admin site → **Menu** → add or edit the item → **Available at** → *Only these branches* → tick the branches.
-   Leave it on *All branches* for the regular menu.
-3. Use the branch filter in the Menu tab to see what one branch sells, or only the specials.
+**Website:** a *Choose your branch* section sits between the top banner and the menu. Each branch is a card with its
+city, `address` and `hours` from `config.js` (fill those in so customers see them) and a *View on Google Maps* pin
+from its `lat` / `lng`. Customers must pick a branch before they can add anything. The chosen branch shows a map,
+the menu shows only what that branch can supply, and the checkout Branch field follows the same choice (it is
+remembered for next time). Pinning a delivery location still switches to the nearest branch.
 
-On the website a **Menu for [branch]** picker appears above the menu (only once a special exists). It is the same choice
-as the Branch field at checkout, and pinning a delivery location moves both to the nearest branch. Specials carry a
-"Malolos special" badge and only show for their branches. If the cart has an item the chosen branch doesn't sell,
-the line is flagged and the order can't be placed. The database also rejects it.
-In admin **Add / Edit order**, the product list follows the order's branch with that branch's specials at the top.
-Staff can still save an item another branch sells after confirming, for special arrangements.
+**Switching an item off at a branch** (e.g. no supply there):
+1. Admin site → **Menu** → edit the item → **Not available at** → tick the branch(es). Untick when it's back.
+2. That branch's menu hides the item. A cart that already holds it is flagged and the order can't be placed
+   (the database rejects it too).
+3. The Menu tab filter shows what one branch has, or every item that's off somewhere.
+
+In admin **Add / Edit order**, the product list leaves out items the order's branch can't supply. Staff can still
+keep one after confirming, for special arrangements. Needs the latest `supabase/setup.sql` (safe to rerun).

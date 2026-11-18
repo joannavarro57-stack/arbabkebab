@@ -45,11 +45,10 @@ const STORE = {   // keep in step with STORE in js/main.js
 const headers = { apikey: C.supabaseKey };
 if (!C.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + C.supabaseKey;
 const res = await fetch(C.supabaseUrl.replace(/\/$/, "") +
-  "/rest/v1/menu_items?select=id,cat,name,description,price,tag,img,options,branches&order=sort.asc,name.asc", { headers });
+  "/rest/v1/menu_items?select=id,cat,name,description,price,tag,img,options&order=sort.asc,name.asc", { headers });
 if (!res.ok) { console.error("Couldn't load the menu from Supabase:", res.status, await res.text()); process.exit(1); }
 const MENU = (await res.json()).map(r => ({ id: r.id, cat: r.cat, name: r.name, desc: r.description || "",
-  price: Number(r.price) || 0, tag: r.tag || "", img: r.img || "",
-  branches: Array.isArray(r.branches) ? r.branches.filter(Boolean) : [] }));
+  price: Number(r.price) || 0, tag: r.tag || "", img: r.img || "" }));
 if (!MENU.length) { console.error("The menu came back empty — nothing changed."); process.exit(1); }
 
 /* ---------- helpers (same output as js/main.js) ---------- */
@@ -65,7 +64,7 @@ function card(m) {   // keep in step with card() in js/main.js
   const initials = m.name.split(" ").slice(0, 2).map(w => w[0]).join("");
   return `<article class="card">
     <div class="thumb">${m.img ? `<img src="${esc(webpOf(m.img))}" data-orig="${esc(m.img)}" data-initials="${esc(initials)}" alt="${esc(m.name)}" width="300" height="300" loading="lazy" decoding="async" onerror="if(window.thumbFail)thumbFail(this);else{this.onerror=null;this.src=this.dataset.orig}">` : `<div class="ph" aria-hidden="true"><span>${esc(initials)}</span></div>`}</div>
-    <div class="body">${m.tag ? `<span class="tag">${esc(m.tag)}</span>` : ""}${m.branches.length ? `<span class="tag special">${esc(m.branches.length === 1 ? m.branches[0] + " special" : "Branch special")}</span>` : ""}<div class="name">${esc(m.name)}</div><div class="desc">${esc(m.desc || "")}</div>
+    <div class="body">${m.tag ? `<span class="tag">${esc(m.tag)}</span>` : ""}<div class="name">${esc(m.name)}</div><div class="desc">${esc(m.desc || "")}</div>
       <div class="row"><span class="price">${peso(m.price)}</span>
       <button class="add" data-add="${m.id}" aria-label="Add ${esc(m.name)}">Add</button></div></div>
   </article>`;

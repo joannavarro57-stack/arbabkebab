@@ -436,15 +436,15 @@ begin
     raise exception 'invalid item';
   end if;
 
-  -- branch-only menu items can't be ordered from another branch. Items are matched by name;
-  -- names that aren't on the menu (e.g. paid extras) are not checked.
+  -- items a branch can't supply (menu_items.unavailable_at) can't be ordered from that branch.
+  -- Items are matched by name; names that aren't on the menu (e.g. paid extras) are not checked.
   if to_regclass('public.menu_items') is not null and exists (
        select 1 from jsonb_array_elements(v_items) i
        where exists (select 1 from public.menu_items m where m.name = i ->> 'name' and not m.archived)
          and not exists (select 1 from public.menu_items m
                          where m.name = i ->> 'name' and not m.archived
-                           and (cardinality(m.branches) = 0 or v_branch = any(m.branches)))) then
-    raise exception 'Some items in your order are not sold at the % branch. Please remove them or choose another branch.', v_branch;
+                           and not (v_branch = any(m.unavailable_at)))) then
+    raise exception 'Some items in your order are not available at the % branch. Please remove them or choose another branch.', v_branch;
   end if;
 
   -- simple flood protection: max 5 new orders per phone number per 10 minutes
@@ -598,9 +598,11 @@ create table if not exists public.menu_items (
   updated_at  timestamptz not null default now(),
   updated_by  text
 );
--- Branch-only items: an empty list = sold at every branch; otherwise only at the listed
--- branches (names exactly as in config.js). Set in the admin Menu tab → "Available at".
-alter table public.menu_items add column if not exists branches text[] not null default '{}';
+-- Branches that can't supply an item (names exactly as in config.js). Empty = every branch sells it.
+-- Set in the admin Menu tab → Edit → "Not available at". The item is hidden on those branches' menus.
+alter table public.menu_items add column if not exists unavailable_at text[] not null default '{}';
+-- replaced by unavailable_at (the earlier "sold only at" list was never used)
+alter table public.menu_items drop column if exists branches;
 
 create or replace function public.touch_menu_item() returns trigger
 language plpgsql as $$

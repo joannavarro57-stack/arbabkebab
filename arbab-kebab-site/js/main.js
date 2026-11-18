@@ -113,20 +113,63 @@ $("#branchList").innerHTML = BRANCHES.map(b => `<li>${esc(b.name)} branch`
     + (b.hours ? `<br><span class="note" style="color:#c9bba6">${esc(b.hours)}</span>` : "") + `</li>`).join("")
   + (BRANCHES.some(b => b.hours) ? "" : `<li class="note" style="color:#c9bba6">Message us for today's hours.</li>`);
 $("#branch").innerHTML = BRANCHES.map(b => `<option>${esc(b.name)}</option>`).join("");
-$("#menuBranch").innerHTML = $("#branch").innerHTML;
-/* Branch specials: a menu item with no branches is sold everywhere, otherwise only at the
-   branches listed (admin → Menu → Available at). The menu and cart follow the chosen branch. */
+/* ================= BRANCH PICKER =================
+   Customers choose a branch (cards above the menu) before ordering. Some branches can't supply some
+   items (admin → Menu → Not available at): those are hidden from that branch's menu, and the cart and
+   checkout follow the chosen branch. The card choice and the checkout Branch field are the same setting. */
+let branchChosen = BRANCHES.length === 1 || BRANCHES.some(b => b.name === (store.get("ak_details") || {}).br);
 const currentBranch = () => $("#branch").value;
-const soldAt = (m, branch = currentBranch()) => !(m.branches && m.branches.length) || m.branches.includes(branch);
+const soldAt = (m, branch = currentBranch()) => !branchChosen || !(m.unavailable_at || []).includes(branch);
 const menuItemOf = l => MENU.find(m => m.id === l.id);
 const notSoldHere = l => { const m = menuItemOf(l); return !!m && !soldAt(m); };
-function branchChanged(){   // keep both branch pickers in step and redraw what depends on the branch
-  $("#menuBranch").value = currentBranch();
-  $("#menuBranchWrap").hidden = BRANCHES.length < 2 || !MENU.some(m => m.branches && m.branches.length);
+const hasSpot = b => Number.isFinite(+b.lat) && Number.isFinite(+b.lng) && b.lat !== "" && b.lng !== "";
+const mapsLink = b => hasSpot(b)
+  ? `https://www.google.com/maps/search/?api=1&query=${+b.lat},${+b.lng}`
+  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(["Arbab Kebab", b.address || b.name, b.city, b.region].filter(Boolean).join(", "))}`;
+const PIN_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>`;
+function renderBranchCards(){
+  const cur = currentBranch();
+  $("#branchCards").innerHTML = BRANCHES.map(b => {
+    const on = branchChosen && b.name === cur;
+    const place = [b.city, b.region].filter(Boolean).join(", ");
+    return `<div class="bcard${on ? " on" : ""}">
+      <button class="bcard-pick" type="button" data-branch="${esc(b.name)}" aria-pressed="${on}">
+        <span class="bname">${esc(b.name)}</span>
+        ${place ? `<span class="bplace">${esc(place)}</span>` : ""}
+        ${b.address ? `<span class="baddr">${esc(b.address)}</span>` : ""}
+        ${b.hours ? `<span class="bhours">🕒 ${esc(b.hours)}</span>` : ""}
+        <span class="bstate">${on ? "✓ Ordering here" : "Order from here"}</span>
+      </button>
+      <a class="bpin" href="${esc(mapsLink(b))}" target="_blank" rel="noopener">${PIN_SVG}View on Google Maps</a>
+    </div>`;
+  }).join("");
+  // map of the chosen branch (only reloaded when the branch changes)
+  const b = branchChosen && BRANCHES.find(x => x.name === cur), box = $("#branchMap");
+  if(!b || !hasSpot(b)){ box.hidden = true; box.innerHTML = ""; box.dataset.for = ""; return; }
+  box.hidden = false;
+  if(box.dataset.for !== b.name){
+    box.dataset.for = b.name;
+    box.innerHTML = `<iframe title="Map of our ${esc(b.name)} branch" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      src="https://maps.google.com/maps?q=${+b.lat},${+b.lng}&z=16&output=embed"></iframe>`;
+  }
+}
+function branchChanged(){   // redraw everything that depends on the branch
+  renderBranchCards();
+  $("#menuFor").hidden = !branchChosen;
+  $("#menuFor").innerHTML = `Showing the menu for our <b>${esc(currentBranch())}</b> branch · <a href="#branches">Change</a>`;
   renderMenu($("#q").value);
   watch();   // defined further down; branchChanged() first runs after it
   renderCart();
 }
+$("#branchCards").addEventListener("click", e => {
+  const pick = e.target.closest("[data-branch]"); if(!pick) return;
+  const first = !branchChosen;
+  branchChosen = true;
+  $("#branch").value = pick.dataset.branch;
+  $("#branch").dispatchEvent(new Event("change"));   // saves it, redraws the menu, moves the delivery map
+  toast(`Ordering from our ${pick.dataset.branch} branch`);
+  if(first) $("#menu").scrollIntoView({behavior: "smooth", block: "start"});
+});
 $("#branchBadge").textContent = BRANCHES.length > 1 ? `${BRANCHES.length} branches` : BRANCHES[0].name;
 
 /* ================= SCROLL REVEALS =================
@@ -182,7 +225,7 @@ function card(m){
   const initials = m.name.split(" ").slice(0,2).map(w=>w[0]).join("");
   return `<article class="card">
     <div class="thumb">${m.img?`<img src="${esc(webpOf(m.img))}" data-orig="${esc(m.img)}" data-initials="${esc(initials)}" alt="${esc(m.name)}" width="300" height="300" loading="lazy" decoding="async" onerror="if(window.thumbFail)thumbFail(this);else{this.onerror=null;this.src=this.dataset.orig}">`:`<div class="ph" aria-hidden="true"><span>${esc(initials)}</span></div>`}</div>
-    <div class="body">${m.tag?`<span class="tag">${esc(m.tag)}</span>`:""}${m.branches&&m.branches.length?`<span class="tag special">${esc(m.branches.length===1?m.branches[0]+" special":"Branch special")}</span>`:""}<div class="name">${esc(m.name)}</div><div class="desc">${esc(m.desc||"")}</div>
+    <div class="body">${m.tag?`<span class="tag">${esc(m.tag)}</span>`:""}<div class="name">${esc(m.name)}</div><div class="desc">${esc(m.desc||"")}</div>
       <div class="row"><span class="price">${peso(m.price)}</span>
       <button class="add" data-add="${m.id}" aria-label="Add ${esc(m.name)}">Add</button></div></div>
   </article>`;
@@ -192,7 +235,7 @@ function useMenu(rows){
   if(!Array.isArray(rows) || !rows.length) return false;
   MENU.splice(0, MENU.length, ...rows.map(r => ({id:r.id, cat:r.cat, name:r.name, desc:r.description || "", price:Number(r.price) || 0,
     tag:r.tag || "", img:r.img || "", options:Array.isArray(r.options) ? r.options : [],
-    branches:Array.isArray(r.branches) ? r.branches.filter(Boolean) : []})));
+    unavailable_at:Array.isArray(r.unavailable_at) ? r.unavailable_at.filter(Boolean) : []})));
   // keep prices in a saved cart in step with the menu
   cart.forEach(l => {
     const m = MENU.find(x => x.id === l.id); if(!m) return;
@@ -221,8 +264,8 @@ revealIn(document);   // the rest of the page: menu title, About, FAQ, info colu
     const headers = {apikey: STORE.supabaseKey};
     if(!STORE.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + STORE.supabaseKey;
     const menuUrl = cols => STORE.supabaseUrl.replace(/\/$/,"") + `/rest/v1/menu_items?select=${cols}&order=sort.asc,name.asc`;
-    let r = await fetch(menuUrl("id,cat,name,description,price,tag,img,options,branches"), {headers});
-    // databases that haven't run the branch-specials part of setup.sql yet have no branches column
+    let r = await fetch(menuUrl("id,cat,name,description,price,tag,img,options,unavailable_at"), {headers});
+    // databases that haven't run the latest setup.sql yet have no unavailable_at column
     if(r.status === 400) r = await fetch(menuUrl("id,cat,name,description,price,tag,img,options"), {headers});
     if(!r.ok) return;
     const rows = await r.json();
@@ -292,6 +335,11 @@ function openItemModal(m, line=null, index=null){
 }
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-add]"); if(!b) return;
+  if(!branchChosen){
+    toast("Choose your branch first");
+    $("#branches").scrollIntoView({behavior: "smooth", block: "start"});
+    return;
+  }
   const m = MENU.find(x=>x.id===b.dataset.add);
   if(!m.options || !m.options.length){ addToCart(m, [], 1); return; }
   openItemModal(m);
@@ -400,7 +448,7 @@ function renderCart(){
   $("#barTotal").textContent = peso(subtotal());
   $("#bar").classList.toggle("show", n>0 && !$("#drawer").classList.contains("open"));
   $("#lines").innerHTML = cart.length ? cart.map((l,i)=>{ const shown = [...l.opts, ...(l.extras || []).map(e => `+ ${e.n} ${e.name}`)]; return `<div class="line">
-      <div class="line-main"><div class="ln">${esc(l.name)}</div>${shown.length?`<div class="lo">${esc(shown.join(" · "))}</div>`:""}${notSoldHere(l)?`<div class="line-warn">Not sold at our ${esc(currentBranch())} branch, please remove it or choose another branch</div>`:""}
+      <div class="line-main"><div class="ln">${esc(l.name)}</div>${shown.length?`<div class="lo">${esc(shown.join(" · "))}</div>`:""}${notSoldHere(l)?`<div class="line-warn">Not available at our ${esc(currentBranch())} branch, please remove it or choose another branch</div>`:""}
         <div class="line-actions"><button class="line-action" data-edit="${i}" aria-label="Edit ${esc(l.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14 5 5 5"/><path d="M4 20h4l11-11a2.1 2.1 0 0 0-4-4L4 16v4Z"/></svg>Edit</button>
         <button class="line-delete" data-remove="${i}" aria-label="Remove ${esc(l.name)}" title="Remove item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button></div>
       </div>
@@ -434,10 +482,6 @@ const saved = store.get("ak_details") || {};
 ["nm","ph","ad"].forEach(id=>{ if(saved[id]) $("#"+id).value = saved[id]; });
 if(saved.br && BRANCHES.some(b => b.name === saved.br)) $("#branch").value = saved.br;   // last branch used
 branchChanged();
-$("#menuBranch").addEventListener("change", e => {   // the picker above the menu sets the order's branch too
-  $("#branch").value = e.target.value;
-  $("#branch").dispatchEvent(new Event("change"));
-});
 /* ================= DELIVERY PIN MAP =================
    Google Maps when googleMapsKey is set in config.js; otherwise (or if Google fails
    to load) the free Leaflet + OpenStreetMap / Esri satellite map. Both share the
@@ -483,7 +527,7 @@ let branchNote = "";
 function pickNearestBranch(p){   // set the Branch dropdown to the closest branch (without moving the map)
   const best = nearestBranch(p);
   if(!best) return (branchNote = "");
-  if($("#branch").value !== best.name){ $("#branch").value = best.name; rememberDetails(); branchChanged(); }
+  if($("#branch").value !== best.name){ $("#branch").value = best.name; branchChosen = true; rememberDetails(); branchChanged(); }
   return (branchNote = ` Nearest branch: ${best.name} (${best.km < 10 ? best.km.toFixed(1) : Math.round(best.km)} km).`);
 }
 
@@ -698,10 +742,11 @@ async function searchPlace(){
 }
 $("#pinSearchBtn").onclick = searchPlace;
 $("#branch").addEventListener("change", () => {   // show the area around the chosen branch
+  branchChosen = true;
   rememberDetails();
   branchChanged();
   const n = cart.filter(notSoldHere).length;
-  if(n) toast(`${n === 1 ? "1 item" : n + " items"} in your order ${n === 1 ? "isn't" : "aren't"} sold at ${currentBranch()}`);
+  if(n) toast(`${n === 1 ? "1 item" : n + " items"} in your order ${n === 1 ? "isn't" : "aren't"} available at ${currentBranch()}`);
   if(pinMap){ const h = mapHome(); pinMap.setView(h.lat, h.lng, h.zoom); }
 });
 $("#pinSearch").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); searchPlace(); } else if(e.key === "Escape"){ e.stopPropagation(); hideResults(); } });
@@ -791,7 +836,7 @@ function validateOrder(){
   const err = $("#err"); err.textContent = "";
   if(!cart.length){ err.textContent = "Add at least one item first."; return false; }
   const away = cart.filter(notSoldHere).map(l => l.name);
-  if(away.length){ err.textContent = `${[...new Set(away)].join(", ")} ${away.length > 1 ? "aren't" : "isn't"} sold at our ${currentBranch()} branch. Remove ${away.length > 1 ? "them" : "it"} or choose another branch.`; return false; }
+  if(away.length){ err.textContent = `${[...new Set(away)].join(", ")} ${away.length > 1 ? "aren't" : "isn't"} available at our ${currentBranch()} branch. Remove ${away.length > 1 ? "them" : "it"} or choose another branch.`; return false; }
   syncTimeSlots();
   if(!$("#orderDate").value || $("#orderDate").value < localDateString(new Date())){ err.textContent = "Please choose today or a future date."; return false; }
   if(!$("#tm").value){ err.textContent = $("#timeAvailability").textContent.startsWith("No time slots") ? $("#timeAvailability").textContent : "Please choose an available preferred time."; return false; }

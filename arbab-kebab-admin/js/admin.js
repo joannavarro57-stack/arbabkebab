@@ -12,10 +12,9 @@ const CONFIG = {
 const SITE_BRANCHES = ((window.SITE_CONFIG && window.SITE_CONFIG.branches) || [])
   .map(b => typeof b === "string" ? b : b && b.name).filter(Boolean);
 CONFIG.branches = [...new Set([...SITE_BRANCHES, ...CONFIG.branches])];
-/* Branch specials: a menu item with an empty branches list is sold everywhere,
-   otherwise only at the branches listed (set in Menu → Edit → Available at). */
-const itemBranches = m => Array.isArray(m && m.branches) ? m.branches.filter(Boolean) : [];
-const soldAt = (m, branch) => { const list = itemBranches(m); return !list.length || list.includes(branch); };
+/* Branches that can't supply a menu item (Menu → Edit → Not available at). Empty = every branch sells it. */
+const unavailableAt = m => Array.isArray(m && m.unavailable_at) ? m.unavailable_at.filter(Boolean) : [];
+const soldAt = (m, branch) => !unavailableAt(m).includes(branch);
 const ADMIN_PRODUCTS = [
   {id:"MS1",name:"Shawaya Set 1",price:375},{id:"MS2",name:"Shawaya Set 2",price:475},
   {id:"MS3",name:"Shawaya Set 3",price:595},{id:"MS4",name:"Shawaya Set 4",price:695},
@@ -467,21 +466,16 @@ function driverMessage(o){
 function orderField(label, id, value, type="text", wide=false, extra=""){
   return `<label class="edit-field${wide?" wide":""}" for="${id}">${label}<input id="${id}" type="${type}" value="${esc(value)}" ${extra}></label>`;
 }
-// products for one branch: that branch's specials first, then the regular menu.
-// A product already on the line stays in the list even if the branch doesn't sell it, marked so staff notice.
+// products the branch can supply. A product already on the line stays in the list even if
+// the branch can't supply it, marked so staff notice.
 function productOptions(selectedId, existingName, branch){
   const opt = (product, note="") =>
     `<option value="${esc(product.id)}"${product.id === selectedId ? " selected" : ""}>${esc(product.name)} · ${peso(product.price)}${note}</option>`;
-  const specials = ADMIN_PRODUCTS.filter(p => itemBranches(p).length && soldAt(p, branch));
-  const regular = ADMIN_PRODUCTS.filter(p => !itemBranches(p).length);
-  const elsewhere = ADMIN_PRODUCTS.filter(p => p.id === selectedId && !soldAt(p, branch));
   const existing = existingName && selectedId === "__current__"
     ? `<option value="__current__" selected>Existing: ${esc(existingName)}</option>` : "";
   return `<option value="">Choose product…</option>${existing}`
-    + elsewhere.map(p => opt(p, ` — not sold at ${esc(branch)}`)).join("")
-    + (specials.length
-      ? `<optgroup label="${esc(branch)} specials">${specials.map(p => opt(p)).join("")}</optgroup><optgroup label="Regular menu">${regular.map(p => opt(p)).join("")}</optgroup>`
-      : regular.map(p => opt(p)).join(""));
+    + ADMIN_PRODUCTS.filter(p => soldAt(p, branch) || p.id === selectedId)
+        .map(p => opt(p, soldAt(p, branch) ? "" : ` — not available at ${esc(branch)}`)).join("");
 }
 function orderItemRow(item, branch){
   const match = item && ADMIN_PRODUCTS.find(product => product.name === item.name);
@@ -613,7 +607,7 @@ $("#orderEditForm").addEventListener("submit", async event => {
   const branch = $("#editBranch").value;
   const notHere = [...new Set(rows.map(row => ADMIN_PRODUCTS.find(p => p.id === row.querySelector(".edit-product").value))
     .filter(p => p && !soldAt(p, branch)).map(p => p.name))];
-  if(notHere.length && !confirm(`${notHere.join(", ")} ${notHere.length > 1 ? "aren't" : "isn't"} sold at the ${branch} branch.\n\nSave the order anyway?`)) return;
+  if(notHere.length && !confirm(`${notHere.join(", ")} ${notHere.length > 1 ? "aren't" : "isn't"} available at the ${branch} branch.\n\nSave the order anyway?`)) return;
   if($("#editMode").value === "Delivery" && !$("#editAddress").value.trim()){
     message.textContent = "Enter a delivery address.";
     return;
@@ -886,14 +880,14 @@ async function loadMenu(){
   menuItems = data || [];
   // the "Add order" product list follows the live menu
   const live = menuItems.filter(m => !m.archived);
-  if(live.length) ADMIN_PRODUCTS.splice(0, ADMIN_PRODUCTS.length, ...live.map(m => ({id:m.id, name:m.name, price:Number(m.price), branches:itemBranches(m)})));
+  if(live.length) ADMIN_PRODUCTS.splice(0, ADMIN_PRODUCTS.length, ...live.map(m => ({id:m.id, name:m.name, price:Number(m.price), unavailable_at:unavailableAt(m)})));
   renderMenuList();
 }
 function renderMenuList(){
   const q = $("#menuQ").value.trim().toLowerCase(), cf = $("#menuCatF").value, showDel = $("#menuShowDeleted").checked;
-  const bf = $("#menuBranchF").value;   // "" = everything, "__specials" = branch specials only, else what that branch sells
+  const bf = $("#menuBranchF").value;   // "" = everything, "__limited" = items some branch can't supply, else what that branch sells
   const items = menuItems.filter(m => (showDel || !m.archived) && (!cf || m.cat === cf)
-    && (!bf || (bf === "__specials" ? itemBranches(m).length > 0 : soldAt(m, bf)))
+    && (!bf || (bf === "__limited" ? unavailableAt(m).length > 0 : soldAt(m, bf)))
     && (!q || `${m.name} ${m.description} ${m.tag||""}`.toLowerCase().includes(q)));
   const cats = [...MENU_CATS, ...[...new Set(items.map(m => m.cat))].filter(id => !MENU_CATS.some(c => c.id === id)).map(id => ({id, name:id + " (not on website)"}))];
   const html = cats.map(c => {
@@ -903,7 +897,7 @@ function renderMenuList(){
       const initials = m.name.split(" ").slice(0,2).map(w => w[0]).join("");
       return `<div class="mi${m.hidden || m.archived ? " off" : ""}" data-id="${esc(m.id)}">
         ${m.img ? `<img class="mi-thumb" src="${esc(menuImgUrl(m.img))}" alt="" loading="lazy">` : `<span class="mi-thumb">${esc(initials)}</span>`}
-        <div style="min-width:0"><div class="mi-name">${esc(m.name)}${m.tag ? `<span class="mtag">${esc(m.tag)}</span>` : ""}${itemBranches(m).length ? `<span class="mflag branch">${esc(itemBranches(m).join(", "))} only</span>` : ""}${m.archived ? `<span class="mflag del">Deleted</span>` : m.hidden ? `<span class="mflag">Hidden</span>` : ""}</div>
+        <div style="min-width:0"><div class="mi-name">${esc(m.name)}${m.tag ? `<span class="mtag">${esc(m.tag)}</span>` : ""}${unavailableAt(m).length ? `<span class="mflag branch">Not at ${esc(unavailableAt(m).join(", "))}</span>` : ""}${m.archived ? `<span class="mflag del">Deleted</span>` : m.hidden ? `<span class="mflag">Hidden</span>` : ""}</div>
           <div class="mi-desc">${esc(m.description || "")}</div></div>
         <div class="mi-price">${peso(m.price)}</div>
         <div class="mi-btns">${m.archived
@@ -918,8 +912,8 @@ $("#menuCatF").innerHTML = `<option value="">All categories</option>` + MENU_CAT
 $("#mCat").innerHTML = MENU_CATS.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
 $("#menuQ").addEventListener("input", renderMenuList);
 $("#menuCatF").addEventListener("change", renderMenuList);
-$("#menuBranchF").innerHTML = `<option value="">All branches</option><option value="__specials">Branch specials only</option>`
-  + CONFIG.branches.map(b => `<option value="${esc(b)}">Sold at ${esc(b)}</option>`).join("");
+$("#menuBranchF").innerHTML = `<option value="">All branches</option><option value="__limited">Not available somewhere</option>`
+  + CONFIG.branches.map(b => `<option value="${esc(b)}">Available at ${esc(b)}</option>`).join("");
 $("#menuBranchF").addEventListener("change", renderMenuList);
 $("#menuShowDeleted").addEventListener("change", renderMenuList);
 $("#menuRefresh").onclick = loadMenu;
@@ -1007,19 +1001,15 @@ function openMenuEditor(m){
   $("#mOpts").value = m ? optionsToText(m.options) : "";
   $("#mShown").checked = m ? !m.hidden : true;
   // a branch saved on the item but no longer in config.js stays listed (and ticked) so it isn't dropped by accident
-  const picked = itemBranches(m);
-  $("#mBranchBoxes").innerHTML = [...new Set([...CONFIG.branches, ...picked])].map(b =>
-    `<label class="check"><input type="checkbox" value="${esc(b)}"${picked.includes(b) ? " checked" : ""}> ${esc(b)}</label>`).join("");
-  document.querySelector(`input[name=mBranchMode][value=${picked.length ? "some" : "all"}]`).checked = true;
-  syncBranchPick();
+  const off = unavailableAt(m);
+  $("#mBranchBoxes").innerHTML = [...new Set([...CONFIG.branches, ...off])].map(b =>
+    `<label class="check"><input type="checkbox" value="${esc(b)}"${off.includes(b) ? " checked" : ""}> ${esc(b)}</label>`).join("");
   $("#menuDelete").hidden = !m || m.archived;
   $("#menuMsg").textContent = "";
   $("#menuSave").disabled = false;
   $("#menuDialog").showModal();
   $("#mName").focus();
 }
-function syncBranchPick(){ $("#mBranchBoxes").hidden = document.querySelector("input[name=mBranchMode]:checked").value !== "some"; }
-document.querySelectorAll("input[name=mBranchMode]").forEach(r => r.addEventListener("change", syncBranchPick));
 const closeMenuEditor = () => $("#menuDialog").close();
 $("#menuClose").onclick = closeMenuEditor; $("#menuCancel").onclick = closeMenuEditor;
 
@@ -1031,9 +1021,7 @@ $("#menuForm").addEventListener("submit", async e => {
   if(!(price >= 0) || $("#mPrice").value === "") return msg.textContent = "Add a price.";
   let options;
   try{ options = textToOptions($("#mOpts").value); }catch(err){ return msg.textContent = err.message; }
-  const onlySome = document.querySelector("input[name=mBranchMode]:checked").value === "some";
-  const branches = onlySome ? Array.from(document.querySelectorAll("#mBranchBoxes input:checked"), b => b.value) : [];
-  if(onlySome && !branches.length) return msg.textContent = "Tick at least one branch, or choose All branches.";
+  const unavailable_at = Array.from(document.querySelectorAll("#mBranchBoxes input:checked"), b => b.value);
   $("#menuSave").disabled = true;
   const id = editingMenuId || (name.replace(/[^a-z0-9]+/gi, "").slice(0, 16) || "item") + "_" + Date.now().toString(36);
   let img = $("#mImg").value.trim();
@@ -1052,7 +1040,7 @@ $("#menuForm").addEventListener("submit", async e => {
     msg.textContent = "";
   }
   const row = {name, cat:$("#mCat").value, price, description:$("#mDesc").value.trim(), tag:$("#mTag").value.trim() || null,
-    img: img || null, options, branches, hidden: !$("#mShown").checked};
+    img: img || null, options, unavailable_at, hidden: !$("#mShown").checked};
   let res;
   if(editingMenuId) res = await sb.from("menu_items").update(row).eq("id", id).select().single();
   else {

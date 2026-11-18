@@ -238,10 +238,9 @@ textarea{width:100%;resize:vertical}
 .login .credit{color:var(--char)}
 .credit:hover,.credit:focus-visible{opacity:1}
 .credit img{height:36px;width:auto;display:block}
-/* branch specials (menu editor → Available at) */
+/* menu editor → Not available at */
 .branch-pick{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:0}
 .branch-pick legend{padding:0 4px}
-.branch-boxes{display:flex;flex-wrap:wrap;gap:6px 16px;padding-left:26px}
-.branch-boxes[hidden]{display:none}
+.branch-boxes{display:flex;flex-wrap:wrap;gap:6px 16px}
 .branch-boxes .check{font-weight:600}
-.mflag.branch{border-color:var(--ember);color:var(--ember-dark)}
+.mflag.branch{border-color:var(--red);color:var(--red)}
