@@ -245,10 +245,16 @@ textarea{width:100%;resize:vertical}
 .branch-boxes .check{font-weight:600}
 .mflag.branch{border-color:var(--red);color:var(--red)}
 /* Branches tab: one card per branch (opening hours + GCash) */
-.gcash-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
-.gc-card{display:grid;gap:10px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px}
-.gc-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.gc-head h3{margin:0;font-size:17px}
+.gcash-list{display:grid;gap:8px;max-width:760px}
+.gc-card{background:var(--card);border:1.5px solid var(--line);border-radius:14px}
+.gc-card[open]{border-color:var(--char)}
+.gc-body{display:grid;gap:12px;padding:0 14px 14px}
+.gc-head{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:12px 14px;cursor:pointer;list-style:none}
+.gc-head::-webkit-details-marker{display:none}
+.gc-sum{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0;font-size:13px;color:var(--muted)}
+.gc-chev{margin-left:auto;font-size:14px;color:var(--muted);transition:transform .15s ease}
+.gc-card[open] .gc-chev{transform:rotate(180deg)}
+.gc-head h3{margin:0;font-size:16px;min-width:96px}
 .gc-state{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1.5px solid var(--grey);color:var(--grey)}
 .gc-state.own{border-color:var(--green);color:var(--green)}
 .gc-qr{display:flex;gap:12px;align-items:center}

@@ -1153,13 +1153,24 @@ function hoursForm(b){
       </div>
     </form>`;
 }
+// one collapsible row per branch: the summary shows hours, prep time and GCash status; tap to open its settings.
+// Rows the owner opened stay open when the list redraws (e.g. after saving).
+const branchOpen = new Set();
+function branchSummary(b){
+  const h = hoursRows[b], g = gcashRows[b];
+  const opens = h ? h.opens : HOURS_DEFAULT.opens, closes = h ? h.closes : HOURS_DEFAULT.closes;
+  const prep = h ? h.prep_minutes : HOURS_DEFAULT.prepMinutes;
+  return `<span class="gc-sum-line">${esc(time12(opens))} – ${esc(time12(closes))} · ${esc(String(prep))} min prep${h ? "" : " (default)"}</span>`
+    + `<span class="gc-state${g ? " own" : ""}">${g ? "Own GCash" : "Default GCash"}</span>`;
+}
 function renderGcash(){
   // branches customers can order from (the website's config.js), plus any that already have settings saved
   const branches = [...new Set([...(SITE_BRANCHES.length ? SITE_BRANCHES : CONFIG.branches), ...Object.keys(gcashRows), ...Object.keys(hoursRows)])];
   $("#gcashList").innerHTML = branches.map(b => {
     const r = gcashRows[b];
-    return `<div class="gc-card" data-branch="${esc(b)}">
-      <div class="gc-head"><h3>${esc(b)}</h3></div>
+    return `<details class="gc-card" data-branch="${esc(b)}"${branchOpen.has(b) ? " open" : ""}>
+      <summary class="gc-head"><h3>${esc(b)}</h3><span class="gc-sum">${branchSummary(b)}</span><span class="gc-chev" aria-hidden="true">▾</span></summary>
+      <div class="gc-body">
       ${hoursForm(b)}
       <form class="gc-form" novalidate>
         <div class="gc-sub"><b>GCash account</b><span class="gc-state${r ? " own" : ""}">${r ? "Own account" : "Uses default account"}</span></div>
@@ -1179,11 +1190,16 @@ function renderGcash(){
           <span class="gc-msg" role="status"></span>
         </div>
       </form>
-    </div>`;
+      </div>
+    </details>`;
   }).join("") || `<div class="empty">No branches yet. Add them in the website's config.js.</div>`;
 }
 const formMsg = (b, cls, text) => { const c = gcashCard(b), m = c && c.querySelector(`.${cls} .gc-msg`); if(m) m.textContent = text; };
 $("#gcashRefresh").onclick = loadGcash;
+$("#gcashList").addEventListener("toggle", e => {   // remember which branches are open
+  const d = e.target.closest && e.target.closest(".gc-card"); if(!d) return;
+  d.open ? branchOpen.add(d.dataset.branch) : branchOpen.delete(d.dataset.branch);
+}, true);
 $("#gcashList").addEventListener("change", async e => {
   const input = e.target.closest("[data-gc-file]"); if(!input) return;
   const form = input.closest(".gc-form"), b = input.closest(".gc-card").dataset.branch, msg = form.querySelector(".gc-msg");
