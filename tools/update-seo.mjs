@@ -183,7 +183,7 @@ const md = [
   "## Ordering",
   `- Order online: ${SITE_URL}/#menu — add dishes, choose Delivery or Pick-Up, pick a branch, date and time.`,
   "- Time slots: every 30 minutes during each branch's opening hours (usually 11:00 AM to 8:00 PM), today or a later date, at least about 45 minutes from now.",
-  "- Payment: Cash on delivery / cash on pick-up, or GCash. The delivery fee is confirmed separately.",
+  "- Payment: GCash for delivery; GCash or cash on pick-up. The delivery fee is confirmed separately.",
   `- Phone: ${STORE.phone} · Email: ${STORE.email} · Facebook: ${STORE.facebook}`, "",
   "## Branches",
   ...BRANCHES.map(b => `- ${b.name}${place(b) ? ` — ${place(b)}` : ""}${b.address ? ` — ${b.address}` : ""}${b.hours ? ` — ${b.hours}` : ""}${isFinite(b.lat) ? ` — map: https://www.google.com/maps/search/?api=1&query=${b.lat},${b.lng}` : ""}`), "",

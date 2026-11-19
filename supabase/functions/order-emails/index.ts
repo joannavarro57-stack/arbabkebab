@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
       id: "test", ref: "AK-TEST01", order_no: 0, status: "new", mode: "Delivery", branch: "Malolos",
       customer_name: "Arbab Kebab Test", customer_phone: "09170000000", customer_email: inbox,
       address: "Sample address, Malolos", delivery_lat: 14.8433, delivery_lng: 120.8114,
-      order_date: new Date().toISOString().slice(0, 10), preferred_time: "6:00 PM", payment: "Cash on Delivery",
+      order_date: new Date().toISOString().slice(0, 10), preferred_time: "6:00 PM", payment: "Cash",
       notes: "This is a test email from the order system.", items: [{ name: "Chicken Shawarma Wrap", opts: ["Spicy"], qty: 2, unit: 129 }],
       subtotal: 258, delivery_fee: 0, total: 258, payment_status: "unpaid", deleted_at: null,
       email_placed_sent_at: null, email_completed_sent_at: null,

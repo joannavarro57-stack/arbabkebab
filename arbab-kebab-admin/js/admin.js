@@ -500,8 +500,10 @@ function updateOrderEditorTotal(){
 }
 function refreshEditorPayment(selected=""){
   const mode = $("#editMode").value;
+  // no cash on delivery: delivery orders are paid by GCash. An older order that was already
+  // "Cash on Delivery" keeps that choice so it can still be edited.
   const allowed = mode === "Delivery"
-    ? [["Cash on Delivery","Cash on Delivery"],["GCash","GCash"]]
+    ? [["GCash","GCash"], ...(selected === "Cash on Delivery" ? [["Cash on Delivery","Cash on Delivery (older order)"]] : [])]
     : [["Cash","Cash"],["GCash","GCash"]];
   $("#editPayment").innerHTML = allowed.map(([value,label]) =>
     `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`
@@ -1118,6 +1120,19 @@ function gcashQrBox(b){
   const url = pending === "remove" ? "" : pending ? pending.url : r && r.qr_url;
   return url ? `<img src="${esc(url)}" alt="${esc(b)} GCash QR">` : `No QR<br>${r || pending ? "customers see the number only" : "uses default"}`;
 }
+// dropdowns: every 30 minutes through the day ("11:00" shown as "11:00 AM"), and common preparation times;
+// a saved value that isn't in the list is kept as an extra option so it never changes by accident
+function timeSelect(name, value){
+  const times = Array.from({length: 48}, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+  if(value && !times.includes(value)) times.push(value), times.sort();
+  return `<select name="${name}" required>${times.map(t => `<option value="${t}"${t === value ? " selected" : ""}>${time12(t)}</option>`).join("")}</select>`;
+}
+function prepSelect(value){
+  const mins = [0, 15, 20, 30, 45, 60, 75, 90, 120, 150, 180, 240];
+  const v = Number(value);
+  if(Number.isInteger(v) && !mins.includes(v)) mins.push(v), mins.sort((a, b) => a - b);
+  return `<select name="prep" required>${mins.map(m => `<option value="${m}"${m === v ? " selected" : ""}>${m ? m + " min" : "None"}</option>`).join("")}</select>`;
+}
 function hoursForm(b){
   if(hoursError) return `<div class="hr-form"><p class="hint">Opening hours can't be loaded (${esc(hoursError)}). Run the latest supabase/setup.sql in Supabase.</p></div>`;
   const r = hoursRows[b];
@@ -1126,9 +1141,9 @@ function hoursForm(b){
   return `<form class="hr-form" novalidate>
       <div class="gc-sub"><b>Opening hours</b><span class="gc-state${r ? " own" : ""}">${r ? "Own hours" : "Default hours"}</span></div>
       <div class="hr-grid">
-        <label class="edit-field">Opens<input name="opens" type="time" step="1800" value="${esc(opens)}" required></label>
-        <label class="edit-field">Closes<input name="closes" type="time" step="1800" value="${esc(closes)}" required></label>
-        <label class="edit-field">Preparation (min)<input name="prep" type="number" min="0" max="240" step="5" value="${esc(String(prep))}" required></label>
+        <label class="edit-field">Opens${timeSelect("opens", opens)}</label>
+        <label class="edit-field">Closes${timeSelect("closes", closes)}</label>
+        <label class="edit-field">Prep time${prepSelect(prep)}</label>
       </div>
       <span class="hint">Customers choose a delivery / pick-up time every 30 minutes from opening to closing. Today, the soonest time is the preparation time from now.</span>
       <div class="gc-foot">

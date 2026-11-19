@@ -5,7 +5,7 @@
 ## Ordering
 - Order online: https://arbabkebab.vercel.app/#menu — add dishes, choose Delivery or Pick-Up, pick a branch, date and time.
 - Time slots: every 30 minutes during each branch's opening hours (usually 11:00 AM to 8:00 PM), today or a later date, at least about 45 minutes from now.
-- Payment: Cash on delivery / cash on pick-up, or GCash. The delivery fee is confirmed separately.
+- Payment: GCash for delivery; GCash or cash on pick-up. The delivery fee is confirmed separately.
 - Phone: +639700910888 · Email: arabiya.official@gmail.com · Facebook: https://www.facebook.com/ArbabKebabOfficial
 
 ## Branches
@@ -79,7 +79,7 @@ Yes — we offer delivery and contactless delivery, plus pick-up. We'll confirm 
 Add dishes to your cart, enter your details, and tap “Place Order.” For GCash, you'll go to the payment page to pay and submit your reference number.
 
 **How can I pay?**
-Pay by GCash using the link after placing your order, or choose cash on delivery or pickup. Delivery fees are settled separately from GCash food payments.
+Delivery orders are paid by GCash using the link after placing your order. For pick-up, pay by GCash or in cash at the branch. Delivery fees are settled separately from GCash food payments.
 
 **Where are your branches?**
 We have 7 branches: Makati, Pasig, Diliman (Quezon City), Fairview (Quezon City), Marikina, C6 Banaba (San Mateo, Rizal) and Malolos (Bulacan). When you pin your delivery location, the order form picks the nearest branch for you.

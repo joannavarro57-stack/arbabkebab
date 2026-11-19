@@ -7,8 +7,8 @@ const STORE = {
   email: "arabiya.official@gmail.com",
   facebook: "https://www.facebook.com/ArbabKebabOfficial",
   branches: [{name: "Malolos", lat: 14.8433, lng: 120.8114}],   // real list lives in config.js
-  payments: {
-    Delivery: ["Cash on Delivery", "GCash"],
+  payments: {   // payment choices per order type (no cash on delivery)
+    Delivery: ["GCash"],
     "Pick-Up": ["Cash", "GCash"]
   },
   currency: "₱",

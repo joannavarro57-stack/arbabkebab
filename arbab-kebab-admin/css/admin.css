@@ -260,5 +260,5 @@ textarea{width:100%;resize:vertical}
 .hr-form,.gc-form{display:grid;gap:10px}
 .gc-form{border-top:1.5px dashed var(--line);padding-top:12px}
 .gc-sub{display:flex;align-items:center;gap:8px;font-size:14px}
-.hr-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-@media(max-width:420px){.hr-grid{grid-template-columns:1fr 1fr}}
+.hr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}
+.hr-grid select{width:100%;min-width:0}

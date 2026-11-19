@@ -236,6 +236,11 @@ begin
      or (v_mode = 'Pick-Up' and v_payment = 'Cash on Delivery') then
     raise exception 'invalid payment method for order type';
   end if;
+  -- cash on delivery is no longer offered; only an order that already had it can keep it
+  if v_payment = 'Cash on Delivery' and (p_order_id is null or not exists (
+       select 1 from public.orders where id = p_order_id and payment = 'Cash on Delivery')) then
+    raise exception 'Cash on Delivery is no longer offered. Delivery orders are paid by GCash.';
+  end if;
   if coalesce(p_order ->> 'order_date', '') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
     raise exception 'invalid order date';
   end if;
@@ -393,7 +398,10 @@ begin
   -- basic validation
   if v_ref is null or v_ref !~ '^AK-[A-Z0-9]{6}$' then raise exception 'invalid ref'; end if;
   if v_mode not in ('Delivery','Pick-Up') then raise exception 'invalid mode'; end if;
-  if v_pay is null or v_pay not in ('Cash on Delivery','Cash','GCash') then raise exception 'invalid payment method'; end if;
+  if v_pay is null or v_pay not in ('Cash','GCash') then raise exception 'invalid payment method'; end if;
+  if v_mode = 'Delivery' and v_pay <> 'GCash' then
+    raise exception 'Delivery orders are paid by GCash. Please choose GCash, or switch to Pick-Up to pay in cash.';
+  end if;
   if coalesce(p ->> 'order_date', '') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'invalid order date'; end if;
   v_order_date := (p ->> 'order_date')::date;
   if length(v_branch) not between 1 and 60 then raise exception 'invalid branch'; end if;
