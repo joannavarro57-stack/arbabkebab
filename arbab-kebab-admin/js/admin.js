@@ -1065,16 +1065,25 @@ $("#menuDelete").onclick = async () => {
   if(await patchMenuItem(m.id, {archived: true}, `${m.name} deleted from the menu`)) closeMenuEditor();
 };
 
-/* ================= GCASH PER BRANCH =================
-   Owners set each branch's GCash account (table branch_gcash). The payment page shows the account of the
-   order's branch; a branch without one uses the default account in the website's config.js. */
+/* ================= BRANCHES: opening hours + GCash (owners only) =================
+   Each branch card has two parts, saved separately:
+   • Opening hours (table branch_hours): the first and last delivery / pick-up time customers can choose
+     (every 30 minutes) and the minimum preparation time. No row = orderHours in the website's config.js.
+   • GCash account (table branch_gcash): the payment page shows the account of the order's branch.
+     No row = the default account in the website's config.js. */
 const GCASH_DEFAULT = (window.SITE_CONFIG && window.SITE_CONFIG.gcash) || {};
+const HOURS_DEFAULT = Object.assign({opens: "11:00", closes: "20:00", prepMinutes: 45}, (window.SITE_CONFIG && window.SITE_CONFIG.orderHours) || {});
 // QR codes must stay crisp to scan: high quality, never shrunk below 300 px
 const QR_PHOTO = {maxSide: 1200, minSide: 300, quality: 0.95, minQuality: 0.85, maxBytes: 700 * 1024, hardLimit: 1024 * 1024, what: "QR code"};
-let gcashRows = {};
+let gcashRows = {}, hoursRows = {}, hoursError = "";
 const gcashQr = {};   // branch → {file:{blob,ext}, url} picked but not saved yet, or "remove"
 const gcashSlug = b => b.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "branch";
 const gcashCard = b => document.querySelector(`.gc-card[data-branch="${CSS.escape(b)}"]`);
+const hhmm = t => String(t || "").slice(0, 5);   // "11:00:00" → "11:00"
+function time12(t){
+  const [h, m] = hhmm(t).split(":").map(Number);
+  return Number.isFinite(h) ? `${h % 12 || 12}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}` : "—";
+}
 
 // which account a branch's GCash orders are paid to (its own, or the default)
 function gcashPayTo(branch){
@@ -1087,15 +1096,19 @@ async function loadGcashRows(){
   gcashRows = Object.fromEntries((data || []).map(r => [r.branch, r]));
   if(selId) renderDetail();
 }
-async function loadGcash(){
+async function loadGcash(){   // the Branches tab
   if(!isOwner){ $("#gcashList").innerHTML = ""; return; }   // owners only
-  $("#gcashHint").innerHTML = `Customers paying by GCash see the account of the branch they ordered from. A branch without its own account uses the default: <b>${esc(GCASH_DEFAULT.accountName || "—")}</b> · ${esc(GCASH_DEFAULT.number || "—")} (set in the website's config.js).`;
-  const { data, error } = await sb.from("branch_gcash").select("*");
-  if(error){
-    $("#gcashList").innerHTML = `<div class="empty">Couldn't load GCash accounts: ${esc(error.message)}<br>Run the latest supabase/setup.sql in Supabase first.</div>`;
+  $("#gcashHint").innerHTML = `Set each branch's opening hours and GCash account. Branches without their own use the defaults from the website's config.js: `
+    + `open <b>${esc(time12(HOURS_DEFAULT.opens))} – ${esc(time12(HOURS_DEFAULT.closes))}</b>, ${esc(String(HOURS_DEFAULT.prepMinutes))} min preparation; `
+    + `GCash <b>${esc(GCASH_DEFAULT.accountName || "—")}</b> · ${esc(GCASH_DEFAULT.number || "—")}.`;
+  const [g, h] = await Promise.all([sb.from("branch_gcash").select("*"), sb.from("branch_hours").select("*")]);
+  if(g.error){
+    $("#gcashList").innerHTML = `<div class="empty">Couldn't load branch settings: ${esc(g.error.message)}<br>Run the latest supabase/setup.sql in Supabase first.</div>`;
     return;
   }
-  gcashRows = Object.fromEntries((data || []).map(r => [r.branch, r]));
+  gcashRows = Object.fromEntries((g.data || []).map(r => [r.branch, r]));
+  hoursError = h.error ? h.error.message : "";
+  hoursRows = Object.fromEntries((h.data || []).map(r => [r.branch, r]));
   Object.keys(gcashQr).forEach(k => delete gcashQr[k]);
   renderGcash();
   if(selId) renderDetail();
@@ -1105,71 +1118,124 @@ function gcashQrBox(b){
   const url = pending === "remove" ? "" : pending ? pending.url : r && r.qr_url;
   return url ? `<img src="${esc(url)}" alt="${esc(b)} GCash QR">` : `No QR<br>${r || pending ? "customers see the number only" : "uses default"}`;
 }
-function renderGcash(){
-  // branches customers can order from (the website's config.js), plus any that already have an account saved
-  const branches = [...new Set([...(SITE_BRANCHES.length ? SITE_BRANCHES : CONFIG.branches), ...Object.keys(gcashRows)])];
-  $("#gcashList").innerHTML = branches.map(b => {
-    const r = gcashRows[b];
-    return `<form class="gc-card" data-branch="${esc(b)}" novalidate>
-      <div class="gc-head"><h3>${esc(b)}</h3><span class="gc-state${r ? " own" : ""}">${r ? "Own account" : "Uses default account"}</span></div>
-      <label class="edit-field">Account name (as shown in GCash)<input name="name" maxlength="80" value="${esc(r ? r.account_name : "")}" placeholder="${esc(GCASH_DEFAULT.accountName || "e.g. Juan D.")}"></label>
-      <label class="edit-field">GCash number<input name="number" type="tel" inputmode="tel" maxlength="20" value="${esc(r ? r.number : "")}" placeholder="${esc(GCASH_DEFAULT.number || "09XX XXX XXXX")}"></label>
-      <div class="gc-qr">
-        <div class="qrbox">${gcashQrBox(b)}</div>
-        <div class="qrbtns">
-          <label class="btn sm">Upload QR<input type="file" accept="image/jpeg,image/png,image/webp" data-gc-file hidden></label>
-          <button type="button" class="btn sm" data-gc-noqr ${(r && r.qr_url) || (gcashQr[b] && gcashQr[b] !== "remove") ? "" : "hidden"}>Remove QR</button>
-          <span class="hint">From GCash: Profile → My QR → Download.</span>
-        </div>
+function hoursForm(b){
+  if(hoursError) return `<div class="hr-form"><p class="hint">Opening hours can't be loaded (${esc(hoursError)}). Run the latest supabase/setup.sql in Supabase.</p></div>`;
+  const r = hoursRows[b];
+  const opens = hhmm(r ? r.opens : HOURS_DEFAULT.opens), closes = hhmm(r ? r.closes : HOURS_DEFAULT.closes);
+  const prep = r ? r.prep_minutes : HOURS_DEFAULT.prepMinutes;
+  return `<form class="hr-form" novalidate>
+      <div class="gc-sub"><b>Opening hours</b><span class="gc-state${r ? " own" : ""}">${r ? "Own hours" : "Default hours"}</span></div>
+      <div class="hr-grid">
+        <label class="edit-field">Opens<input name="opens" type="time" step="1800" value="${esc(opens)}" required></label>
+        <label class="edit-field">Closes<input name="closes" type="time" step="1800" value="${esc(closes)}" required></label>
+        <label class="edit-field">Preparation (min)<input name="prep" type="number" min="0" max="240" step="5" value="${esc(String(prep))}" required></label>
       </div>
+      <span class="hint">Customers choose a delivery / pick-up time every 30 minutes from opening to closing. Today, the soonest time is the preparation time from now.</span>
       <div class="gc-foot">
-        <button type="submit" class="btn dark sm">Save</button>
-        ${r ? `<button type="button" class="btn sm" data-gc-default>Use default account</button>` : ""}
+        <button type="submit" class="btn dark sm">Save hours</button>
+        ${r ? `<button type="button" class="btn sm" data-hr-default>Use default hours</button>` : ""}
         <span class="gc-msg" role="status"></span>
       </div>
     </form>`;
+}
+function renderGcash(){
+  // branches customers can order from (the website's config.js), plus any that already have settings saved
+  const branches = [...new Set([...(SITE_BRANCHES.length ? SITE_BRANCHES : CONFIG.branches), ...Object.keys(gcashRows), ...Object.keys(hoursRows)])];
+  $("#gcashList").innerHTML = branches.map(b => {
+    const r = gcashRows[b];
+    return `<div class="gc-card" data-branch="${esc(b)}">
+      <div class="gc-head"><h3>${esc(b)}</h3></div>
+      ${hoursForm(b)}
+      <form class="gc-form" novalidate>
+        <div class="gc-sub"><b>GCash account</b><span class="gc-state${r ? " own" : ""}">${r ? "Own account" : "Uses default account"}</span></div>
+        <label class="edit-field">Account name (as shown in GCash)<input name="name" maxlength="80" value="${esc(r ? r.account_name : "")}" placeholder="${esc(GCASH_DEFAULT.accountName || "e.g. Juan D.")}"></label>
+        <label class="edit-field">GCash number<input name="number" type="tel" inputmode="tel" maxlength="20" value="${esc(r ? r.number : "")}" placeholder="${esc(GCASH_DEFAULT.number || "09XX XXX XXXX")}"></label>
+        <div class="gc-qr">
+          <div class="qrbox">${gcashQrBox(b)}</div>
+          <div class="qrbtns">
+            <label class="btn sm">Upload QR<input type="file" accept="image/jpeg,image/png,image/webp" data-gc-file hidden></label>
+            <button type="button" class="btn sm" data-gc-noqr ${(r && r.qr_url) || (gcashQr[b] && gcashQr[b] !== "remove") ? "" : "hidden"}>Remove QR</button>
+            <span class="hint">From GCash: Profile → My QR → Download.</span>
+          </div>
+        </div>
+        <div class="gc-foot">
+          <button type="submit" class="btn dark sm">Save GCash</button>
+          ${r ? `<button type="button" class="btn sm" data-gc-default>Use default account</button>` : ""}
+          <span class="gc-msg" role="status"></span>
+        </div>
+      </form>
+    </div>`;
   }).join("") || `<div class="empty">No branches yet. Add them in the website's config.js.</div>`;
 }
+const formMsg = (b, cls, text) => { const c = gcashCard(b), m = c && c.querySelector(`.${cls} .gc-msg`); if(m) m.textContent = text; };
 $("#gcashRefresh").onclick = loadGcash;
 $("#gcashList").addEventListener("change", async e => {
   const input = e.target.closest("[data-gc-file]"); if(!input) return;
-  const card = input.closest(".gc-card"), b = card.dataset.branch, msg = card.querySelector(".gc-msg");
+  const form = input.closest(".gc-form"), b = input.closest(".gc-card").dataset.branch, msg = form.querySelector(".gc-msg");
   const f = input.files[0]; if(!f) return;
   msg.textContent = "Preparing QR…";
   try{
     const r = await optimizeImage(f, QR_PHOTO);
     gcashQr[b] = {file: r, url: URL.createObjectURL(r.blob)};
-    card.querySelector(".qrbox").innerHTML = gcashQrBox(b);
-    card.querySelector("[data-gc-noqr]").hidden = false;
-    msg.textContent = `QR ready (${r.width}×${r.height} px). Click Save to use it.`;
+    form.querySelector(".qrbox").innerHTML = gcashQrBox(b);
+    form.querySelector("[data-gc-noqr]").hidden = false;
+    msg.textContent = `QR ready (${r.width}×${r.height} px). Click Save GCash to use it.`;
   }catch(err){ msg.textContent = err.message; }
   input.value = "";
 });
 $("#gcashList").addEventListener("click", async e => {
   const card = e.target.closest(".gc-card"); if(!card) return;
-  const b = card.dataset.branch, msg = card.querySelector(".gc-msg");
+  const b = card.dataset.branch;
   if(e.target.closest("[data-gc-noqr]")){
+    const form = card.querySelector(".gc-form");
     gcashQr[b] = "remove";
-    card.querySelector(".qrbox").innerHTML = gcashQrBox(b);
+    form.querySelector(".qrbox").innerHTML = gcashQrBox(b);
     e.target.closest("[data-gc-noqr]").hidden = true;
-    msg.textContent = "QR will be removed when you click Save. Customers will see the number only.";
+    form.querySelector(".gc-msg").textContent = "QR will be removed when you click Save GCash. Customers will see the number only.";
   }
   if(e.target.closest("[data-gc-default]")){
     if(!confirm(`Use the default GCash account for ${b}?\n\n${b} customers will pay ${GCASH_DEFAULT.accountName || ""} · ${GCASH_DEFAULT.number || ""}.`)) return;
     const { error } = await sb.from("branch_gcash").delete().eq("branch", b);
-    if(error) return msg.textContent = "Couldn't change it: " + error.message;
+    if(error) return formMsg(b, "gc-form", "Couldn't change it: " + error.message);
     toast(`${b} now uses the default GCash account`);
+    loadGcash();
+  }
+  if(e.target.closest("[data-hr-default]")){
+    if(!confirm(`Use the default opening hours for ${b}?\n\n${time12(HOURS_DEFAULT.opens)} – ${time12(HOURS_DEFAULT.closes)}, ${HOURS_DEFAULT.prepMinutes} min preparation.`)) return;
+    const { error } = await sb.from("branch_hours").delete().eq("branch", b);
+    if(error) return formMsg(b, "hr-form", "Couldn't change it: " + error.message);
+    toast(`${b} now uses the default opening hours`);
     loadGcash();
   }
 });
 $("#gcashList").addEventListener("submit", async e => {
   e.preventDefault();
-  const card = e.target, b = card.dataset.branch, msg = card.querySelector(".gc-msg");
-  const name = card.elements.name.value.trim(), number = card.elements.number.value.trim();
+  const form = e.target, b = form.closest(".gc-card").dataset.branch, msg = form.querySelector(".gc-msg");
+  const save = form.querySelector("[type=submit]");
+
+  if(form.classList.contains("hr-form")){   // opening hours
+    const opens = form.elements.opens.value, closes = form.elements.closes.value, prep = Number(form.elements.prep.value);
+    if(!/^\d{2}:\d{2}$/.test(opens) || !/^\d{2}:\d{2}$/.test(closes)) return msg.textContent = "Enter the opening and closing times.";
+    if(closes <= opens) return msg.textContent = "Closing time must be later than opening time (same day).";
+    if(!Number.isInteger(prep) || prep < 0 || prep > 240) return msg.textContent = "Preparation time must be 0 to 240 minutes.";
+    save.disabled = true; msg.textContent = "Saving…";
+    try{
+      const { error } = await sb.from("branch_hours").upsert({branch: b, opens, closes, prep_minutes: prep}, {onConflict: "branch"});
+      if(error) throw new Error("Couldn't save: " + error.message);
+      toast(`${b} opening hours saved`);
+      await loadGcash();
+      formMsg(b, "hr-form", `Saved. Customers can choose ${time12(opens)} – ${time12(closes)}, at least ${prep} min from now.`);
+    }catch(err){ msg.textContent = err.message; }
+    finally{ save.disabled = false; }
+    return;
+  }
+
+  // GCash account
+  const name = form.elements.name.value.trim(), number = form.elements.number.value.trim();
   if(!/^[0-9+() -]{7,20}$/.test(number) || number.replace(/\D/g, "").length < 10)
     return msg.textContent = "Enter the GCash mobile number, e.g. 0917 123 4567.";
   if(!name) return msg.textContent = "Enter the account name as it appears in GCash, so customers can check they're paying the right person.";
-  const save = card.querySelector("[type=submit]"); save.disabled = true;
+  save.disabled = true;
   try{
     let qr_url = gcashRows[b] ? gcashRows[b].qr_url : null;
     const pending = gcashQr[b];
@@ -1187,8 +1253,7 @@ $("#gcashList").addEventListener("submit", async e => {
     if(error) throw new Error("Couldn't save: " + error.message);
     toast(`${b} GCash account saved`);
     await loadGcash();
-    const after = gcashCard(b);
-    if(after) after.querySelector(".gc-msg").textContent = qr_url ? "Saved. Customers of this branch now see this QR and number." : "Saved. Customers of this branch see this number (no QR).";
+    formMsg(b, "gc-form", qr_url ? "Saved. Customers of this branch now see this QR and number." : "Saved. Customers of this branch see this number (no QR).");
   }catch(err){ msg.textContent = err.message; }
   finally{ save.disabled = false; }
 });

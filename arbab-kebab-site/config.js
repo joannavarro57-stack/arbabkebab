@@ -50,6 +50,11 @@ window.SITE_CONFIG = {
   messenger: "https://m.me/ArbabKebabOfficial",
   instagram: "",
 
+  /* Delivery / pick-up times for a branch that has no opening hours set in the admin site (Branches tab).
+     opens / closes: first and last time customers can choose (24-hour "HH:MM"); prepMinutes: the soonest a
+     customer can choose today is this many minutes from now. Times are offered every 30 minutes. */
+  orderHours: { opens: "11:00", closes: "20:00", prepMinutes: 45 },
+
   /* GCash details shown on the payment page (pay.html) */
   gcash: {
     accountName: "Jana May N.",        // as shown in GCash, e.g. "AR**B K**AB" or the owner's masked name

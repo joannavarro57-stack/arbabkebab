@@ -519,6 +519,35 @@ insert into public.branch_gcash (branch, account_name, number, qr_url) values
   ('Malolos', 'Jana May N.', '09161118041', 'https://arbabkebab.vercel.app/images/payments/gcash-qr.jpg')
 on conflict (branch) do nothing;
 
+-- ---------- opening hours per branch (admin site → Branches tab, owners only) ----------
+-- opens / closes: the first and last delivery / pick-up time customers can choose (every 30 minutes);
+-- prep_minutes: the soonest time a customer can choose today is this many minutes from now.
+-- A branch without a row uses orderHours in config.js. Customers read this table to build the time list.
+create table if not exists public.branch_hours (
+  branch       text primary key check (length(branch) between 1 and 60),
+  opens        time not null default '11:00',
+  closes       time not null default '20:00',
+  prep_minutes integer not null default 45 check (prep_minutes between 0 and 240),
+  updated_at   timestamptz not null default now(),
+  updated_by   text,
+  constraint branch_hours_order check (closes > opens)
+);
+create or replace trigger branch_hours_touch before insert or update on public.branch_hours
+for each row execute function public.touch_branch_gcash();   -- same "updated_at / updated_by" stamp
+
+alter table public.branch_hours enable row level security;
+drop policy if exists "everyone reads branch hours" on public.branch_hours;
+drop policy if exists "owners add branch hours"     on public.branch_hours;
+drop policy if exists "owners edit branch hours"    on public.branch_hours;
+drop policy if exists "owners clear branch hours"   on public.branch_hours;
+create policy "everyone reads branch hours" on public.branch_hours for select to anon, authenticated using (true);
+create policy "owners add branch hours"     on public.branch_hours for insert to authenticated with check (public.is_staff_admin());
+create policy "owners edit branch hours"    on public.branch_hours for update to authenticated using (public.is_staff_admin()) with check (public.is_staff_admin());
+create policy "owners clear branch hours"   on public.branch_hours for delete to authenticated using (public.is_staff_admin());
+revoke all on public.branch_hours from anon, authenticated;
+grant select on public.branch_hours to anon, authenticated;
+grant insert, update, delete on public.branch_hours to authenticated;
+
 -- Payment pages can look up a limited set of order fields by reference only.
 create or replace function public.get_payment(p_ref text) returns jsonb
 language sql security definer set search_path = public as $$

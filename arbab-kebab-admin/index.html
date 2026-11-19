@@ -42,7 +42,7 @@
   <header class="top">
     <div class="in">
       <span class="mark">AK</span>
-      <nav class="views" aria-label="Admin sections"><button type="button" class="on" data-view="orders" aria-pressed="true">Orders</button><button type="button" data-view="menu" aria-pressed="false" id="menuTab">Menu</button><button type="button" data-view="gcash" aria-pressed="false" id="gcashTab" hidden>GCash</button></nav>
+      <nav class="views" aria-label="Admin sections"><button type="button" class="on" data-view="orders" aria-pressed="true">Orders</button><button type="button" data-view="menu" aria-pressed="false" id="menuTab">Menu</button><button type="button" data-view="gcash" aria-pressed="false" id="gcashTab" hidden>Branches</button></nav>
       <span class="live" id="live" title="Live updates"><i></i><span id="liveTxt">connecting</span></span>
       <span class="sp"></span>
       <span class="who" id="who"></span>
@@ -101,12 +101,12 @@
 
   <div class="wrap" id="gcashView" hidden>
     <div class="toolbar">
-      <strong style="font-size:18px">GCash account per branch</strong>
+      <strong style="font-size:18px">Branch settings</strong>
       <span class="sp" style="flex:1"></span>
       <button class="btn" id="gcashRefresh" title="Reload">↻ Refresh</button>
     </div>
     <p class="hint" id="gcashHint" style="margin:0 0 12px"></p>
-    <div class="gcash-list" id="gcashList"><div class="empty">Loading GCash accounts…</div></div>
+    <div class="gcash-list" id="gcashList"><div class="empty">Loading branch settings…</div></div>
   </div>
 
   <div class="wrap" id="usersView" hidden>

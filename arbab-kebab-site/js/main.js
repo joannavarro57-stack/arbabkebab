@@ -124,6 +124,18 @@ const savedChoice = BRANCHES.some(b => b.name === store.get(CHOICE_KEY)) ? store
 let branchChosen = BRANCHES.length === 1 || !!savedChoice;
 function markChosen(){ branchChosen = true; store.set(CHOICE_KEY, $("#branch").value); }
 const currentBranch = () => $("#branch").value;
+/* Opening hours per branch (admin → Branches tab, table branch_hours): the first and last delivery / pick-up time
+   customers can choose, and the minimum preparation time. Branches without their own use config.js orderHours. */
+const HOURS_DEFAULT = Object.assign({opens: "11:00", closes: "20:00", prepMinutes: 45}, STORE.orderHours || {});
+let branchHours = store.get("ak_hours") || {};   // branch → {opens, closes, prep_minutes}, last copy cached
+const hmToMins = t => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); return m ? +m[1] * 60 + +m[2] : null; };
+function hoursFor(branch){
+  const r = branchHours[branch], d = HOURS_DEFAULT;
+  const opens = hmToMins(r && r.opens) ?? hmToMins(d.opens) ?? 660;
+  const closes = hmToMins(r && r.closes) ?? hmToMins(d.closes) ?? 1200;
+  const prep = r && Number.isFinite(+r.prep_minutes) ? +r.prep_minutes : +d.prepMinutes || 0;
+  return {opens, closes: Math.max(closes, opens), prep};
+}
 const soldAt = (m, branch = currentBranch()) => !branchChosen || !(m.unavailable_at || []).includes(branch);
 const menuItemOf = l => MENU.find(m => m.id === l.id);
 const notSoldHere = l => { const m = menuItemOf(l); return !!m && !soldAt(m); };
@@ -151,7 +163,7 @@ function renderMenuFor(){
       <span class="mf-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg></span>
       <span class="mf-text">
         <span class="mf-line">Ordering from our <b>${esc(b.name)}</b> branch</span>
-        <span class="mf-addr">${esc(addr)}${b.hours ? ` · ${esc(b.hours)}` : ""}</span>
+        <span class="mf-addr">${esc(addr)} · Open ${formatSlot(hoursFor(b.name).opens)} – ${formatSlot(hoursFor(b.name).closes)}</span>
         <span class="mf-links"><a href="${esc(mapsLink(b))}" target="_blank" rel="noopener">View on Google Maps</a></span>
       </span>
       <a class="mf-change" href="#menu" data-change-branch>Change</a>
@@ -296,6 +308,20 @@ revealIn(document);   // the rest of the page: menu title, About, FAQ, info colu
     if(!useMenu(rows)) return;
     store.set("ak_menu", rows);
     branchChanged(); save();
+  }catch(e){}
+})();
+(async () => {   // opening hours per branch (missing table on an older database → defaults)
+  if(!STORE.supabaseUrl || !STORE.supabaseKey) return;
+  try{
+    const headers = {apikey: STORE.supabaseKey};
+    if(!STORE.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + STORE.supabaseKey;
+    const r = await fetch(STORE.supabaseUrl.replace(/\/$/,"") + "/rest/v1/branch_hours?select=branch,opens,closes,prep_minutes", {headers});
+    if(!r.ok) return;
+    const rows = await r.json();
+    branchHours = Object.fromEntries((Array.isArray(rows) ? rows : []).map(x => [x.branch, x]));
+    store.set("ak_hours", branchHours);
+    if(branchChosen) renderMenuFor();
+    syncTimeSlots();
   }catch(e){}
 })();
 $("#q").addEventListener("input", e => renderMenu(e.target.value));
@@ -552,7 +578,7 @@ let branchNote = "";
 function pickNearestBranch(p){   // set the Branch dropdown to the closest branch (without moving the map)
   const best = nearestBranch(p);
   if(!best) return (branchNote = "");
-  if($("#branch").value !== best.name){ $("#branch").value = best.name; markChosen(); rememberDetails(); branchChanged(); }
+  if($("#branch").value !== best.name){ $("#branch").value = best.name; markChosen(); rememberDetails(); branchChanged(); syncTimeSlots(); }
   return (branchNote = ` Nearest branch: ${best.name} (${best.km < 10 ? best.km.toFixed(1) : Math.round(best.km)} km).`);
 }
 
@@ -770,6 +796,7 @@ $("#branch").addEventListener("change", () => {   // show the area around the ch
   markChosen();
   rememberDetails();
   branchChanged();
+  syncTimeSlots();   // times follow the branch's opening hours
   const n = cart.filter(notSoldHere).length;
   if(n) toast(`${n === 1 ? "1 item" : n + " items"} in your order ${n === 1 ? "isn't" : "aren't"} available at ${currentBranch()}`);
   if(pinMap){ const h = mapHome(); pinMap.setView(h.lat, h.lng, h.zoom); }
@@ -812,13 +839,20 @@ function syncOrderNote(){
 document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("change", ()=>{ syncMode(); syncOrderNote(); }));
 $("#pay").addEventListener("change", syncOrderNote);
 syncMode(); syncOrderNote();
-const ORDER_HOURS = Array.from({length:10}, (_, i) => i + 11);
+/* delivery / pick-up times: every 30 minutes within the chosen branch's opening hours (hoursFor), as minutes after
+   midnight; today, times sooner than the branch's preparation time are disabled */
+const SLOT_STEP = 30;
+function orderSlots(h){
+  const first = Math.ceil(h.opens / SLOT_STEP) * SLOT_STEP, out = [];
+  for(let m = first; m <= h.closes; m += SLOT_STEP) out.push(m);
+  return out;
+}
 function localDateString(date){
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
 }
-function formatOrderHour(hour){
-  const displayHour = hour % 12 || 12;
-  return `${displayHour}:00 ${hour < 12 ? "AM" : "PM"}`;
+function formatSlot(mins){
+  const hour = Math.floor(mins / 60), displayHour = hour % 12 || 12;
+  return `${displayHour}:${String(mins % 60).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
 }
 $("#orderDate").value = localDateString(new Date());
 function syncTimeSlots(){
@@ -830,18 +864,21 @@ function syncTimeSlots(){
   dateInput.min = today;
   if(!dateInput.value || dateInput.value < today) dateInput.value = today;
   const isToday = dateInput.value === today;
-  const currentHour = isToday ? now.getHours() : 0;
-  select.innerHTML = `<option value="">Choose a time</option>` + ORDER_HOURS.map(hour => {
-    const label = formatOrderHour(hour);
-    const disabled = isToday && hour <= currentHour;
+  const h = hoursFor(currentBranch()), slots = orderSlots(h);
+  // today: the soonest time is now + preparation time (and never a time that has passed)
+  const soonest = isToday ? now.getHours() * 60 + now.getMinutes() + Math.max(h.prep, 1) : -1;
+  select.innerHTML = `<option value="">Choose a time</option>` + slots.map(mins => {
+    const label = formatSlot(mins);
+    const disabled = isToday && mins < soonest;
     return `<option value="${label}"${disabled ? " disabled" : ""}>${label}</option>`;
   }).join("");
   if(previous && !Array.from(select.options).find(option => option.value === previous)?.disabled){
     select.value = previous;
   }
-  const available = !isToday || ORDER_HOURS.some(hour => hour > currentHour);
+  const available = !isToday || slots.some(mins => mins >= soonest);
+  const where = branchChosen ? ` at our ${currentBranch()} branch` : "";
   $("#timeAvailability").textContent = available
-    ? `Choose an available hourly slot between 11:00 AM and 8:00 PM${isToday ? ". Past times are disabled." : "."}`
+    ? `Choose a time (every 30 minutes) between ${formatSlot(h.opens)} and ${formatSlot(h.closes)}${where}.${isToday && h.prep ? ` We need about ${h.prep} minutes to prepare your order, so earlier times today are unavailable.` : ""}`
     : "No time slots remain today. Choose a future date to see its available times.";
 }
 syncTimeSlots();

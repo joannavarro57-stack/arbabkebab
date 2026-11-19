@@ -85,7 +85,7 @@ keep one after confirming, for special arrangements. Needs the latest `supabase/
 
 ## GCash account per branch
 
-Each branch can receive GCash payments in its own account. Owners set them in the admin site → **GCash** tab:
+Each branch can receive GCash payments in its own account. Owners set them in the admin site → **Branches** tab:
 account name, GCash number, and the QR (from GCash: Profile → My QR → Download). The payment page shows the
 account of the branch the order was placed at; staff see it under **Payment** in the order details.
 
@@ -93,3 +93,11 @@ account of the branch the order was placed at; staff see it under **Payment** in
 - A branch with its own number but no QR shows the number only — never the default QR, so nobody pays the wrong account.
 - **Use default account** removes a branch's own account.
 - Needs the latest `supabase/setup.sql` (table `branch_gcash`; safe to rerun). QR images are stored in the `menu-images` bucket under `gcash-qr/`.
+
+## Opening hours and preparation time per branch
+
+In the admin site → **Branches** tab, each branch has **Opens**, **Closes** and **Preparation (min)**. Customers choose a
+delivery / pick-up time every 30 minutes from opening to closing time of the branch they picked; for today, times sooner
+than the preparation time from now are greyed out. The branch's hours also show in the branch bar above the menu.
+A branch without its own hours uses `orderHours` in `config.js` (11:00 AM – 8:00 PM, 45 min). **Use default hours**
+removes a branch's own hours. Needs the latest `supabase/setup.sql` (table `branch_hours`; safe to rerun).
