@@ -455,6 +455,12 @@ begin
     raise exception 'Some items in your order are not available at the % branch. Please remove them or choose another branch.', v_branch;
   end if;
 
+  -- only open branches take orders (a removed branch may still be in an old copy of the page)
+  if to_regclass('public.branches') is not null and exists (select 1 from public.branches)
+     and not exists (select 1 from public.branches where name = v_branch and active) then
+    raise exception 'Our % branch is not taking orders. Please choose another branch.', v_branch;
+  end if;
+
   -- simple flood protection: max 5 new orders per phone number per 10 minutes
   if (select count(*) from public.orders
       where customer_phone = v_phone and created_at > now() - interval '10 minutes'
@@ -555,6 +561,72 @@ create policy "owners clear branch hours"   on public.branch_hours for delete to
 revoke all on public.branch_hours from anon, authenticated;
 grant select on public.branch_hours to anon, authenticated;
 grant insert, update, delete on public.branch_hours to authenticated;
+
+-- ---------- branches (admin site → Branches tab, owners only) ----------
+-- The website and admin read the branch list from here (config.js is only the fallback). "Remove" sets
+-- active = false: the branch disappears for customers but its orders and settings are kept and it can be restored.
+create table if not exists public.branches (
+  name       text primary key check (length(name) between 1 and 60),
+  city       text not null default '' check (length(city) <= 60),
+  region     text not null default '' check (length(region) <= 60),
+  address    text not null default '' check (length(address) <= 200),
+  lat        numeric(9,6) check (lat is null or lat between 4 and 22),        -- shop location (Philippines)
+  lng        numeric(9,6) check (lng is null or lng between 116 and 127),
+  sort       integer not null default 0,
+  active     boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+create or replace trigger branches_touch before insert or update on public.branches
+for each row execute function public.touch_branch_gcash();   -- same "updated_at / updated_by" stamp
+
+alter table public.branches enable row level security;
+drop policy if exists "everyone reads open branches" on public.branches;
+drop policy if exists "staff read all branches"      on public.branches;
+drop policy if exists "owners add branches"          on public.branches;
+drop policy if exists "owners edit branches"         on public.branches;
+create policy "everyone reads open branches" on public.branches for select to anon using (active);
+create policy "staff read all branches"      on public.branches for select to authenticated using (active or public.is_staff());
+create policy "owners add branches"          on public.branches for insert to authenticated with check (public.is_staff_admin());
+create policy "owners edit branches"         on public.branches for update to authenticated using (public.is_staff_admin()) with check (public.is_staff_admin());
+revoke all on public.branches from anon, authenticated;
+grant select on public.branches to anon, authenticated;
+grant insert, update on public.branches to authenticated;
+
+-- the branches that were in config.js; added only if missing, so admin edits are never overwritten
+insert into public.branches (name, city, region, lat, lng, sort) values
+  ('Malolos',   'Malolos',     'Bulacan',      14.847192, 120.834883, 10),
+  ('C6 Banaba', 'San Mateo',   'Rizal',        14.676850, 121.115449, 20),
+  ('Makati',    'Makati',      'Metro Manila', 14.563170, 121.013025, 30),
+  ('Fairview',  'Quezon City', 'Metro Manila', 14.711437, 121.061783, 40),
+  ('Pasig',     'Pasig',       'Metro Manila', 14.554164, 121.096787, 50),
+  ('Diliman',   'Quezon City', 'Metro Manila', 14.631155, 121.038916, 60),
+  ('Marikina',  'Marikina',    'Metro Manila', 14.638209, 121.108649, 70)
+on conflict (name) do nothing;
+
+-- Rename a branch everywhere its name is used, so nothing gets disconnected:
+-- its GCash account, opening hours, menu "Not available at" ticks and its past orders.
+create or replace function public.rename_branch(p_old text, p_new text) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  v_new text := trim(coalesce(p_new, ''));
+begin
+  if not public.is_staff_admin() then raise exception 'owner access required'; end if;
+  if length(v_new) not between 1 and 60 then raise exception 'Branch name must be 1 to 60 characters.'; end if;
+  if v_new = p_old then return; end if;
+  if exists (select 1 from public.branches where lower(name) = lower(v_new) and name <> p_old) then
+    raise exception 'There is already a branch called %.', v_new;
+  end if;
+  update public.branches set name = v_new where name = p_old;
+  if not found then raise exception 'Branch % not found.', p_old; end if;
+  update public.branch_gcash set branch = v_new where branch = p_old;
+  update public.branch_hours set branch = v_new where branch = p_old;
+  update public.menu_items set unavailable_at = array_replace(unavailable_at, p_old, v_new) where p_old = any(unavailable_at);
+  update public.orders set branch = v_new where branch = p_old;
+end $$;
+revoke all on function public.rename_branch(text, text) from public, anon;
+grant execute on function public.rename_branch(text, text) to authenticated;
 
 -- Payment pages can look up a limited set of order fields by reference only.
 create or replace function public.get_payment(p_ref text) returns jsonb
@@ -757,6 +829,78 @@ create policy "staff upload menu images" on storage.objects for insert to authen
   with check (bucket_id = 'menu-images' and public.is_staff_admin());
 create policy "staff update menu images" on storage.objects for update to authenticated
   using (bucket_id = 'menu-images' and public.is_staff_admin());
+
+-- ---------- website activity for the owner dashboard (admin site → Users tab) ----------
+-- visit:      one per visitor per day (a random ID stored on the visitor's device; no personal details)
+-- map_search: a delivery-map search; detail = 'google' (counts toward the monthly Google limit) or 'osm' (free map);
+--             branch = the branch the customer had selected when searching
+-- map_pick:   a search result was chosen and pinned; branch = the branch the order ended up with (nearest)
+-- Customers can only add events through log_event (with limits); only owners can read them (site_stats).
+create table if not exists public.site_events (
+  id         bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  kind       text not null check (kind in ('visit','map_search','map_pick')),
+  visitor    text not null check (visitor ~ '^[a-z0-9]{8,32}$'),
+  branch     text check (branch is null or length(branch) <= 60),
+  detail     text check (detail is null or length(detail) <= 20)
+);
+create index if not exists site_events_kind_time_idx on public.site_events (kind, created_at);
+create index if not exists site_events_visitor_idx   on public.site_events (visitor, kind, created_at);
+alter table public.site_events enable row level security;
+revoke all on public.site_events from anon, authenticated;
+
+create or replace function public.log_event(p_kind text, p_visitor text, p_branch text default null, p_detail text default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_today date := (now() at time zone 'Asia/Manila')::date;
+begin
+  if p_kind is null or p_kind not in ('visit','map_search','map_pick') or coalesce(p_visitor, '') !~ '^[a-z0-9]{8,32}$' then return; end if;
+  -- one visit per visitor per day
+  if p_kind = 'visit' and exists (select 1 from public.site_events where kind = 'visit' and visitor = p_visitor
+       and created_at >= (v_today::timestamp at time zone 'Asia/Manila')) then return; end if;
+  -- flood guard: at most 60 map events per visitor per hour
+  if p_kind <> 'visit' and (select count(*) from public.site_events where visitor = p_visitor and kind <> 'visit'
+       and created_at > now() - interval '1 hour') >= 60 then return; end if;
+  insert into public.site_events (kind, visitor, branch, detail)
+  values (p_kind, p_visitor, left(nullif(trim(coalesce(p_branch, '')), ''), 60), left(nullif(trim(coalesce(p_detail, '')), ''), 20));
+end $$;
+revoke all on function public.log_event(text, text, text, text) from public;
+grant execute on function public.log_event(text, text, text, text) to anon, authenticated;
+
+-- numbers for the owner dashboard (Philippine time): visitors and map searches, today / this month / last 14 days
+create or replace function public.site_stats() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_today date := (now() at time zone 'Asia/Manila')::date;
+  v_month date := date_trunc('month', now() at time zone 'Asia/Manila')::date;
+  v_from  date := least(v_month, v_today - 13);
+begin
+  if not public.is_staff_admin() then raise exception 'owner access required'; end if;
+  return (
+    with e as (
+      select kind, visitor, branch, detail, (created_at at time zone 'Asia/Manila')::date as d
+      from public.site_events
+      where created_at >= (v_from::timestamp at time zone 'Asia/Manila')
+    )
+    select jsonb_build_object(
+      'today', v_today, 'month_start', v_month,
+      'visitors_today', (select count(distinct visitor) from e where kind = 'visit' and d = v_today),
+      'visitors_month', (select count(distinct visitor) from e where kind = 'visit' and d >= v_month),
+      'visits_by_day', coalesce((select jsonb_agg(jsonb_build_object('day', g.day::date, 'n',
+                          (select count(distinct visitor) from e where kind = 'visit' and d = g.day::date)) order by g.day)
+                        from generate_series((v_today - 13)::timestamp, v_today::timestamp, interval '1 day') as g(day)), '[]'::jsonb),
+      'google_searches_today', (select count(*) from e where kind = 'map_search' and detail = 'google' and d = v_today),
+      'google_searches_month', (select count(*) from e where kind = 'map_search' and detail = 'google' and d >= v_month),
+      'free_searches_month',   (select count(*) from e where kind = 'map_search' and coalesce(detail, '') <> 'google' and d >= v_month),
+      'searches_by_branch',    coalesce((select jsonb_object_agg(coalesce(branch, '(not chosen yet)'), n) from
+                                 (select branch, count(*) as n from e where kind = 'map_search' and d >= v_month group by branch) x), '{}'::jsonb),
+      'picks_by_branch',       coalesce((select jsonb_object_agg(coalesce(branch, '(none)'), n) from
+                                 (select branch, count(*) as n from e where kind = 'map_pick' and d >= v_month group by branch) x), '{}'::jsonb)
+    )
+  );
+end $$;
+revoke all on function public.site_stats() from public, anon;
+grant execute on function public.site_stats() to authenticated;
 
 -- ---------- live updates for the admin site ----------
 do $$

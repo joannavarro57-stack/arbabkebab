@@ -94,6 +94,33 @@ const store = {
   get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
   set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
+/* ================= ACTIVITY (owner dashboard in the admin site) =================
+   One "visit" per visitor per day, each delivery-map search (with the branch selected at the time) and each
+   search result picked (with the branch the order ended up with). A random ID kept on this device tells repeat
+   visits apart; nothing personal is sent. Errors are ignored so this can never get in the way of ordering. */
+const VISITOR = (() => {
+  let v = store.get("ak_vid");
+  if(!/^[a-z0-9]{8,32}$/.test(v || "")){
+    const b = (window.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint8Array(16)) : Array.from({length: 16}, () => Math.random() * 256);
+    v = Array.from(b, x => (x % 36).toString(36)).join("");
+    store.set("ak_vid", v);
+  }
+  return v;
+})();
+function logEvent(kind, branch = "", detail = ""){
+  if(!STORE.supabaseUrl || !STORE.supabaseKey) return;
+  const headers = {"Content-Type": "application/json", apikey: STORE.supabaseKey};
+  if(!STORE.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + STORE.supabaseKey;
+  fetch(STORE.supabaseUrl.replace(/\/$/, "") + "/rest/v1/rpc/log_event", {method: "POST", headers, keepalive: true,
+    body: JSON.stringify({p_kind: kind, p_visitor: VISITOR, p_branch: branch || null, p_detail: detail || null})}).catch(() => {});
+}
+(() => {   // today's visit, once per day on this device (the database also keeps only one per day)
+  const today = new Date().toLocaleDateString("en-CA", {timeZone: "Asia/Manila"});
+  if(store.get("ak_visit_day") === today) return;
+  store.set("ak_visit_day", today);
+  logEvent("visit");
+})();
+
 let cart = store.get("ak_cart") || [];   // [{key,id,name,opts,unit,qty}]
 
 /* static bits */
@@ -102,17 +129,28 @@ $("#callHero").href = "tel:" + STORE.phone;
 $("#phoneLink").href = "tel:" + STORE.phone; $("#phoneLink").textContent = STORE.phoneDisplay;
 $("#mailLink").href = "mailto:" + STORE.email; $("#mailLink").textContent = STORE.email;
 $("#fbLink").href = STORE.facebook;
-/* branches come from config.js — each is {name, lat, lng, address, hours} (a plain name also works) */
-const BRANCHES = (STORE.branches || []).map(b => typeof b === "string" ? {name: b} : b).filter(b => b && b.name);
+/* Branches are managed in the admin site (Branches tab, table branches) and loaded below; until they arrive the
+   last copy saved on this phone is used, else the list in config.js. Each is {name, lat, lng, city, region, address}. */
+const toBranches = list => (Array.isArray(list) ? list : []).map(b => typeof b === "string" ? {name: b} : b).filter(b => b && b.name);
+const BRANCHES = toBranches(store.get("ak_branches"));
+if(!BRANCHES.length) BRANCHES.push(...toBranches(STORE.branches));
 if(!BRANCHES.length) BRANCHES.push({name: "Malolos", lat: 14.8433, lng: 120.8114});
 /* keep this markup in step with branchItem() in tools/update-seo.mjs (it pre-renders the same list for search engines) */
 const branchPlace = b => [b.city && b.city !== b.name ? b.city : "", b.region].filter(Boolean).join(", ");
-$("#branchList").innerHTML = BRANCHES.map(b => `<li>${esc(b.name)} branch`
-    + (branchPlace(b) ? ` <span class="note" style="color:#c9bba6">· ${esc(branchPlace(b))}</span>` : "")
-    + (b.address ? `<br><span class="note" style="color:#c9bba6">${esc(b.address)}</span>` : "")
-    + (b.hours ? `<br><span class="note" style="color:#c9bba6">${esc(b.hours)}</span>` : "") + `</li>`).join("")
-  + (BRANCHES.some(b => b.hours) ? "" : `<li class="note" style="color:#c9bba6">Message us for today's hours.</li>`);
-$("#branch").innerHTML = BRANCHES.map(b => `<option>${esc(b.name)}</option>`).join("");
+function renderBranchLists(){   // footer list, checkout Branch field, gate dropdown, hero badge
+  $("#branchList").innerHTML = BRANCHES.map(b => `<li>${esc(b.name)} branch`
+      + (branchPlace(b) ? ` <span class="note" style="color:#c9bba6">· ${esc(branchPlace(b))}</span>` : "")
+      + (b.address ? `<br><span class="note" style="color:#c9bba6">${esc(b.address)}</span>` : "")
+      + (b.hours ? `<br><span class="note" style="color:#c9bba6">${esc(b.hours)}</span>` : "") + `</li>`).join("")
+    + (BRANCHES.some(b => b.hours) ? "" : `<li class="note" style="color:#c9bba6">Message us for today's hours.</li>`);
+  const keep = $("#branch").value;
+  $("#branch").innerHTML = BRANCHES.map(b => `<option>${esc(b.name)}</option>`).join("");
+  if(BRANCHES.some(b => b.name === keep)) $("#branch").value = keep;
+  $("#gatePick").innerHTML = `<option value="">Select a branch…</option>`
+    + BRANCHES.map(b => `<option value="${esc(b.name)}">${esc(b.name)}${b.city && b.city !== b.name ? ` · ${esc(b.city)}` : ""}</option>`).join("");
+  $("#branchBadge").textContent = BRANCHES.length > 1 ? `${BRANCHES.length} branches` : BRANCHES[0].name;
+}
+renderBranchLists();
 /* ================= BRANCH PICKER =================
    Customers choose a branch (the gate card over the locked menu) before ordering. Some branches can't supply some
    items (admin → Menu → Not available at): those are hidden from that branch's menu, and the cart and
@@ -139,8 +177,6 @@ function hoursFor(branch){
 const soldAt = (m, branch = currentBranch()) => !branchChosen || !(m.unavailable_at || []).includes(branch);
 const menuItemOf = l => MENU.find(m => m.id === l.id);
 const notSoldHere = l => { const m = menuItemOf(l); return !!m && !soldAt(m); };
-$("#gatePick").innerHTML = `<option value="">Select a branch…</option>`
-  + BRANCHES.map(b => `<option value="${esc(b.name)}">${esc(b.name)}${b.city && b.city !== b.name ? ` · ${esc(b.city)}` : ""}</option>`).join("");
 function showGate(open){   // open = lock the menu behind the gate card
   $("#menu").classList.toggle("locked", open);
   $("#menuGate").hidden = !open;
@@ -206,7 +242,6 @@ $("#menuFor").addEventListener("click", e => {
 });
 $("#branchChip").addEventListener("click", openBranchChange);
 $("#gateKeep").addEventListener("click", () => showGate(false));
-$("#branchBadge").textContent = BRANCHES.length > 1 ? `${BRANCHES.length} branches` : BRANCHES[0].name;
 
 /* ================= SCROLL REVEALS =================
    Sections, headings and cards ease in as they scroll into view (styles under "motion" in css/main.css).
@@ -308,6 +343,30 @@ revealIn(document);   // the rest of the page: menu title, About, FAQ, info colu
     if(!useMenu(rows)) return;
     store.set("ak_menu", rows);
     branchChanged(); save();
+  }catch(e){}
+})();
+(async () => {   // branch list from the database (missing table on an older database → keep config.js)
+  if(!STORE.supabaseUrl || !STORE.supabaseKey) return;
+  try{
+    const headers = {apikey: STORE.supabaseKey};
+    if(!STORE.supabaseKey.startsWith("sb_")) headers.Authorization = "Bearer " + STORE.supabaseKey;
+    const r = await fetch(STORE.supabaseUrl.replace(/\/$/,"") + "/rest/v1/branches?select=name,city,region,address,lat,lng&order=sort.asc,name.asc", {headers});
+    if(!r.ok) return;
+    const rows = toBranches((await r.json() || []).map(b => ({name: b.name, city: b.city || "", region: b.region || "", address: b.address || "",
+      ...(b.lat !== null && b.lng !== null ? {lat: +b.lat, lng: +b.lng} : {})})));
+    if(!rows.length) return;
+    store.set("ak_branches", rows);
+    BRANCHES.splice(0, BRANCHES.length, ...rows);
+    renderBranchLists();
+    // the branch this customer picked was removed: ask them to choose again
+    if(branchChosen && BRANCHES.length > 1 && !BRANCHES.some(b => b.name === store.get(CHOICE_KEY))){
+      branchChosen = false; store.set(CHOICE_KEY, "");
+    }
+    else if(!branchChosen && BRANCHES.some(b => b.name === store.get(CHOICE_KEY))){   // picked a branch that's new on this phone
+      $("#branch").value = store.get(CHOICE_KEY); branchChosen = true;
+    }
+    if(BRANCHES.length === 1 && !branchChosen){ branchChosen = true; }
+    branchChanged(); syncTimeSlots();
   }catch(e){}
 })();
 (async () => {   // opening hours per branch (missing table on an older database → defaults)
@@ -575,12 +634,40 @@ function nearestBranch(p){
   return best;
 }
 let branchNote = "";
+let keepBranch = false;   // the customer chose to keep their branch even though another one is nearer
 function pickNearestBranch(p){   // set the Branch dropdown to the closest branch (without moving the map)
   const best = nearestBranch(p);
   if(!best) return (branchNote = "");
-  if($("#branch").value !== best.name){ $("#branch").value = best.name; markChosen(); rememberDetails(); branchChanged(); syncTimeSlots(); }
-  return (branchNote = ` Nearest branch: ${best.name} (${best.km < 10 ? best.km.toFixed(1) : Math.round(best.km)} km).`);
+  const km = best.km < 10 ? best.km.toFixed(1) : Math.round(best.km);
+  if($("#branch").value !== best.name && !keepBranch){
+    const prev = $("#branch").value, prevTime = $("#tm").value, prevHours = hoursFor(prev);
+    $("#branch").value = best.name; markChosen(); rememberDetails(); branchChanged(); syncTimeSlots();
+    branchSwitchNotice(prev, best.name, km, prevTime, prevHours);
+  }
+  return (branchNote = ` Nearest branch: ${best.name} (${km} km).`);
 }
+/* tell the customer what changed when their pin moved the order to another branch:
+   items that branch can't supply, and different delivery times (or a chosen time that's no longer available) */
+function branchSwitchNotice(prev, now, km, prevTime, prevHours){
+  const h = hoursFor(now), lines = [];
+  const missing = [...new Set(cart.filter(notSoldHere).map(l => l.name))];
+  if(missing.length) lines.push(`<p class="bn-warn">Not available at ${esc(now)}: ${missing.map(esc).join(", ")}. Remove ${missing.length > 1 ? "them" : "it"} from your order, or keep ${esc(prev)}.</p>`);
+  if(prevTime && !$("#tm").value) lines.push(`<p class="bn-warn">Your chosen time (${esc(prevTime)}) isn't available at ${esc(now)}. Please choose another time.</p>`);
+  if(h.opens !== prevHours.opens || h.closes !== prevHours.closes || h.prep !== prevHours.prep)
+    lines.push(`<p>Delivery times at ${esc(now)}: ${formatSlot(h.opens)} – ${formatSlot(h.closes)}${h.prep ? `, about ${h.prep} min to prepare` : ""}.</p>`);
+  const box = $("#branchNotice");
+  box.innerHTML = `<b>📍 Your order moved to our ${esc(now)} branch</b> — it's the nearest to your pin (${km} km), so it can deliver to you.`
+    + lines.join("") + (prev ? `<button type="button" id="keepBranchBtn">Keep ${esc(prev)} instead</button>` : "");
+  box.hidden = false;
+  box.dataset.prev = prev;
+  toast(`Moved to our ${now} branch (nearest to you)` + (missing.length ? ` · ${missing.length} item${missing.length > 1 ? "s" : ""} not available` : ""));
+}
+$("#branchNotice").addEventListener("click", e => {
+  if(!e.target.closest("#keepBranchBtn")) return;
+  keepBranch = true;   // don't switch again when the pin is moved
+  $("#branch").value = $("#branchNotice").dataset.prev;
+  $("#branch").dispatchEvent(new Event("change"));
+});
 
 function setPin(lat, lng, fromUser){
   pin = {lat: +lat.toFixed(6), lng: +lng.toFixed(6)};
@@ -768,6 +855,7 @@ async function searchPlace(){
     const m = await initPinMap();
     if(!m) throw new Error("map unavailable");
     const rows = await m.search(q, m.getCenter());
+    logEvent("map_search", branchChosen ? currentBranch() : "", m.provider === "google" ? "google" : "osm");   // google = counts toward the monthly limit
     if(seq !== searchSeq) return;
     list.innerHTML = rows.length ? rows.map((x, i) =>
       `<li><button type="button" data-i="${i}"><b>${esc(x.title)}</b>${esc(x.sub)}</button></li>`).join("")
@@ -782,6 +870,7 @@ async function searchPlace(){
         const pos = x.resolve ? await x.resolve() : {lat: x.lat, lng: x.lng};
         m.setView(pos.lat, pos.lng, 18);
         setPin(pos.lat, pos.lng, true);
+        logEvent("map_pick", currentBranch(), m.provider === "google" ? "google" : "osm");   // the branch after the pin (nearest)
         setPinStatus("✓ Pin placed near your search." + branchNote + " Drag it to your exact gate or door.", true);
       }catch(e){ setPinStatus("We couldn't open that place — try another result or tap the map."); }
     });
@@ -793,13 +882,14 @@ async function searchPlace(){
 }
 $("#pinSearchBtn").onclick = searchPlace;
 $("#branch").addEventListener("change", () => {   // show the area around the chosen branch
+  $("#branchNotice").hidden = true;   // the customer picked the branch themselves
   markChosen();
   rememberDetails();
   branchChanged();
   syncTimeSlots();   // times follow the branch's opening hours
   const n = cart.filter(notSoldHere).length;
   if(n) toast(`${n === 1 ? "1 item" : n + " items"} in your order ${n === 1 ? "isn't" : "aren't"} available at ${currentBranch()}`);
-  if(pinMap){ const h = mapHome(); pinMap.setView(h.lat, h.lng, h.zoom); }
+  if(pinMap && !pin){ const h = mapHome(); pinMap.setView(h.lat, h.lng, h.zoom); }   // once pinned, keep the map on the pin
 });
 $("#pinSearch").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); searchPlace(); } else if(e.key === "Escape"){ e.stopPropagation(); hideResults(); } });
 $("#pinSearch").addEventListener("input", () => { if(!$("#pinSearch").value.trim()) hideResults(); });

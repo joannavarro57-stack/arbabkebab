@@ -55,15 +55,25 @@ Every photo is optimized in the browser before it's uploaded and saved in the da
 - **GCash screenshots (payment page):** same clean-up, max 2000 px so reference numbers stay readable.
   If a phone can't optimize, a valid original under 5 MB is still sent, so payments are never blocked.
 
-## Adding a branch
+## Adding, editing and removing branches
 
-1. Open `arbab-kebab-site/config.js` and find `branches`.
-2. Copy the Malolos line, paste it underneath, and change the `name`, map location (`lat`, `lng`), `city` / `region`, and optional `address` / `hours`.
-   To get `lat`, `lng`: in Google Maps, right-click the shop and click the two numbers to copy them.
-3. Run `node tools/update-seo.mjs`, then commit. The order form, branch list, delivery map, order messages and payment page all use the new branch,
-   and the admin site picks it up automatically (it reads the website's `config.js`).
+Owners manage branches in the admin site → **Branches** tab (needs the latest `supabase/setup.sql`, table `branches`):
 
-Don't rename a branch after it has orders — the name is saved with each order.
+- **＋ Add branch** — name, city, province / region, optional street address, and the map location
+  (in Google Maps, right-click the shop and click the two numbers to copy them, then paste). The location places the
+  branch's pin and lets the order form pick the nearest branch for a delivery pin. New branches use the default opening
+  hours and GCash account until you set their own.
+- **Branch details** (open a branch's row) — edit any of the above. **Renaming** also renames the branch on its GCash
+  account, opening hours, menu "Not available at" ticks and past orders, so nothing gets disconnected.
+- **Remove branch** — customers no longer see it or can order from it; its orders and settings are kept, and it can be
+  restored from the **Removed branches** list.
+
+The website and admin read the list from the database; `branches` in `config.js` is only the fallback (used before the
+table exists). After changing branches, run `node tools/update-seo.mjs` and commit so search engines get the new list.
+
+When a customer pins a delivery location, the order moves to the nearest branch. If that changes the branch, a notice
+under the checkout Branch field says so, lists any items that branch can't supply, and warns if the delivery times
+differ or the chosen time isn't available there; the customer can keep their original branch instead.
 
 ## Choosing a branch, and items a branch can't supply
 
@@ -101,3 +111,14 @@ delivery / pick-up time every 30 minutes from opening to closing time of the bra
 than the preparation time from now are greyed out. The branch's hours also show in the branch bar above the menu.
 A branch without its own hours uses `orderHours` in `config.js` (11:00 AM – 8:00 PM, 45 min). **Use default hours**
 removes a branch's own hours. Needs the latest `supabase/setup.sql` (table `branch_hours`; safe to rerun).
+
+## Owner dashboard (admin site → Users tab)
+
+Owners see **Today at a glance** above the user list: today's orders (completed / in progress / cancelled, sales,
+orders by branch), website visitors (today, this month, last 14 days) and **Google map searches this month** against
+the 10,000 monthly limit (amber at 80%, red at 95%), plus map searches by branch — the branch selected when the customer
+searched, and the branch the order moved to after they picked a result.
+
+The website records one visit per visitor per day (a random ID on the device; nothing personal), each delivery-map search
+and each search result picked, in the `site_events` table through `log_event` (with a per-visitor limit). Only owners can
+read the numbers (`site_stats`). Counting starts once the latest `supabase/setup.sql` has been run.

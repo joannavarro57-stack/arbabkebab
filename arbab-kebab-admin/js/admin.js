@@ -11,6 +11,7 @@ const CONFIG = {
 // Branches added in the website's config.js (loaded in <head>) show up here automatically.
 const SITE_BRANCHES = ((window.SITE_CONFIG && window.SITE_CONFIG.branches) || [])
   .map(b => typeof b === "string" ? b : b && b.name).filter(Boolean);
+const ADMIN_EXTRA_BRANCHES = CONFIG.branches.slice();   // older names kept for filtering past orders
 CONFIG.branches = [...new Set([...SITE_BRANCHES, ...CONFIG.branches])];
 /* Branches that can't supply a menu item (Menu → Edit → Not available at). Empty = every branch sells it. */
 const unavailableAt = m => Array.isArray(m && m.unavailable_at) ? m.unavailable_at.filter(Boolean) : [];
@@ -125,7 +126,7 @@ async function enterApp(session){
   if(error || !me){ await sb.auth.signOut(); return showLogin("This account isn't on the staff list. Ask the owner to add your email."); }
   $("#who").textContent = me.name ? `${me.name} · ${email}` : email;
   $("#loginView").hidden = true; $("#appView").hidden = false;
-  $("#branchF").innerHTML = `<option value="">All branches</option>` + CONFIG.branches.map(b=>`<option>${esc(b)}</option>`).join("");
+  fillBranchFilter();
   const sb_ = ls.get("ak_branch"); if(sb_ !== null) $("#branchF").value = sb_;
   setSoundBtn();
   // only owners edit the menu (the database enforces this too)
@@ -134,6 +135,7 @@ async function enterApp(session){
   showView(v === "users" || ((v === "menu" || v === "gcash") && isOwner) ? v : "orders");
   loadMenu();
   loadGcashRows();   // so GCash orders show which account they were paid to
+  loadBranchRows();  // the live branch list (Branches tab), replacing the one from config.js
   await load();
   subscribe();
   clearInterval(pollTimer); pollTimer = setInterval(load, 60000);   // safety net if live updates drop
@@ -919,8 +921,7 @@ $("#menuCatF").innerHTML = `<option value="">All categories</option>` + MENU_CAT
 $("#mCat").innerHTML = MENU_CATS.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
 $("#menuQ").addEventListener("input", renderMenuList);
 $("#menuCatF").addEventListener("change", renderMenuList);
-$("#menuBranchF").innerHTML = `<option value="">All branches</option><option value="__limited">Not available somewhere</option>`
-  + CONFIG.branches.map(b => `<option value="${esc(b)}">Available at ${esc(b)}</option>`).join("");
+fillMenuBranchFilter();
 $("#menuBranchF").addEventListener("change", renderMenuList);
 $("#menuShowDeleted").addEventListener("change", renderMenuList);
 $("#menuRefresh").onclick = loadMenu;
@@ -1103,7 +1104,7 @@ async function loadGcash(){   // the Branches tab
   $("#gcashHint").innerHTML = `Set each branch's opening hours and GCash account. Branches without their own use the defaults from the website's config.js: `
     + `open <b>${esc(time12(HOURS_DEFAULT.opens))} – ${esc(time12(HOURS_DEFAULT.closes))}</b>, ${esc(String(HOURS_DEFAULT.prepMinutes))} min preparation; `
     + `GCash <b>${esc(GCASH_DEFAULT.accountName || "—")}</b> · ${esc(GCASH_DEFAULT.number || "—")}.`;
-  const [g, h] = await Promise.all([sb.from("branch_gcash").select("*"), sb.from("branch_hours").select("*")]);
+  const [g, h] = await Promise.all([sb.from("branch_gcash").select("*"), sb.from("branch_hours").select("*"), loadBranchRows()]);
   if(g.error){
     $("#gcashList").innerHTML = `<div class="empty">Couldn't load branch settings: ${esc(g.error.message)}<br>Run the latest supabase/setup.sql in Supabase first.</div>`;
     return;
@@ -1153,24 +1154,141 @@ function hoursForm(b){
       </div>
     </form>`;
 }
+/* ---------- add / edit / remove branches (table branches) ----------
+   The website and this admin read the branch list from the database; config.js is only the fallback.
+   Renaming goes through rename_branch, which also renames the branch on its GCash account, opening hours,
+   menu "Not available at" ticks and past orders. Remove = hidden from customers, history kept, can be restored. */
+let branchRows = null, branchRowsError = "";
+function fillBranchFilter(){
+  const keep = $("#branchF").value;
+  $("#branchF").innerHTML = `<option value="">All branches</option>` + CONFIG.branches.map(b => `<option>${esc(b)}</option>`).join("");
+  if(CONFIG.branches.includes(keep)) $("#branchF").value = keep;
+}
+function fillMenuBranchFilter(){
+  const keep = $("#menuBranchF").value;
+  $("#menuBranchF").innerHTML = `<option value="">All branches</option><option value="__limited">Not available somewhere</option>`
+    + SITE_BRANCHES.map(b => `<option value="${esc(b)}">Available at ${esc(b)}</option>`).join("");
+  if([...$("#menuBranchF").options].some(o => o.value === keep)) $("#menuBranchF").value = keep;
+}
+async function loadBranchRows(){
+  const { data, error } = await sb.from("branches").select("*");
+  if(error){ branchRowsError = error.message; branchRows = null; return; }   // table not created yet: keep config.js
+  branchRowsError = "";
+  branchRows = (data || []).sort((a, b) => (a.sort - b.sort) || a.name.localeCompare(b.name));
+  if(!branchRows.length){ branchRows = null; return; }
+  const open = branchRows.filter(r => r.active).map(r => r.name), removed = branchRows.filter(r => !r.active).map(r => r.name);
+  SITE_BRANCHES.splice(0, SITE_BRANCHES.length, ...open);
+  CONFIG.branches = [...new Set([...open, ...ADMIN_EXTRA_BRANCHES, ...removed])];
+  fillBranchFilter(); fillMenuBranchFilter();
+}
+const locText = r => r && r.lat !== null && r.lat !== undefined && r.lng !== null && r.lng !== undefined ? `${Number(r.lat)}, ${Number(r.lng)}` : "";
+function parseLoc(text){   // "14.8472, 120.8349" (as copied from Google Maps) → {lat, lng}; empty → nulls
+  const t = String(text || "").trim();
+  if(!t) return {lat: null, lng: null};
+  const m = t.match(/^(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)$/);
+  if(!m) throw new Error("Map location should be two numbers like 14.8472, 120.8349 (right-click the shop in Google Maps and click the numbers to copy them).");
+  const lat = +(+m[1]).toFixed(6), lng = +(+m[2]).toFixed(6);
+  if(lat < 4 || lat > 22 || lng < 116 || lng > 127) throw new Error("That map location isn't in the Philippines. Copy it again from Google Maps.");
+  return {lat, lng};
+}
+function branchFields(r){
+  return `<div class="hr-grid">
+      <label class="edit-field">Branch name<input name="bname" maxlength="60" value="${esc(r ? r.name : "")}" placeholder="e.g. Cubao" required></label>
+      <label class="edit-field">City<input name="city" maxlength="60" value="${esc(r ? r.city : "")}" placeholder="e.g. Quezon City"></label>
+      <label class="edit-field">Province / region<input name="region" maxlength="60" value="${esc(r ? r.region : "")}" placeholder="e.g. Metro Manila"></label>
+      <label class="edit-field">Map location<input name="loc" inputmode="decimal" value="${esc(locText(r))}" placeholder="14.8472, 120.8349"></label>
+      <label class="edit-field wide">Street address (optional)<input name="address" maxlength="200" value="${esc(r ? r.address : "")}" placeholder="Street, Barangay"></label>
+    </div>
+    <span class="hint">Map location: in Google Maps, right-click the shop and click the two numbers at the top to copy them, then paste here. It places the branch's pin and helps pick the nearest branch for deliveries.</span>`;
+}
+function detailsForm(b){
+  if(!branchRows) return `<p class="hint bd-form">Branch details can't be edited yet${branchRowsError ? ` (${esc(branchRowsError)})` : ""}. Run the latest supabase/setup.sql in Supabase.</p>`;
+  const r = branchRows.find(x => x.name === b);
+  return `<form class="bd-form" novalidate>
+      <div class="gc-sub"><b>Branch details</b></div>
+      ${branchFields(r)}
+      <div class="gc-foot">
+        <button type="submit" class="btn dark sm">Save details</button>
+        <button type="button" class="btn sm danger" data-br-remove>Remove branch</button>
+        <span class="gc-msg" role="status"></span>
+      </div>
+    </form>`;
+}
+function renderRemovedBranches(){
+  const removed = branchRows ? branchRows.filter(r => !r.active) : [];
+  $("#removedBranches").innerHTML = removed.length ? `<div class="removed-branches"><h3>Removed branches (hidden from customers; past orders are kept)</h3>`
+    + removed.map(r => `<div class="removed-row" data-branch="${esc(r.name)}"><span>${esc(r.name)}${r.city ? ` · ${esc(r.city)}` : ""}</span><button type="button" class="btn sm" data-br-restore>Restore</button></div>`).join("")
+    + `</div>` : "";
+}
+function readBranchForm(form){
+  const name = form.elements.bname.value.trim();
+  if(!name) throw new Error("Enter the branch name.");
+  if(name.length > 60) throw new Error("Branch name must be 60 characters or fewer.");
+  return {name, city: form.elements.city.value.trim(), region: form.elements.region.value.trim(),
+    address: form.elements.address.value.trim(), ...parseLoc(form.elements.loc.value)};
+}
+$("#addBranch").onclick = () => {
+  if(!branchRows){ toast("Run the latest supabase/setup.sql in Supabase first."); return; }
+  const box = $("#addBranchBox");
+  box.innerHTML = `<form class="add-branch" id="addBranchForm" novalidate>
+      <h3>Add a branch</h3>
+      ${branchFields(null)}
+      <span class="hint">New branches use the default opening hours and GCash account until you set their own below.</span>
+      <div class="gc-foot"><button type="submit" class="btn dark sm">Add branch</button><button type="button" class="btn sm" id="addBranchCancel">Cancel</button><span class="gc-msg" role="status"></span></div>
+    </form>`;
+  box.hidden = false;
+  $("#addBranchForm").elements.bname.focus();
+};
+$("#addBranchBox").addEventListener("click", e => { if(e.target.closest("#addBranchCancel")){ $("#addBranchBox").hidden = true; $("#addBranchBox").innerHTML = ""; } });
+$("#addBranchBox").addEventListener("submit", async e => {
+  e.preventDefault();
+  const form = e.target, msg = form.querySelector(".gc-msg"), btn = form.querySelector("[type=submit]");
+  let row;
+  try{ row = readBranchForm(form); }catch(err){ return msg.textContent = err.message; }
+  if(branchRows.some(r => r.name.toLowerCase() === row.name.toLowerCase()))
+    return msg.textContent = `There is already a branch called ${row.name}${branchRows.find(r => r.name.toLowerCase() === row.name.toLowerCase()).active ? "" : " (removed — restore it below)"}.`;
+  btn.disabled = true; msg.textContent = "Adding…";
+  const sort = branchRows.reduce((m, r) => Math.max(m, r.sort || 0), 0) + 10;
+  const { error } = await sb.from("branches").insert({...row, sort, active: true});
+  btn.disabled = false;
+  if(error) return msg.textContent = "Couldn't add it: " + error.message;
+  $("#addBranchBox").hidden = true; $("#addBranchBox").innerHTML = "";
+  branchOpen.add(row.name);
+  toast(`${row.name} branch added — customers can now choose it`);
+  await loadGcash();
+});
+$("#removedBranches").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-br-restore]"); if(!btn) return;
+  const b = btn.closest(".removed-row").dataset.branch;
+  const { error } = await sb.from("branches").update({active: true}).eq("name", b);
+  if(error) return toast("Couldn't restore it: " + error.message);
+  toast(`${b} branch restored`);
+  await loadGcash();
+});
+
 // one collapsible row per branch: the summary shows hours, prep time and GCash status; tap to open its settings.
 // Rows the owner opened stay open when the list redraws (e.g. after saving).
 const branchOpen = new Set();
 function branchSummary(b){
-  const h = hoursRows[b], g = gcashRows[b];
+  const h = hoursRows[b], g = gcashRows[b], d = branchRows && branchRows.find(r => r.name === b);
+  const place = d ? [d.city, d.region].filter(Boolean).join(", ") : "";
   const opens = h ? h.opens : HOURS_DEFAULT.opens, closes = h ? h.closes : HOURS_DEFAULT.closes;
   const prep = h ? h.prep_minutes : HOURS_DEFAULT.prepMinutes;
-  return `<span class="gc-sum-line">${esc(time12(opens))} – ${esc(time12(closes))} · ${esc(String(prep))} min prep${h ? "" : " (default)"}</span>`
+  return (place ? `<span class="gc-sum-line">${esc(place)}</span>` : "")
+    + `<span class="gc-sum-line">${esc(time12(opens))} – ${esc(time12(closes))} · ${esc(String(prep))} min prep${h ? "" : " (default)"}</span>`
     + `<span class="gc-state${g ? " own" : ""}">${g ? "Own GCash" : "Default GCash"}</span>`;
 }
 function renderGcash(){
   // branches customers can order from (the website's config.js), plus any that already have settings saved
-  const branches = [...new Set([...(SITE_BRANCHES.length ? SITE_BRANCHES : CONFIG.branches), ...Object.keys(gcashRows), ...Object.keys(hoursRows)])];
+  // open branches from the branches table (or config.js before it exists); removed ones are listed underneath
+  const branches = branchRows ? branchRows.filter(r => r.active).map(r => r.name) : [...SITE_BRANCHES];
+  renderRemovedBranches();
   $("#gcashList").innerHTML = branches.map(b => {
     const r = gcashRows[b];
     return `<details class="gc-card" data-branch="${esc(b)}"${branchOpen.has(b) ? " open" : ""}>
       <summary class="gc-head"><h3>${esc(b)}</h3><span class="gc-sum">${branchSummary(b)}</span><span class="gc-chev" aria-hidden="true">▾</span></summary>
       <div class="gc-body">
+      ${detailsForm(b)}
       ${hoursForm(b)}
       <form class="gc-form" novalidate>
         <div class="gc-sub"><b>GCash account</b><span class="gc-state${r ? " own" : ""}">${r ? "Own account" : "Uses default account"}</span></div>
@@ -1231,6 +1349,16 @@ $("#gcashList").addEventListener("click", async e => {
     toast(`${b} now uses the default GCash account`);
     loadGcash();
   }
+  if(e.target.closest("[data-br-remove]")){
+    if(branchRows && branchRows.filter(r => r.active).length <= 1) return formMsg(b, "bd-form", "Keep at least one branch open.");
+    if(!confirm(`Remove the ${b} branch?\n\nCustomers won't see it or be able to order from it. Its past orders and settings are kept, and you can restore it later.`)) return;
+    const { error } = await sb.from("branches").update({active: false}).eq("name", b);
+    if(error) return formMsg(b, "bd-form", "Couldn't remove it: " + error.message);
+    branchOpen.delete(b);
+    toast(`${b} branch removed`);
+    await loadGcash();
+    return;
+  }
   if(e.target.closest("[data-hr-default]")){
     if(!confirm(`Use the default opening hours for ${b}?\n\n${time12(HOURS_DEFAULT.opens)} – ${time12(HOURS_DEFAULT.closes)}, ${HOURS_DEFAULT.prepMinutes} min preparation.`)) return;
     const { error } = await sb.from("branch_hours").delete().eq("branch", b);
@@ -1243,6 +1371,30 @@ $("#gcashList").addEventListener("submit", async e => {
   e.preventDefault();
   const form = e.target, b = form.closest(".gc-card").dataset.branch, msg = form.querySelector(".gc-msg");
   const save = form.querySelector("[type=submit]");
+
+  if(form.classList.contains("bd-form")){   // branch details (and rename)
+    let row;
+    try{ row = readBranchForm(form); }catch(err){ return msg.textContent = err.message; }
+    if(row.name !== b && branchRows.some(r => r.name.toLowerCase() === row.name.toLowerCase() && r.name !== b))
+      return msg.textContent = `There is already a branch called ${row.name}.`;
+    if(row.name !== b && !confirm(`Rename ${b} to ${row.name}?\n\nIts GCash account, opening hours, menu availability and past orders move to the new name.`)) return;
+    save.disabled = true; msg.textContent = "Saving…";
+    try{
+      if(row.name !== b){
+        const rn = await sb.rpc("rename_branch", {p_old: b, p_new: row.name});
+        if(rn.error) throw new Error("Couldn't rename: " + rn.error.message);
+        if(branchOpen.delete(b)) branchOpen.add(row.name);
+      }
+      const { error } = await sb.from("branches").update({city: row.city, region: row.region, address: row.address, lat: row.lat, lng: row.lng}).eq("name", row.name);
+      if(error) throw new Error("Couldn't save: " + error.message);
+      toast(row.name !== b ? `${b} renamed to ${row.name}` : `${b} details saved`);
+      await loadGcash();
+      if(row.name !== b){ await load(); loadMenu(); }   // orders and menu ticks use the new name
+      formMsg(row.name, "bd-form", "Saved.");
+    }catch(err){ msg.textContent = err.message; }
+    finally{ save.disabled = false; }
+    return;
+  }
 
   if(form.classList.contains("hr-form")){   // opening hours
     const opens = form.elements.opens.value, closes = form.elements.closes.value, prep = Number(form.elements.prep.value);
@@ -1289,6 +1441,83 @@ $("#gcashList").addEventListener("submit", async e => {
   finally{ save.disabled = false; }
 });
 
+/* ================= OWNER DASHBOARD (Users tab) =================
+   Today's orders come from the orders table; visitors and map searches from the website's activity log
+   (table site_events, read through site_stats — owners only). Google bills map searches per request, and the
+   free allowance is GOOGLE_SEARCH_LIMIT a month, so the tile turns amber at 80% and red at 95%. */
+const GOOGLE_SEARCH_LIMIT = 10000;
+async function loadDashboard(){
+  const box = $("#ownerDash");
+  if(!isOwner){ box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  if(!box.innerHTML) box.innerHTML = `<div class="empty">Loading dashboard…</div>`;
+  const [o, st] = await Promise.all([
+    sb.from("orders").select("id,branch,status,payment,payment_status,total,deleted_at,created_at").gte("created_at", startOfLocalDay(0).toISOString()),
+    sb.rpc("site_stats")
+  ]);
+  renderDashboard(o.error ? null : (o.data || []).filter(x => !x.deleted_at), st.error ? null : st.data, st.error && st.error.message);
+}
+function renderDashboard(todays, st, statsError){
+  const n = x => Number(x || 0).toLocaleString("en-PH");
+  const tile = (k, v, s = "", cls = "", extra = "") => `<div class="tile ${cls}"><span class="k">${k}</span><span class="v">${v}</span>${s ? `<span class="s">${s}</span>` : ""}${extra}</div>`;
+  let html = `<div class="dash-head"><h2>Today at a glance</h2><span class="hint">${esc(new Intl.DateTimeFormat("en-PH", {timeZone: CONFIG.timeZone, weekday: "long", month: "long", day: "numeric"}).format(new Date()))} · Philippine time</span></div>`;
+
+  // --- orders today ---
+  const tiles = [];
+  if(todays){
+    const awaiting = todays.filter(isPendingGcash);
+    const real = todays.filter(x => !isPendingGcash(x));
+    const done = real.filter(x => x.status === "completed").length, cancelled = real.filter(x => x.status === "cancelled").length;
+    const active = real.filter(x => OPEN.includes(x.status)).length;
+    const sales = real.filter(x => x.status !== "cancelled").reduce((sum, x) => sum + Number(x.total || 0), 0);
+    tiles.push(tile("Orders today", n(real.length), `${n(done)} completed · ${n(active)} in progress · ${n(cancelled)} cancelled`));
+    tiles.push(tile("Sales today", esc(peso(sales)), `not counting cancelled${awaiting.length ? ` · ${n(awaiting.length)} awaiting GCash payment` : ""}`));
+  } else tiles.push(tile("Orders today", "—", "Couldn't load today's orders."));
+
+  // --- visitors and map searches ---
+  if(st){
+    tiles.push(tile("Website visitors", n(st.visitors_today), `today · ${n(st.visitors_month)} this month`));
+    const used = Number(st.google_searches_month || 0), pct = Math.min(100, used / GOOGLE_SEARCH_LIMIT * 100);
+    const cls = pct >= 95 ? "bad" : pct >= 80 ? "warn" : "";
+    tiles.push(tile("Google map searches this month", `${n(used)} <small style="font-size:14px;color:var(--muted);font-weight:700">/ ${n(GOOGLE_SEARCH_LIMIT)}</small>`,
+      `${n(st.google_searches_today)} today · ${n(Math.max(0, GOOGLE_SEARCH_LIMIT - used))} left${pct >= 80 ? " — close to the monthly limit" : ""}`,
+      cls, `<div class="meter" role="meter" aria-valuemin="0" aria-valuemax="${GOOGLE_SEARCH_LIMIT}" aria-valuenow="${used}" aria-label="Google map searches used this month"><i style="width:${pct.toFixed(1)}%"></i></div>`));
+  } else tiles.push(tile("Visitors & map searches", "—", statsError ? `Not counting yet — run the latest supabase/setup.sql in Supabase.` : "Couldn't load."));
+  html += `<div class="dash-tiles">${tiles.join("")}</div>`;
+
+  const panels = [];
+  // --- orders by branch today ---
+  if(todays && todays.length){
+    const real = todays.filter(x => !isPendingGcash(x) && x.status !== "cancelled");
+    const by = {}; real.forEach(x => by[x.branch] = (by[x.branch] || 0) + 1);
+    const rows = Object.entries(by).sort((a, b) => b[1] - a[1]), max = Math.max(1, ...rows.map(r => r[1]));
+    panels.push(`<div class="panel"><h3>Orders today by branch</h3>${rows.length ? `<table class="dtable"><thead><tr><th>Branch</th><th></th><th class="n">Orders</th></tr></thead><tbody>`
+      + rows.map(([b, c]) => `<tr><td>${esc(b)}</td><td class="barcell"><div class="inbar" style="width:${(c / max * 100).toFixed(0)}%"></div></td><td class="n">${n(c)}</td></tr>`).join("")
+      + `</tbody></table>` : `<p class="hint">No orders yet today (cancelled orders aren't counted).</p>`}</div>`);
+  }
+  if(st){
+    // --- visitors, last 14 days (single series: the title names it, no legend) ---
+    const days = st.visits_by_day || [], max = Math.max(1, ...days.map(d => d.n));
+    const fmtDay = d => new Date(d + "T00:00:00").toLocaleDateString("en-PH", {month: "short", day: "numeric"});
+    panels.push(`<div class="panel"><h3>Website visitors, last 14 days</h3>
+      <div class="bars" role="img" aria-label="Visitors per day: ${days.map(d => `${fmtDay(d.day)} ${d.n}`).join(", ")}">
+        ${days.map(d => `<span class="b" title="${esc(fmtDay(d.day))}: ${n(d.n)} visitor${d.n === 1 ? "" : "s"}"><i style="height:${(d.n / max * 100).toFixed(1)}%"></i></span>`).join("")}
+      </div>
+      <div class="bars-x"><span>${days.length ? esc(fmtDay(days[0].day)) : ""}</span><span>peak ${n(Math.max(0, ...days.map(d => d.n)))}</span><span>today</span></div>
+      <p class="hint">Each phone or computer counts once a day.</p></div>`);
+    // --- map searches by branch (this month) ---
+    const s = st.searches_by_branch || {}, p = st.picks_by_branch || {};
+    const names = [...new Set([...Object.keys(s), ...Object.keys(p)])].sort((a, b) => ((s[b] || 0) - (s[a] || 0)) || a.localeCompare(b));
+    const max2 = Math.max(1, ...names.map(b => s[b] || 0));
+    panels.push(`<div class="panel"><h3>Map searches by branch, this month</h3>${names.length ? `<table class="dtable"><thead><tr><th>Branch</th><th></th><th class="n" title="Branch selected when the customer searched">Searches</th><th class="n" title="Branch the order ended up with after picking a result (nearest to the pin)">Pinned to</th></tr></thead><tbody>`
+      + names.map(b => `<tr><td>${esc(b)}</td><td class="barcell"><div class="inbar" style="width:${((s[b] || 0) / max2 * 100).toFixed(0)}%"></div></td><td class="n">${n(s[b] || 0)}</td><td class="n">${n(p[b] || 0)}</td></tr>`).join("")
+      + `</tbody></table><p class="hint"><b>Searches</b>: the branch selected when the customer searched. <b>Pinned to</b>: the branch the order moved to after they picked a result (nearest to their pin).${st.free_searches_month ? ` ${n(st.free_searches_month)} searches used the free backup map and don't count toward the Google limit.` : ""}</p>`
+      : `<p class="hint">No map searches yet this month.</p>`}</div>`);
+  }
+  if(panels.length) html += `<div class="dash-panels">${panels.join("")}</div>`;
+  $("#ownerDash").innerHTML = html;
+}
+
 /* ================= USERS =================
    Staff logins are managed by the edge function staff-users (it holds the service key).
    "Remove" blocks the login; the person's orders and history stay. */
@@ -1304,6 +1533,7 @@ async function usersCall(body){
   return data;
 }
 async function loadUsers(){
+  loadDashboard();   // owners: today's orders, visitors and map searches
   try{
     const d = await usersCall({ action: "list" });
     siteUsers = d.users || []; usersIsAdmin = !!d.is_admin; usersMe = d.me || "";

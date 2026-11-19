@@ -31,7 +31,7 @@ const write = (f, s) => { fs.writeFileSync(file(f), s); console.log("updated", f
 const sandbox = { window: {} };
 vm.runInNewContext(read("config.js"), sandbox);
 const C = sandbox.window.SITE_CONFIG;
-const BRANCHES = (C.branches || []).map(b => typeof b === "string" ? { name: b } : b).filter(b => b && b.name);
+let BRANCHES = (C.branches || []).map(b => typeof b === "string" ? { name: b } : b).filter(b => b && b.name);
 const CATS = C.menuCategories;
 
 const STORE = {   // keep in step with STORE in js/main.js
@@ -50,6 +50,15 @@ if (!res.ok) { console.error("Couldn't load the menu from Supabase:", res.status
 const MENU = (await res.json()).map(r => ({ id: r.id, cat: r.cat, name: r.name, desc: r.description || "",
   price: Number(r.price) || 0, tag: r.tag || "", img: r.img || "" }));
 if (!MENU.length) { console.error("The menu came back empty — nothing changed."); process.exit(1); }
+
+// branches are managed in the admin site (Branches tab); config.js is only the fallback
+const bres = await fetch(C.supabaseUrl.replace(/\/$/, "") +
+  "/rest/v1/branches?select=name,city,region,address,lat,lng&order=sort.asc,name.asc", { headers });
+if (bres.ok) {
+  const rows = (await bres.json()).map(b => ({ name: b.name, city: b.city || "", region: b.region || "", address: b.address || "",
+    ...(b.lat !== null && b.lng !== null ? { lat: Number(b.lat), lng: Number(b.lng) } : {}) }));
+  if (rows.length) BRANCHES = rows;
+} else console.warn("Branches table not found — using the branches in config.js.");
 
 /* ---------- helpers (same output as js/main.js) ---------- */
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

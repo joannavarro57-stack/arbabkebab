@@ -124,6 +124,12 @@ header.top{position:sticky;top:0;z-index:30;background:rgba(255,248,234,.92);bac
 .mf-ico svg{width:17px;height:17px}
 .mf-change{white-space:nowrap;padding:6px 12px;border:1.5px solid var(--char);border-radius:10px;background:var(--char);color:#fff;font-size:13px;font-weight:700;text-decoration:none;transition:background .15s ease,border-color .15s ease}
 .mf-change:hover{background:var(--ember-dark);border-color:var(--ember-dark)}
+/* shown when pinning a delivery location moves the order to another branch */
+.branch-notice{margin:-2px 0 10px;padding:10px 12px;background:var(--saffron-soft);border:1.5px solid var(--saffron);border-radius:12px;font-size:13px;line-height:1.45;color:var(--char-2)}
+.branch-notice[hidden]{display:none}
+.branch-notice p{margin:4px 0 0}
+.branch-notice .bn-warn{color:#B3261E;font-weight:700}
+.branch-notice button{margin-top:8px;padding:6px 12px;border:1.5px solid var(--char);border-radius:10px;background:var(--paper);font:inherit;font-weight:700;color:var(--char);cursor:pointer}
 .line-warn{margin-top:4px;font-size:12px;font-weight:700;color:#B3261E}
 .search{position:relative;display:flex;align-items:center;justify-content:flex-end;flex:0 0 auto}
 .search input{width:0;min-width:0;padding:0;border:0;opacity:0;visibility:hidden;border-radius:999px;background:var(--paper);transition:width .2s ease,opacity .2s ease,padding .2s ease}

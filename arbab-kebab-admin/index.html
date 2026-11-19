@@ -104,9 +104,12 @@
       <strong style="font-size:18px">Branch settings</strong>
       <span class="sp" style="flex:1"></span>
       <button class="btn" id="gcashRefresh" title="Reload">↻ Refresh</button>
+      <button class="btn ember" id="addBranch" type="button">＋ Add branch</button>
     </div>
     <p class="hint" id="gcashHint" style="margin:0 0 12px"></p>
+    <div id="addBranchBox" hidden></div>
     <div class="gcash-list" id="gcashList"><div class="empty">Loading branch settings…</div></div>
+    <div id="removedBranches"></div>
   </div>
 
   <div class="wrap" id="usersView" hidden>
@@ -117,6 +120,7 @@
       <button class="btn" id="usersRefresh" title="Reload">↻ Refresh</button>
       <button class="btn ember" id="addUser" hidden>＋ Add user</button>
     </div>
+    <section class="dash" id="ownerDash" hidden aria-label="Today at a glance"></section>
     <p class="hint" id="usersHint" style="margin:0 0 12px">Everyone here can log in to this admin site and see orders. Owners can also edit the menu and add, remove and reset passwords for users.</p>
     <div class="users-list" id="usersList"><div class="empty">Loading users…</div></div>
   </div>
