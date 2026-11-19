@@ -308,3 +308,10 @@ textarea{width:100%;resize:vertical}
 .dtable td.barcell{width:38%}
 .dtable td:first-child{white-space:nowrap}
 .dtable .inbar{height:6px;border-radius:4px;background:var(--ember);opacity:.85}
+.meter.warn i{background:var(--amber)}
+.meter.bad i{background:var(--red)}
+.dtable .meter{margin:0}
+.panel.wide{grid-column:1/-1}
+.dtable.svc td:first-child{white-space:normal}
+.dtable.svc td.barcell{width:40%}
+.dtable.svc td.n{width:100px;white-space:nowrap}

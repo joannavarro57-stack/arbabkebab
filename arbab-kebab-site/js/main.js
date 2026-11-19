@@ -95,8 +95,9 @@ const store = {
   set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 /* ================= ACTIVITY (owner dashboard in the admin site) =================
-   One "visit" per visitor per day, each delivery-map search (with the branch selected at the time) and each
-   search result picked (with the branch the order ended up with). A random ID kept on this device tells repeat
+   One "visit" per visitor per day, each delivery-map search (with the branch selected at the time), each
+   search result picked (with the branch the order ended up with), and each Google map load and address lookup
+   (Google's free allowance is per service). A random ID kept on this device tells repeat
    visits apart; nothing personal is sent. Errors are ignored so this can never get in the way of ordering. */
 const VISITOR = (() => {
   let v = store.get("ak_vid");
@@ -791,6 +792,7 @@ async function googleAdapter(){
     },
     resize: () => {},
     reverse: async (lat, lng) => {
+      logEvent("geocode", "", "google");   // one Google Geocoding request (owner dashboard)
       const {results} = await geocoder.geocode({location: {lat, lng}});
       const best = (results || []).find(r => !(r.types || []).includes("plus_code"));
       return best && best.formatted_address;
@@ -833,7 +835,7 @@ async function initPinMap(){
   if(mapStarting) return mapStarting;
   mapStarting = (async () => {
     if(mapProvider === "google"){
-      try{ pinMap = await googleAdapter(); }
+      try{ pinMap = await googleAdapter(); logEvent("map_load", "", "google"); }   // one Google map load (owner dashboard)
       catch(e){ useFreeMap(e.message); }
     }
     if(!pinMap && window.L) pinMap = osmAdapter();

@@ -116,7 +116,9 @@ removes a branch's own hours. Needs the latest `supabase/setup.sql` (table `bran
 
 Owners see **Today at a glance** above the user list: today's orders (completed / in progress / cancelled, sales,
 orders by branch), website visitors (today, this month, last 14 days) and **Google map searches this month** against
-the 10,000 monthly limit (amber at 80%, red at 95%), plus map searches by branch — the branch selected when the customer
+Google's free allowance — counted per Google service (map loads, place details, autocomplete, address lookups), each
+against its own 10,000 a month, restarting at midnight US Pacific time on the 1st (3–4 PM Philippine time); amber at
+80%, red at 95% — plus map searches by branch — the branch selected when the customer
 searched, and the branch the order moved to after they picked a result.
 
 The website records one visit per visitor per day (a random ID on the device; nothing personal), each delivery-map search

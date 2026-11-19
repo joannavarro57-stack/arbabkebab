@@ -1457,6 +1457,23 @@ async function loadDashboard(){
   ]);
   renderDashboard(o.error ? null : (o.data || []).filter(x => !x.deleted_at), st.error ? null : st.data, st.error && st.error.message);
 }
+// Google services the website uses, this Google billing month. A search that ends in a picked result is billed as
+// Place Details (its suggestions are then free), so Autocomplete is only charged for searches without a pick.
+function googleServices(st){
+  const g = st && st.google; if(!g) return null;
+  const num = x => Number(x || 0);
+  return [
+    {name: "Map loads", what: "Delivery map opened (Dynamic Maps)", used: num(g.map_loads), today: num(g.map_loads_today)},
+    {name: "Place details", what: "Search result picked (Place Details Essentials)", used: num(g.picks), today: num(g.picks_today)},
+    {name: "Autocomplete", what: "Searches where no result was picked (Autocomplete Requests)",
+      used: Math.max(0, num(g.searches) - num(g.picks)), today: Math.max(0, num(g.searches_today) - num(g.picks_today))},
+    {name: "Address lookups", what: "Address filled in from the pin (Geocoding)", used: num(g.geocodes), today: num(g.geocodes_today)},
+  ];
+}
+function googleReset(st){   // e.g. "Tue, Dec 1, 4:00 PM" in Philippine time
+  const t = st && st.google && st.google.next_reset; if(!t) return "on the 1st";
+  return new Intl.DateTimeFormat("en-PH", {timeZone: CONFIG.timeZone, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"}).format(new Date(t));
+}
 function renderDashboard(todays, st, statsError){
   const n = x => Number(x || 0).toLocaleString("en-PH");
   const tile = (k, v, s = "", cls = "", extra = "") => `<div class="tile ${cls}"><span class="k">${k}</span><span class="v">${v}</span>${s ? `<span class="s">${s}</span>` : ""}${extra}</div>`;
@@ -1477,12 +1494,15 @@ function renderDashboard(todays, st, statsError){
   // --- visitors and map searches ---
   if(st){
     tiles.push(tile("Website visitors", n(st.visitors_today), `today · ${n(st.visitors_month)} this month`));
-    const used = Number(st.google_searches_month || 0), pct = Math.min(100, used / GOOGLE_SEARCH_LIMIT * 100);
-    const cls = pct >= 95 ? "bad" : pct >= 80 ? "warn" : "";
-    tiles.push(tile("Google map searches this month", `${n(used)} <small style="font-size:14px;color:var(--muted);font-weight:700">/ ${n(GOOGLE_SEARCH_LIMIT)}</small>`,
-      `${n(st.google_searches_today)} today · ${n(Math.max(0, GOOGLE_SEARCH_LIMIT - used))} left${pct >= 80 ? " — close to the monthly limit" : ""}`
-        + (st.free_searches_month ? `<br>+ ${n(st.free_searches_month)} on the free backup map (not counted)` : ""),
-      cls, `<div class="meter" role="meter" aria-valuemin="0" aria-valuemax="${GOOGLE_SEARCH_LIMIT}" aria-valuenow="${used}" aria-label="Google map searches used this month"><i style="width:${pct.toFixed(1)}%"></i></div>`));
+    // Google's free allowance is 10,000 per service per Google billing month; the tile shows the service closest to it
+    const svc = googleServices(st);
+    if(svc){
+      const top = svc.slice().sort((a, b) => b.used - a.used)[0], pct = Math.min(100, top.used / GOOGLE_SEARCH_LIMIT * 100);
+      const cls = pct >= 95 ? "bad" : pct >= 80 ? "warn" : "";
+      tiles.push(tile("Google Maps free allowance", `${pct < 1 && top.used ? "<1" : Math.round(pct)}<small style="font-size:14px;color:var(--muted);font-weight:700">% used</small>`,
+        `most used: ${esc(top.name)} (${n(top.used)} / ${n(GOOGLE_SEARCH_LIMIT)})${pct >= 80 ? " — close to the limit" : ""}<br>resets ${esc(googleReset(st))}`,
+        cls, `<div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="Most used Google Maps service, percent of the free allowance"><i style="width:${pct.toFixed(1)}%"></i></div>`));
+    }
   } else tiles.push(tile("Visitors & map searches", "—", statsError ? `Not counting yet — run the latest supabase/setup.sql in Supabase.` : "Couldn't load."));
   html += `<div class="dash-tiles">${tiles.join("")}</div>`;
 
@@ -1514,6 +1534,16 @@ function renderDashboard(todays, st, statsError){
       + names.map(b => `<tr><td>${esc(b)}</td><td class="barcell"><div class="inbar" style="width:${((s[b] || 0) / max2 * 100).toFixed(0)}%"></div></td><td class="n">${n(s[b] || 0)}</td><td class="n">${n(p[b] || 0)}</td></tr>`).join("")
       + `</tbody></table><p class="hint"><b>Searches</b>: the branch selected when the customer searched. <b>Pinned to</b>: the branch the order moved to after they picked a result (nearest to their pin).${st.free_searches_month ? ` ${n(st.free_searches_month)} ${st.free_searches_month === 1 ? "search" : "searches"} used the free backup map (shown when Google Maps doesn't load on a customer's phone) and ${st.free_searches_month === 1 ? "doesn't" : "don't"} count toward the Google limit.` : ""}</p>`
       : `<p class="hint">No map searches yet this month.</p>`}</div>`);
+  }
+  const svc = st && googleServices(st);
+  if(svc){
+    panels.unshift(`<div class="panel wide"><h3>Google Maps free allowance, this Google month</h3>
+      <table class="dtable svc"><thead><tr><th>Service</th><th></th><th class="n">Used</th><th class="n">Today</th></tr></thead><tbody>`
+      + svc.map(x => { const pct = Math.min(100, x.used / GOOGLE_SEARCH_LIMIT * 100), cls = pct >= 95 ? "bad" : pct >= 80 ? "warn" : "";
+          return `<tr title="${esc(x.what)}"><td>${esc(x.name)}<div class="hint" style="margin:0">${esc(x.what)}</div></td>
+            <td class="barcell"><div class="meter ${cls}"><i style="width:${pct.toFixed(1)}%"></i></div></td>
+            <td class="n">${n(x.used)}<div class="hint" style="margin:0">of ${n(GOOGLE_SEARCH_LIMIT)}</div></td><td class="n">${n(x.today)}</td></tr>`; }).join("")
+      + `</tbody></table><p class="hint">Each service has its own ${n(GOOGLE_SEARCH_LIMIT)} free uses a month. The count restarts ${esc(googleReset(st))} (midnight US Pacific time, Google's billing month). These are counted by the website, so they're a close guide; Google Cloud Console → Google Maps Platform → Metrics has the exact numbers.${st.free_searches_month ? ` ${n(st.free_searches_month)} ${st.free_searches_month === 1 ? "search" : "searches"} this month used the free backup map and ${st.free_searches_month === 1 ? "doesn't" : "don't"} count.` : ""}</p></div>`);
   }
   if(panels.length) html += `<div class="dash-panels">${panels.join("")}</div>`;
   $("#ownerDash").innerHTML = html;

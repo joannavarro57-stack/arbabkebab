@@ -835,15 +835,20 @@ create policy "staff update menu images" on storage.objects for update to authen
 -- map_search: a delivery-map search; detail = 'google' (counts toward the monthly Google limit) or 'osm' (free map);
 --             branch = the branch the customer had selected when searching
 -- map_pick:   a search result was chosen and pinned; branch = the branch the order ended up with (nearest)
+-- map_load:   the Google delivery map was opened (one Google "Dynamic Maps" load)
+-- geocode:    an address was looked up from the pin with Google (one Google "Geocoding" request)
 -- Customers can only add events through log_event (with limits); only owners can read them (site_stats).
 create table if not exists public.site_events (
   id         bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
-  kind       text not null check (kind in ('visit','map_search','map_pick')),
+  kind       text not null,
   visitor    text not null check (visitor ~ '^[a-z0-9]{8,32}$'),
   branch     text check (branch is null or length(branch) <= 60),
   detail     text check (detail is null or length(detail) <= 20)
 );
+alter table public.site_events drop constraint if exists site_events_kind_check;
+alter table public.site_events add constraint site_events_kind_check
+  check (kind in ('visit','map_search','map_pick','map_load','geocode'));
 create index if not exists site_events_kind_time_idx on public.site_events (kind, created_at);
 create index if not exists site_events_visitor_idx   on public.site_events (visitor, kind, created_at);
 alter table public.site_events enable row level security;
@@ -854,7 +859,7 @@ returns void language plpgsql security definer set search_path = public as $$
 declare
   v_today date := (now() at time zone 'Asia/Manila')::date;
 begin
-  if p_kind is null or p_kind not in ('visit','map_search','map_pick') or coalesce(p_visitor, '') !~ '^[a-z0-9]{8,32}$' then return; end if;
+  if p_kind is null or p_kind not in ('visit','map_search','map_pick','map_load','geocode') or coalesce(p_visitor, '') !~ '^[a-z0-9]{8,32}$' then return; end if;
   -- one visit per visitor per day
   if p_kind = 'visit' and exists (select 1 from public.site_events where kind = 'visit' and visitor = p_visitor
        and created_at >= (v_today::timestamp at time zone 'Asia/Manila')) then return; end if;
@@ -867,15 +872,35 @@ end $$;
 revoke all on function public.log_event(text, text, text, text) from public;
 grant execute on function public.log_event(text, text, text, text) to anon, authenticated;
 
--- numbers for the owner dashboard (Philippine time): visitors and map searches, today / this month / last 14 days
+-- numbers for the owner dashboard (Philippine time): visitors and map searches, today / this month / last 14 days.
+-- Google's free allowance is counted per service and per Google billing month, which starts at midnight
+-- US Pacific time on the 1st (3 or 4 PM Philippine time), not midnight in Manila.
 create or replace function public.site_stats() returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare
   v_today date := (now() at time zone 'Asia/Manila')::date;
   v_month date := date_trunc('month', now() at time zone 'Asia/Manila')::date;
   v_from  date := least(v_month, v_today - 13);
+  v_gstart timestamptz := date_trunc('month', now() at time zone 'America/Los_Angeles') at time zone 'America/Los_Angeles';
+  v_gnext  timestamptz := (date_trunc('month', now() at time zone 'America/Los_Angeles') + interval '1 month') at time zone 'America/Los_Angeles';
+  v_gday   timestamptz := (v_today::timestamp at time zone 'Asia/Manila');
+  v_google jsonb;
 begin
   if not public.is_staff_admin() then raise exception 'owner access required'; end if;
+  -- Google usage this billing month (detail = 'google' only; the free backup map costs nothing)
+  select jsonb_build_object(
+    'period_start', v_gstart, 'next_reset', v_gnext,
+    'map_loads',        count(*) filter (where kind = 'map_load'),
+    'map_loads_today',  count(*) filter (where kind = 'map_load' and created_at >= v_gday),
+    'searches',         count(*) filter (where kind = 'map_search'),
+    'searches_today',   count(*) filter (where kind = 'map_search' and created_at >= v_gday),
+    'picks',            count(*) filter (where kind = 'map_pick'),
+    'picks_today',      count(*) filter (where kind = 'map_pick' and created_at >= v_gday),
+    'geocodes',         count(*) filter (where kind = 'geocode'),
+    'geocodes_today',   count(*) filter (where kind = 'geocode' and created_at >= v_gday)
+  ) into v_google
+  from public.site_events
+  where detail = 'google' and created_at >= v_gstart and kind in ('map_load','map_search','map_pick','geocode');
   return (
     with e as (
       select kind, visitor, branch, detail, (created_at at time zone 'Asia/Manila')::date as d
@@ -883,7 +908,7 @@ begin
       where created_at >= (v_from::timestamp at time zone 'Asia/Manila')
     )
     select jsonb_build_object(
-      'today', v_today, 'month_start', v_month,
+      'today', v_today, 'month_start', v_month, 'google', v_google,
       'visitors_today', (select count(distinct visitor) from e where kind = 'visit' and d = v_today),
       'visitors_month', (select count(distinct visitor) from e where kind = 'visit' and d >= v_month),
       'visits_by_day', coalesce((select jsonb_agg(jsonb_build_object('day', g.day::date, 'n',
