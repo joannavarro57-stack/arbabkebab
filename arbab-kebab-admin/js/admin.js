@@ -1480,7 +1480,8 @@ function renderDashboard(todays, st, statsError){
     const used = Number(st.google_searches_month || 0), pct = Math.min(100, used / GOOGLE_SEARCH_LIMIT * 100);
     const cls = pct >= 95 ? "bad" : pct >= 80 ? "warn" : "";
     tiles.push(tile("Google map searches this month", `${n(used)} <small style="font-size:14px;color:var(--muted);font-weight:700">/ ${n(GOOGLE_SEARCH_LIMIT)}</small>`,
-      `${n(st.google_searches_today)} today · ${n(Math.max(0, GOOGLE_SEARCH_LIMIT - used))} left${pct >= 80 ? " — close to the monthly limit" : ""}`,
+      `${n(st.google_searches_today)} today · ${n(Math.max(0, GOOGLE_SEARCH_LIMIT - used))} left${pct >= 80 ? " — close to the monthly limit" : ""}`
+        + (st.free_searches_month ? `<br>+ ${n(st.free_searches_month)} on the free backup map (not counted)` : ""),
       cls, `<div class="meter" role="meter" aria-valuemin="0" aria-valuemax="${GOOGLE_SEARCH_LIMIT}" aria-valuenow="${used}" aria-label="Google map searches used this month"><i style="width:${pct.toFixed(1)}%"></i></div>`));
   } else tiles.push(tile("Visitors & map searches", "—", statsError ? `Not counting yet — run the latest supabase/setup.sql in Supabase.` : "Couldn't load."));
   html += `<div class="dash-tiles">${tiles.join("")}</div>`;
@@ -1511,7 +1512,7 @@ function renderDashboard(todays, st, statsError){
     const max2 = Math.max(1, ...names.map(b => s[b] || 0));
     panels.push(`<div class="panel"><h3>Map searches by branch, this month</h3>${names.length ? `<table class="dtable"><thead><tr><th>Branch</th><th></th><th class="n" title="Branch selected when the customer searched">Searches</th><th class="n" title="Branch the order ended up with after picking a result (nearest to the pin)">Pinned to</th></tr></thead><tbody>`
       + names.map(b => `<tr><td>${esc(b)}</td><td class="barcell"><div class="inbar" style="width:${((s[b] || 0) / max2 * 100).toFixed(0)}%"></div></td><td class="n">${n(s[b] || 0)}</td><td class="n">${n(p[b] || 0)}</td></tr>`).join("")
-      + `</tbody></table><p class="hint"><b>Searches</b>: the branch selected when the customer searched. <b>Pinned to</b>: the branch the order moved to after they picked a result (nearest to their pin).${st.free_searches_month ? ` ${n(st.free_searches_month)} searches used the free backup map and don't count toward the Google limit.` : ""}</p>`
+      + `</tbody></table><p class="hint"><b>Searches</b>: the branch selected when the customer searched. <b>Pinned to</b>: the branch the order moved to after they picked a result (nearest to their pin).${st.free_searches_month ? ` ${n(st.free_searches_month)} ${st.free_searches_month === 1 ? "search" : "searches"} used the free backup map (shown when Google Maps doesn't load on a customer's phone) and ${st.free_searches_month === 1 ? "doesn't" : "don't"} count toward the Google limit.` : ""}</p>`
       : `<p class="hint">No map searches yet this month.</p>`}</div>`);
   }
   if(panels.length) html += `<div class="dash-panels">${panels.join("")}</div>`;

@@ -774,7 +774,7 @@ async function googleAdapter(){
   const watch = new IntersectionObserver(entries => {
     if(!entries.some(e => e.isIntersecting)) return;
     watch.disconnect();
-    setTimeout(() => { if(!drawn && pinMap && pinMap.provider === "google") useFreeMap("Google map did not load"); }, 8000);
+    setTimeout(() => { if(!drawn && pinMap && pinMap.provider === "google") useFreeMap("Google map did not load"); }, 5000);   // 5 s, then the free map
   });
   watch.observe($("#pinMap"));
   const geocoder = new Geocoder();
